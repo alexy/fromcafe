@@ -3,17 +3,18 @@ import { prisma } from '@/lib/prisma'
 import { Metadata } from 'next'
 
 interface PostPageProps {
-  params: {
+  params: Promise<{
     slug: string
     postSlug: string
-  }
+  }>
 }
 
 export async function generateMetadata({ params }: PostPageProps): Promise<Metadata> {
+  const resolvedParams = await params
   const post = await prisma.post.findFirst({
     where: {
-      slug: params.postSlug,
-      blog: { slug: params.slug },
+      slug: resolvedParams.postSlug,
+      blog: { slug: resolvedParams.slug },
       isPublished: true,
     },
     include: { blog: true },
@@ -32,10 +33,11 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
 }
 
 export default async function PostPage({ params }: PostPageProps) {
+  const resolvedParams = await params
   const post = await prisma.post.findFirst({
     where: {
-      slug: params.postSlug,
-      blog: { slug: params.slug },
+      slug: resolvedParams.postSlug,
+      blog: { slug: resolvedParams.slug },
       isPublished: true,
     },
     include: {
