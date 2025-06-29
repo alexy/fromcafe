@@ -12,7 +12,7 @@ export const authOptions = {
     }),
   ],
   callbacks: {
-    session: async ({ session, token }: { session: any; token: any }) => {
+    session: async ({ session, token }: { session: unknown; token: unknown }) => {
       if (session?.user) {
         session.user.id = token.sub!
       }
