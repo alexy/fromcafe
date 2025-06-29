@@ -10,7 +10,7 @@ export default function Home() {
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Transform your Evernote notes into beautiful, professional blogs. 
-            Connect your notebooks, tag posts as "published", and watch your content come to life.
+            Connect your notebooks, tag posts as &quot;published&quot;, and watch your content come to life.
           </p>
         </header>
 
@@ -28,7 +28,7 @@ export default function Home() {
               <div className="text-4xl mb-4">🏷️</div>
               <h3 className="text-xl font-semibold mb-2">Tag to Publish</h3>
               <p className="text-gray-600">
-                Simply add a "published" tag to any note to make it live on your blog. Remove the tag to unpublish.
+                Simply add a &quot;published&quot; tag to any note to make it live on your blog. Remove the tag to unpublish.
               </p>
             </div>
             

@@ -21,7 +21,7 @@ export interface EvernoteNotebook {
 }
 
 export class EvernoteService {
-  private noteStore: any
+  private noteStore: Evernote.NoteStore
 
   constructor(private accessToken: string) {
     this.noteStore = client.getNoteStore(accessToken)
@@ -30,7 +30,7 @@ export class EvernoteService {
   async getNotebooks(): Promise<EvernoteNotebook[]> {
     try {
       const notebooks = await this.noteStore.listNotebooks()
-      return notebooks.map((notebook: any) => ({
+      return notebooks.map((notebook: Evernote.Notebook) => ({
         guid: notebook.guid,
         name: notebook.name,
       }))
@@ -117,7 +117,7 @@ export class EvernoteService {
 export function getEvernoteAuthUrl(): string {
   return client.getRequestToken(
     `${process.env.APP_URL}/api/evernote/callback`,
-    (error: any, oauthToken: string, oauthTokenSecret: string, results: any) => {
+    (error: Error | null, oauthToken: string, _oauthTokenSecret: string, _results: unknown) => {
       if (error) {
         console.error('Error getting request token:', error)
         throw error

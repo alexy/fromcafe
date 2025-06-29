@@ -173,7 +173,7 @@ export default function Dashboard() {
 
         {blogs.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-6 text-center">
-            <p className="text-gray-600 mb-4">You haven't created any blogs yet.</p>
+            <p className="text-gray-600 mb-4">You haven&apos;t created any blogs yet.</p>
             <button
               onClick={() => router.push('/dashboard/blogs/new')}
               className="bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700"
