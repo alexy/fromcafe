@@ -3,14 +3,15 @@ import { prisma } from '@/lib/prisma'
 import { Metadata } from 'next'
 
 interface BlogPageProps {
-  params: {
+  params: Promise<{
     slug: string
-  }
+  }>
 }
 
 export async function generateMetadata({ params }: BlogPageProps): Promise<Metadata> {
+  const resolvedParams = await params
   const blog = await prisma.blog.findUnique({
-    where: { slug: params.slug },
+    where: { slug: resolvedParams.slug },
     include: { user: true },
   })
 
@@ -27,8 +28,9 @@ export async function generateMetadata({ params }: BlogPageProps): Promise<Metad
 }
 
 export default async function BlogPage({ params }: BlogPageProps) {
+  const resolvedParams = await params
   const blog = await prisma.blog.findUnique({
-    where: { slug: params.slug },
+    where: { slug: resolvedParams.slug },
     include: {
       user: true,
       posts: {
