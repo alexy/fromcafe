@@ -89,6 +89,7 @@ model Blog {
   
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   posts           Post[]
+  domain          Domain?
   
   @@map("blogs")
 }
@@ -119,6 +120,8 @@ model Domain {
   isVerified  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  blog        Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
   
   @@map("domains")
 }
