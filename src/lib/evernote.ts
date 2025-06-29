@@ -1,4 +1,4 @@
-import { Evernote } from 'evernote'
+import * as Evernote from 'evernote'
 
 const client = new Evernote.Client({
   consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,

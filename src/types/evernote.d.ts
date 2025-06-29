@@ -1,5 +1,5 @@
 declare module 'evernote' {
-  export namespace Evernote {
+  namespace Evernote {
     class Client {
       constructor(options: {
         consumerKey: string
@@ -55,4 +55,6 @@ declare module 'evernote' {
       }>
     }
   }
+  
+  export = Evernote
 }
