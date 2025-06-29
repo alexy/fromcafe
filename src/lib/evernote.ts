@@ -117,7 +117,7 @@ export class EvernoteService {
 export function getEvernoteAuthUrl(): string {
   return client.getRequestToken(
     `${process.env.APP_URL}/api/evernote/callback`,
-    (error: Error | null, oauthToken: string, _oauthTokenSecret: string, _results: unknown) => {
+    (error: Error | null, oauthToken: string) => {
       if (error) {
         console.error('Error getting request token:', error)
         throw error
