@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import NextAuth from 'next-auth'
 import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import GoogleProvider from 'next-auth/providers/google'
@@ -12,13 +13,13 @@ export const authOptions = {
     }),
   ],
   callbacks: {
-    session: async ({ session, token }: { session: unknown; token: unknown }) => {
+    session: async ({ session, token }: { session: any; token: any }) => {
       if (session?.user) {
         session.user.id = token.sub!
       }
       return session
     },
-    jwt: async ({ user, token }) => {
+    jwt: async ({ user, token }: { user: any; token: any }) => {
       if (user) {
         token.uid = user.id
       }
