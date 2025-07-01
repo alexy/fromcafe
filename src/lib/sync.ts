@@ -57,7 +57,7 @@ export class SyncService {
         }
       }
 
-      const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl)
+      const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined)
       const results: SyncResult[] = []
 
       for (const blog of user.blogs) {

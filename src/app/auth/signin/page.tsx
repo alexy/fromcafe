@@ -1,11 +1,11 @@
 'use client'
 
 import { signIn, getProviders } from 'next-auth/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-export default function SignIn() {
-  const [providers, setProviders] = useState<Record<string, any> | null>(null)
+function SignInForm() {
+  const [providers, setProviders] = useState<Record<string, { id: string; name: string }> | null>(null)
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
 
@@ -62,5 +62,13 @@ export default function SignIn() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SignIn() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SignInForm />
+    </Suspense>
   )
 }

@@ -1,10 +1,10 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function NewBlog() {
+function NewBlogForm() {
   const { status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -257,5 +257,13 @@ export default function NewBlog() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function NewBlog() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <NewBlogForm />
+    </Suspense>
   )
 }

@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'No connected blogs for this notebook' })
     }
 
-    const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl)
+    const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined)
 
     for (const blog of relevantBlogs) {
       await handleNoteChange(noteGuid, reason, blog.id, blog.title, evernoteService)
@@ -81,7 +81,7 @@ async function handleNoteChange(
   try {
     if (reason === 'delete') {
       // Handle note deletion - remove the post if it exists
-      await handleNoteDeleted(noteGuid, blogId)
+      await handleNoteDeleted(noteGuid)
       return
     }
 
@@ -137,7 +137,7 @@ async function handleNoteChange(
   }
 }
 
-async function handleNoteDeleted(noteGuid: string, blogId: string) {
+async function handleNoteDeleted(noteGuid: string) {
   const existingPost = await prisma.post.findUnique({
     where: { evernoteNoteId: noteGuid }
   })
@@ -150,7 +150,7 @@ async function handleNoteDeleted(noteGuid: string, blogId: string) {
   }
 }
 
-async function createNewPost(note: any, blogId: string) {
+async function createNewPost(note: { guid: string; title: string; content: string; created: number; updated: number }, blogId: string) {
   const slug = SyncService.generateSlug(note.title)
   
   await prisma.post.create({
@@ -169,7 +169,7 @@ async function createNewPost(note: any, blogId: string) {
   })
 }
 
-async function updateExistingPost(postId: string, note: any) {
+async function updateExistingPost(postId: string, note: { title: string; content: string; updated: number }) {
   await prisma.post.update({
     where: { id: postId },
     data: {

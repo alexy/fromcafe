@@ -5,7 +5,6 @@ const client = new Evernote.Client({
   consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
   consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
   sandbox: false,
-  china: false,
 })
 
 export interface EvernoteNote {
@@ -23,18 +22,10 @@ export interface EvernoteNotebook {
 }
 
 export class EvernoteService {
-  private noteStore: unknown
-  private userStore: Evernote.UserStore
-
   constructor(private accessToken: string, private noteStoreUrl?: string) {
-    this.userStore = client.getUserStore()
-    this.noteStore = client.getNoteStore(accessToken)
   }
 
   async getNotebooks(): Promise<EvernoteNotebook[]> {
-    if (!this.noteStore) {
-      throw new Error('NoteStore not initialized')
-    }
 
     try {
       // Create a fresh client with the access token
@@ -43,7 +34,6 @@ export class EvernoteService {
         consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
         consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
         sandbox: false,
-        china: false,
         token: this.accessToken
       })
       
@@ -83,7 +73,6 @@ export class EvernoteService {
         consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
         consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
         sandbox: false,
-        china: false,
         token: this.accessToken
       })
       
@@ -140,8 +129,19 @@ export class EvernoteService {
 
   async getNote(noteGuid: string): Promise<EvernoteNote> {
     try {
-      const fullNote = await this.noteStore.getNote(noteGuid, true, false, false, false)
-      const tagNames = await this.getTagNames(fullNote.tagGuids || [])
+      // Create a fresh client with the access token
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const EvernoteSDK = require('evernote')
+      const tokenizedClient = new EvernoteSDK.Client({
+        consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
+        consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
+        sandbox: false,
+        token: this.accessToken
+      })
+      
+      const freshNoteStore = tokenizedClient.getNoteStore()
+      const fullNote = await freshNoteStore.getNote(noteGuid, true, false, false, false)
+      const tagNames = await this.getTagNamesWithStore(freshNoteStore, fullNote.tagGuids || [])
       
       return {
         guid: fullNote.guid,
@@ -154,20 +154,6 @@ export class EvernoteService {
     } catch (error) {
       console.error('Error fetching note:', error)
       throw new Error('Failed to fetch note')
-    }
-  }
-
-  private async getTagNames(tagGuids: string[]): Promise<string[]> {
-    if (!tagGuids || tagGuids.length === 0) return []
-    
-    try {
-      const tags = await Promise.all(
-        tagGuids.map(guid => this.noteStore.getTag(guid))
-      )
-      return tags.map(tag => tag.name)
-    } catch (error) {
-      console.error('Error fetching tags:', error)
-      return []
     }
   }
 
@@ -194,7 +180,6 @@ export class EvernoteService {
         consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
         consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
         sandbox: false,
-        china: false,
         token: this.accessToken
       })
       
@@ -220,7 +205,6 @@ export class EvernoteService {
         consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
         consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
         sandbox: false,
-        china: false,
         token: this.accessToken
       })
       
@@ -254,7 +238,6 @@ export class EvernoteService {
         consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
         consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
         sandbox: false,
-        china: false,
         token: this.accessToken
       })
       
@@ -270,7 +253,7 @@ export class EvernoteService {
     }
   }
 
-  async listWebhooks(): Promise<any[]> {
+  async listWebhooks(): Promise<unknown[]> {
     try {
       // Create a fresh client with the access token
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -279,7 +262,6 @@ export class EvernoteService {
         consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
         consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
         sandbox: false,
-        china: false,
         token: this.accessToken
       })
       
@@ -314,12 +296,12 @@ export function getEvernoteAuthUrl(): Promise<string> {
     try {
       client.getRequestToken(
         `${process.env.APP_URL}/api/evernote/callback`,
-        (error: Error | null, oauthToken: string, oauthTokenSecret: string) => {
+        (error: Error | null, oauthToken: string, oauthTokenSecret?: string) => {
           if (error) {
             console.error('Error getting request token:', error)
             const errorMessage = error.message || error.toString() || 'Unknown error'
-            const errorCode = (error as any).code
-            const statusCode = (error as any).statusCode || (error as any).status
+            const errorCode = (error as { code?: string }).code
+            const statusCode = (error as { statusCode?: number; status?: number }).statusCode || (error as { statusCode?: number; status?: number }).status
             
             if (errorMessage.includes('ENOTFOUND') || errorCode === 'ENOTFOUND') {
               reject(new Error('Unable to connect to Evernote. Please check your internet connection.'))
@@ -330,6 +312,11 @@ export function getEvernoteAuthUrl(): Promise<string> {
             } else {
               reject(new Error(`Failed to connect to Evernote: ${errorMessage} (Code: ${errorCode || statusCode || 'unknown'})`))
             }
+            return
+          }
+          
+          if (!oauthTokenSecret) {
+            reject(new Error('Missing token secret from Evernote'))
             return
           }
           

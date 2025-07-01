@@ -83,8 +83,6 @@ export async function PUT(
       return NextResponse.json({ error: 'Blog not found' }, { status: 404 })
     }
 
-    let webhookId = currentBlog.evernoteWebhookId
-
     // Handle webhook registration/unregistration if notebook connection changed
     if (evernoteNotebook !== undefined && currentBlog.evernoteNotebook !== evernoteNotebook) {
       // Get user's Evernote credentials for webhook management
@@ -98,13 +96,12 @@ export async function PUT(
 
       if (user?.evernoteToken) {
         const { EvernoteService } = await import('@/lib/evernote')
-        const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl)
+        const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined)
 
         // Unregister old webhook if it exists
         if (currentBlog.evernoteWebhookId) {
           console.log(`Unregistering webhook: ${currentBlog.evernoteWebhookId}`)
           await evernoteService.unregisterWebhook(currentBlog.evernoteWebhookId)
-          webhookId = null
         }
 
         // Register new webhook if connecting to a notebook
@@ -112,7 +109,6 @@ export async function PUT(
           console.log(`Registering webhook for notebook: ${evernoteNotebook}`)
           const newWebhookId = await evernoteService.registerWebhook(evernoteNotebook)
           if (newWebhookId) {
-            webhookId = newWebhookId
             updateData.evernoteWebhookId = newWebhookId
             console.log(`Webhook registered: ${newWebhookId}`)
           } else {
@@ -199,7 +195,7 @@ export async function DELETE(
 
         if (user?.evernoteToken) {
           const { EvernoteService } = await import('@/lib/evernote')
-          const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl)
+          const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined)
           
           console.log(`Unregistering webhook before blog deletion: ${blog.evernoteWebhookId}`)
           await evernoteService.unregisterWebhook(blog.evernoteWebhookId)

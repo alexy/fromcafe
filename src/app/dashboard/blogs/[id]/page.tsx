@@ -39,7 +39,7 @@ export default function BlogSettings() {
   const [showNotebooks, setShowNotebooks] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [notebookName, setNotebookName] = useState<string | null>(null)
-  const [syncResults, setSyncResults] = useState<{ success: boolean; results: any[]; totalNewPosts: number; totalUpdatedPosts: number } | null>(null)
+  const [syncResults, setSyncResults] = useState<{ success: boolean; results: { blogId: string; blogTitle: string; notesFound: number; totalPublishedPosts: number; posts: { isNew: boolean; isUpdated: boolean; isUnpublished: boolean; title: string }[] }[]; totalNewPosts: number; totalUpdatedPosts: number } | null>(null)
   const [showSyncResults, setShowSyncResults] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -213,9 +213,6 @@ export default function BlogSettings() {
             blogId: blogId,
             blogTitle: blog?.title || '',
             notesFound: data.result.newPosts + data.result.updatedPosts,
-            newPosts: data.result.newPosts,
-            updatedPosts: data.result.updatedPosts,
-            unpublishedPosts: 0,
             totalPublishedPosts: data.result.newPosts + data.result.updatedPosts,
             posts: []
           }],
@@ -475,7 +472,7 @@ export default function BlogSettings() {
                       </button>
                     </div>
                     <p className="text-sm text-black mt-2">
-                      Syncs notes with "published" tag from your Evernote notebook
+                      Syncs notes with &quot;published&quot; tag from your Evernote notebook
                     </p>
                   </div>
                 ) : (
@@ -581,7 +578,7 @@ export default function BlogSettings() {
                 </div>
               </div>
 
-              {syncResults.results.map((result: { blogId: string; blogTitle: string; notesFound: number; totalPublishedPosts: number; posts: any[] }) => {
+              {syncResults.results.map((result: { blogId: string; blogTitle: string; notesFound: number; totalPublishedPosts: number; posts: { isNew: boolean; isUpdated: boolean; isUnpublished: boolean; title: string }[] }) => {
                 const blogResult = result.blogId === blogId ? result : null
                 if (!blogResult) return null
                 

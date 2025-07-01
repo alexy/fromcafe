@@ -60,7 +60,7 @@ export async function POST(
     }
 
     // Perform the sync for this specific blog
-    const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl)
+    const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined)
     const result = await SyncService.syncBlogPosts(blogId, blog.title, blog.evernoteNotebook, evernoteService)
 
     // Check if the sync result contains an error

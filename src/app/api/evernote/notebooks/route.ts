@@ -24,7 +24,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Evernote not connected' }, { status: 400 })
     }
 
-    const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl)
+    const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined)
     const notebooks = await evernoteService.getNotebooks()
 
     return NextResponse.json({ notebooks })
