@@ -13,6 +13,11 @@ export const authOptions = {
     }),
   ],
   debug: process.env.NODE_ENV === 'development',
+  // Force consistent URL for Vercel deployments to prevent redirect URI mismatches
+  ...(process.env.VERCEL && {
+    trustHost: true,
+    useSecureCookies: true,
+  }),
   callbacks: {
     session: async ({ session, token }: { session: any; token: any }) => {
       if (session?.user) {
@@ -25,6 +30,23 @@ export const authOptions = {
         token.uid = user.id
       }
       return token
+    },
+    redirect: async ({ url, baseUrl }: { url: string; baseUrl: string }) => {
+      // Force redirect to production URL on Vercel to prevent OAuth mismatch
+      if (process.env.VERCEL && process.env.VERCEL_ENV === 'production') {
+        const productionUrl = 'https://fromcafe.vercel.app'
+        if (url.startsWith('/')) {
+          return `${productionUrl}${url}`
+        }
+        if (url.startsWith(baseUrl)) {
+          return url.replace(baseUrl, productionUrl)
+        }
+        return productionUrl
+      }
+      // Default behavior for local development
+      if (url.startsWith('/')) return `${baseUrl}${url}`
+      if (new URL(url).origin === baseUrl) return url
+      return baseUrl
     },
   },
   session: {
