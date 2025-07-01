@@ -298,7 +298,12 @@ export class EvernoteService {
       
       const freshNoteStore = tokenizedClient.getNoteStore()
       
-      const webhookUrl = `${process.env.APP_URL}/api/evernote/webhook`
+      // Build webhook URL - use VERCEL_URL for Vercel deployments, fallback to APP_URL for local dev
+      const baseUrl = process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}` 
+        : process.env.APP_URL || 'http://localhost:3000'
+      
+      const webhookUrl = `${baseUrl}/api/evernote/webhook`
       
       // Register webhook for this specific notebook
       const webhook = await freshNoteStore.createWebhook({
@@ -448,8 +453,16 @@ export function getEvernoteAuthUrl(): Promise<string> {
     }
 
     try {
+      // Build callback URL - use VERCEL_URL for Vercel deployments, fallback to APP_URL for local dev
+      const baseUrl = process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}` 
+        : process.env.APP_URL || 'http://localhost:3000'
+      
+      const callbackUrl = `${baseUrl}/api/evernote/callback`
+      console.log('Using Evernote callback URL:', callbackUrl)
+      
       client.getRequestToken(
-        `${process.env.APP_URL}/api/evernote/callback`,
+        callbackUrl,
         (error: Error | null, oauthToken: string, oauthTokenSecret?: string) => {
           if (error) {
             console.error('Error getting request token:', error)
