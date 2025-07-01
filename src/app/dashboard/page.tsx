@@ -292,7 +292,7 @@ export default function Dashboard() {
                     <strong>Connected to Evernote!</strong> You can now connect notebooks to individual blogs from their settings pages.
                   </p>
                   <p className="text-sm mt-1">
-                    To use different Evernote credentials, click &quot;Disconnect&quot; and then &quot;Connect Evernote&quot; again.
+                    To use different Evernote credentials, click Disconnect and then Connect Evernote again.
                   </p>
                 </div>
               </div>

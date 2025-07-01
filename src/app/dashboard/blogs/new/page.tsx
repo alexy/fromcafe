@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function NewBlog() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
   
@@ -216,7 +216,7 @@ export default function NewBlog() {
                 <p className="text-sm text-red-600 mt-1">{slugError}</p>
               ) : (
                 <p className="text-sm text-black mt-1">
-                  This will be your blog's URL: /blog/{slug}
+                  This will be your blog&apos;s URL: /blog/{slug}
                 </p>
               )}
               {checkingSlug && (

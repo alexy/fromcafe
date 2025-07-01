@@ -23,7 +23,7 @@ export interface EvernoteNotebook {
 }
 
 export class EvernoteService {
-  private noteStore: any
+  private noteStore: unknown
   private userStore: Evernote.UserStore
 
   constructor(private accessToken: string, private noteStoreUrl?: string) {
@@ -38,6 +38,7 @@ export class EvernoteService {
 
     try {
       // Create a fresh client with the access token
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const tokenizedClient = new (require('evernote')).Client({
         consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
         consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
@@ -53,13 +54,13 @@ export class EvernoteService {
       try {
         // Approach 1: Pass auth token as parameter
         notebooks = await freshNoteStore.listNotebooks(this.accessToken)
-      } catch (e) {
+      } catch {
         // Approach 2: Use client's built-in token
         notebooks = await freshNoteStore.listNotebooks()
       }
       
       if (notebooks && Array.isArray(notebooks)) {
-        return notebooks.map((notebook: any) => ({
+        return notebooks.map((notebook: { guid: string; name: string }) => ({
           guid: notebook.guid,
           name: notebook.name,
         }))
@@ -68,7 +69,7 @@ export class EvernoteService {
       }
     } catch (error) {
       console.error('Error fetching notebooks:', error)
-      const errorMessage = (error as any)?.message || 'Unknown error'
+      const errorMessage = (error as Error)?.message || 'Unknown error'
       throw new Error(`Failed to fetch notebooks: ${errorMessage}`)
     }
   }
@@ -76,6 +77,7 @@ export class EvernoteService {
   async getNotesFromNotebook(notebookGuid: string): Promise<EvernoteNote[]> {
     try {
       // Create a fresh client with the access token
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const EvernoteSDK = require('evernote')
       const tokenizedClient = new EvernoteSDK.Client({
         consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
@@ -122,14 +124,14 @@ export class EvernoteService {
       
       // Handle rate limiting specifically
       if (error && typeof error === 'object' && 'errorCode' in error && error.errorCode === 19) {
-        const rateLimitDuration = (error as any).rateLimitDuration || 0
+        const rateLimitDuration = (error as { rateLimitDuration?: number }).rateLimitDuration || 0
         const waitMinutes = Math.ceil(rateLimitDuration / 60)
         throw new Error(`Evernote API rate limit exceeded. Please wait ${waitMinutes} minutes before trying again.`)
       }
       
       // Handle other Evernote errors with more context
       if (error && typeof error === 'object' && 'message' in error) {
-        throw new Error(`Evernote API error: ${(error as any).message || 'Unknown error'}`)
+        throw new Error(`Evernote API error: ${(error as Error).message || 'Unknown error'}`)
       }
       
       throw new Error('Failed to fetch notes')
@@ -169,12 +171,12 @@ export class EvernoteService {
     }
   }
 
-  private async getTagNamesWithStore(noteStore: any, tagGuids: string[]): Promise<string[]> {
+  private async getTagNamesWithStore(noteStore: unknown, tagGuids: string[]): Promise<string[]> {
     if (!tagGuids || tagGuids.length === 0) return []
     
     try {
       const tags = await Promise.all(
-        tagGuids.map(guid => noteStore.getTag(guid))
+        tagGuids.map(guid => (noteStore as { getTag: (guid: string) => Promise<{ name: string }> }).getTag(guid))
       )
       return tags.map(tag => tag.name)
     } catch (error) {
@@ -186,6 +188,7 @@ export class EvernoteService {
   async getSyncState(): Promise<{ updateCount: number }> {
     try {
       // Create a fresh client with the access token
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const EvernoteSDK = require('evernote')
       const tokenizedClient = new EvernoteSDK.Client({
         consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
@@ -211,6 +214,7 @@ export class EvernoteService {
   async registerWebhook(notebookGuid: string): Promise<string | null> {
     try {
       // Create a fresh client with the access token
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const EvernoteSDK = require('evernote')
       const tokenizedClient = new EvernoteSDK.Client({
         consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
@@ -244,6 +248,7 @@ export class EvernoteService {
   async unregisterWebhook(webhookId: string): Promise<boolean> {
     try {
       // Create a fresh client with the access token
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const EvernoteSDK = require('evernote')
       const tokenizedClient = new EvernoteSDK.Client({
         consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
@@ -268,6 +273,7 @@ export class EvernoteService {
   async listWebhooks(): Promise<any[]> {
     try {
       // Create a fresh client with the access token
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const EvernoteSDK = require('evernote')
       const tokenizedClient = new EvernoteSDK.Client({
         consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
@@ -352,7 +358,7 @@ export function getEvernoteAccessToken(oauthToken: string, oauthVerifier: string
         oauthToken,
         tokenSecret,
         oauthVerifier,
-        (error: Error | null, accessToken: string, accessTokenSecret: string, results?: any) => {
+        (error: Error | null, accessToken: string, accessTokenSecret: string, results?: { edam_noteStoreUrl?: string }) => {
           if (error) {
             console.error('Error getting access token:', error)
             reject(error)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 
 interface Blog {
@@ -18,7 +18,7 @@ interface Blog {
 }
 
 export default function BlogSettings() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
   const params = useParams()
   const blogId = params.id as string
@@ -30,23 +30,20 @@ export default function BlogSettings() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [isPublic, setIsPublic] = useState(true)
+  
+  // Track original values for change detection
+  const [originalTitle, setOriginalTitle] = useState('')
+  const [originalDescription, setOriginalDescription] = useState('')
+  const [originalIsPublic, setOriginalIsPublic] = useState(true)
   const [notebooks, setNotebooks] = useState<Array<{guid: string, name: string}>>([])
   const [showNotebooks, setShowNotebooks] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [notebookName, setNotebookName] = useState<string | null>(null)
-  const [syncResults, setSyncResults] = useState<any>(null)
+  const [syncResults, setSyncResults] = useState<{ success: boolean; results: any[]; totalNewPosts: number; totalUpdatedPosts: number } | null>(null)
   const [showSyncResults, setShowSyncResults] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin')
-    } else if (status === 'authenticated' && blogId) {
-      fetchBlog()
-    }
-  }, [status, router, blogId])
-
-  const fetchBlog = async () => {
+  const fetchBlog = useCallback(async () => {
     try {
       const response = await fetch(`/api/blogs/${blogId}`)
       if (response.ok) {
@@ -55,6 +52,11 @@ export default function BlogSettings() {
         setTitle(data.blog.title)
         setDescription(data.blog.description || '')
         setIsPublic(data.blog.isPublic)
+        
+        // Set original values for change detection
+        setOriginalTitle(data.blog.title)
+        setOriginalDescription(data.blog.description || '')
+        setOriginalIsPublic(data.blog.isPublic)
         
         // If notebook is connected, fetch the notebook name
         if (data.blog.evernoteNotebook) {
@@ -74,7 +76,15 @@ export default function BlogSettings() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [blogId, router])
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin')
+    } else if (status === 'authenticated' && blogId) {
+      fetchBlog()
+    }
+  }, [status, router, blogId, fetchBlog])
 
   const fetchNotebooks = async () => {
     try {
@@ -99,7 +109,7 @@ export default function BlogSettings() {
       if (response.ok) {
         const data = await response.json()
         console.log('Available notebooks:', data.notebooks)
-        const notebook = data.notebooks.find((nb: any) => nb.guid === notebookGuid)
+        const notebook = data.notebooks.find((nb: { guid: string; name: string }) => nb.guid === notebookGuid)
         console.log('Found notebook:', notebook)
         if (notebook) {
           setNotebookName(notebook.name)
@@ -234,6 +244,25 @@ export default function BlogSettings() {
   }
 
   const handleSave = async () => {
+    // Build object with only changed fields
+    const changes: { title?: string; description?: string; isPublic?: boolean } = {}
+    
+    if (title !== originalTitle) {
+      changes.title = title
+    }
+    if (description !== originalDescription) {
+      changes.description = description
+    }
+    if (isPublic !== originalIsPublic) {
+      changes.isPublic = isPublic
+    }
+
+    // Check if any changes were made
+    if (Object.keys(changes).length === 0) {
+      alert('No changes made.')
+      return
+    }
+
     setSaving(true)
     try {
       const response = await fetch(`/api/blogs/${blogId}`, {
@@ -241,16 +270,18 @@ export default function BlogSettings() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          title,
-          description,
-          isPublic,
-        }),
+        body: JSON.stringify(changes),
       })
 
       if (response.ok) {
         const data = await response.json()
         setBlog(data.blog)
+        
+        // Update original values after successful save
+        setOriginalTitle(title)
+        setOriginalDescription(description)
+        setOriginalIsPublic(isPublic)
+        
         alert('Blog updated successfully!')
       } else {
         const errorData = await response.json()
@@ -550,7 +581,7 @@ export default function BlogSettings() {
                 </div>
               </div>
 
-              {syncResults.results.map((result: any) => {
+              {syncResults.results.map((result: { blogId: string; blogTitle: string; notesFound: number; totalPublishedPosts: number; posts: any[] }) => {
                 const blogResult = result.blogId === blogId ? result : null
                 if (!blogResult) return null
                 
@@ -563,7 +594,7 @@ export default function BlogSettings() {
                     
                     {result.posts.length > 0 && (
                       <div className="space-y-2">
-                        {result.posts.map((post: any, index: number) => (
+                        {result.posts.map((post: { isNew: boolean; isUpdated: boolean; isUnpublished: boolean; title: string }, index: number) => (
                           <div key={index} className="flex items-center space-x-2 text-sm">
                             {post.isNew && <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">NEW</span>}
                             {post.isUpdated && <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">UPDATED</span>}

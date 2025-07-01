@@ -52,6 +52,20 @@ export async function PUT(
     const resolvedParams = await params
     const body = await request.json()
     const { title, description, isPublic, evernoteNotebook } = body
+    
+    // Build update object with only provided fields
+    const updateData: { 
+      title?: string; 
+      description?: string; 
+      isPublic?: boolean; 
+      evernoteNotebook?: string | null;
+      evernoteWebhookId?: string | null;
+    } = {}
+    
+    if (title !== undefined) updateData.title = title
+    if (description !== undefined) updateData.description = description
+    if (isPublic !== undefined) updateData.isPublic = isPublic
+    if (evernoteNotebook !== undefined) updateData.evernoteNotebook = evernoteNotebook
 
     // Get the current blog to check for webhook changes
     const currentBlog = await prisma.blog.findFirst({
@@ -72,7 +86,7 @@ export async function PUT(
     let webhookId = currentBlog.evernoteWebhookId
 
     // Handle webhook registration/unregistration if notebook connection changed
-    if (currentBlog.evernoteNotebook !== evernoteNotebook) {
+    if (evernoteNotebook !== undefined && currentBlog.evernoteNotebook !== evernoteNotebook) {
       // Get user's Evernote credentials for webhook management
       const user = await prisma.user.findUnique({
         where: { id: session.user.id },
@@ -99,10 +113,13 @@ export async function PUT(
           const newWebhookId = await evernoteService.registerWebhook(evernoteNotebook)
           if (newWebhookId) {
             webhookId = newWebhookId
+            updateData.evernoteWebhookId = newWebhookId
             console.log(`Webhook registered: ${newWebhookId}`)
           } else {
             console.warn(`Failed to register webhook for notebook: ${evernoteNotebook}`)
           }
+        } else {
+          updateData.evernoteWebhookId = null
         }
       }
     }
@@ -112,13 +129,7 @@ export async function PUT(
         id: resolvedParams.id,
         userId: session.user.id 
       },
-      data: {
-        title,
-        description,
-        isPublic,
-        evernoteNotebook,
-        evernoteWebhookId: webhookId,
-      },
+      data: updateData,
     })
 
     if (blog.count === 0) {

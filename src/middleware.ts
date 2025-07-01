@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function middleware(_request: NextRequest) {
   // Middleware temporarily disabled to prevent Prisma Edge Runtime conflicts
   // TODO: Implement custom domain handling without Prisma
   return NextResponse.next()

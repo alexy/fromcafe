@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 export default function SignIn() {
-  const [providers, setProviders] = useState<any>(null)
+  const [providers, setProviders] = useState<Record<string, any> | null>(null)
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
 
@@ -49,7 +49,7 @@ export default function SignIn() {
         )}
 
         <div className="space-y-4">
-          {Object.values(providers).map((provider: any) => (
+          {Object.values(providers).map((provider: { id: string; name: string }) => (
             <div key={provider.name}>
               <button
                 onClick={() => signIn(provider.id, { callbackUrl: '/dashboard' })}

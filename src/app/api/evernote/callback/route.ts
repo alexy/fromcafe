@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
   try {
     // Exchange the OAuth verifier for an access token
     console.log('Exchanging OAuth verifier for access token...')
-    const { token: accessToken, secret: accessTokenSecret, noteStoreUrl } = await getEvernoteAccessToken(oauthToken, oauthVerifier)
+    const { token: accessToken, secret: _accessTokenSecret, noteStoreUrl } = await getEvernoteAccessToken(oauthToken, oauthVerifier)
     console.log('Access token received, length:', accessToken?.length)
     console.log('NoteStore URL from access token response:', noteStoreUrl)
     

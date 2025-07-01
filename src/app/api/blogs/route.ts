@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     
     // Handle Prisma unique constraint errors specifically
     if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
-      const meta = (error as any).meta
+      const meta = (error as { meta?: { target?: string[] } }).meta
       if (meta?.target?.includes('slug')) {
         return NextResponse.json({ 
           error: 'A blog with this URL slug already exists. Please choose a different slug.' 
