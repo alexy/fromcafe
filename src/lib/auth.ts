@@ -4,6 +4,29 @@ import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import GoogleProvider from 'next-auth/providers/google'
 import { prisma } from '@/lib/prisma'
 
+// Force base URL for consistent OAuth redirects
+const getBaseUrl = () => {
+  // Explicitly use NEXTAUTH_URL if set
+  if (process.env.NEXTAUTH_URL) {
+    return process.env.NEXTAUTH_URL
+  }
+  
+  // For Vercel production, construct from domain
+  if (process.env.VERCEL_ENV === 'production' && process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`
+  }
+  
+  // Local development fallback
+  return 'http://localhost:3000'
+}
+
+// Ensure NEXTAUTH_URL is set for NextAuth's internal URL detection
+if (process.env.VERCEL && !process.env.NEXTAUTH_URL) {
+  const computedUrl = getBaseUrl()
+  console.log('Setting NEXTAUTH_URL to computed value:', computedUrl)
+  process.env.NEXTAUTH_URL = computedUrl
+}
+
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
@@ -13,7 +36,7 @@ export const authOptions = {
     }),
   ],
   debug: process.env.NODE_ENV === 'development',
-  // Force consistent URL for Vercel deployments to prevent redirect URI mismatches
+  // Explicitly set base URL to prevent auto-detection issues
   ...(process.env.VERCEL && {
     trustHost: true,
     useSecureCookies: true,
@@ -32,24 +55,34 @@ export const authOptions = {
       return token
     },
     redirect: async ({ url, baseUrl }: { url: string; baseUrl: string }) => {
-      // Force redirect to production URL on Vercel to prevent OAuth mismatch
-      if (process.env.VERCEL && process.env.VERCEL_ENV === 'production') {
-        // Use NEXTAUTH_URL if set, otherwise construct from VERCEL_URL
-        const productionUrl = process.env.NEXTAUTH_URL || 
-          (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : baseUrl)
-        
-        if (url.startsWith('/')) {
-          return `${productionUrl}${url}`
-        }
-        if (url.startsWith(baseUrl)) {
-          return url.replace(baseUrl, productionUrl)
-        }
-        return productionUrl
+      // Always use our explicit base URL to prevent random redirects
+      const forcedBaseUrl = getBaseUrl()
+      
+      console.log('NextAuth redirect:', { 
+        url, 
+        originalBaseUrl: baseUrl, 
+        forcedBaseUrl,
+        NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+        VERCEL_URL: process.env.VERCEL_URL,
+        VERCEL_ENV: process.env.VERCEL_ENV 
+      })
+      
+      if (url.startsWith('/')) {
+        return `${forcedBaseUrl}${url}`
       }
-      // Default behavior for local development
-      if (url.startsWith('/')) return `${baseUrl}${url}`
-      if (new URL(url).origin === baseUrl) return url
-      return baseUrl
+      
+      // If the URL starts with the original baseUrl, replace it with our forced one
+      if (url.startsWith(baseUrl)) {
+        return url.replace(baseUrl, forcedBaseUrl)
+      }
+      
+      // If it's already using our forced base URL, keep it
+      if (url.startsWith(forcedBaseUrl)) {
+        return url
+      }
+      
+      // Default to forced base URL
+      return forcedBaseUrl
     },
   },
   session: {
