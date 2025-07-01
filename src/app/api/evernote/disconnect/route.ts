@@ -11,6 +11,52 @@ export async function POST() {
   }
 
   try {
+    // Get user's current Evernote credentials and connected blogs before disconnecting
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { 
+        evernoteToken: true,
+        evernoteNoteStoreUrl: true,
+        blogs: {
+          select: {
+            id: true,
+            evernoteWebhookId: true
+          },
+          where: {
+            evernoteWebhookId: { not: null }
+          }
+        }
+      },
+    })
+
+    // Unregister all webhooks before disconnecting
+    if (user?.evernoteToken && user.blogs.length > 0) {
+      const { EvernoteService } = await import('@/lib/evernote')
+      const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl)
+      
+      console.log(`Unregistering ${user.blogs.length} webhooks before disconnecting Evernote`)
+      
+      for (const blog of user.blogs) {
+        if (blog.evernoteWebhookId) {
+          try {
+            await evernoteService.unregisterWebhook(blog.evernoteWebhookId)
+            console.log(`Unregistered webhook: ${blog.evernoteWebhookId}`)
+          } catch (error) {
+            console.error(`Failed to unregister webhook ${blog.evernoteWebhookId}:`, error)
+          }
+        }
+      }
+
+      // Clear webhook IDs from all blogs
+      await prisma.blog.updateMany({
+        where: { 
+          userId: session.user.id,
+          evernoteWebhookId: { not: null }
+        },
+        data: { evernoteWebhookId: null }
+      })
+    }
+
     // Remove Evernote credentials from the user's account
     await prisma.user.update({
       where: { id: session.user.id },

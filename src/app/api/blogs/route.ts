@@ -20,9 +20,11 @@ export async function GET() {
         description: true,
         customDomain: true,
         evernoteNotebook: true,
+        evernoteWebhookId: true,
         isPublic: true,
         lastSyncedAt: true,
         lastSyncAttemptAt: true,
+        lastSyncUpdateCount: true,
         _count: {
           select: { posts: true },
         },

@@ -120,8 +120,39 @@ export class SyncService {
       posts: []
     }
 
+    let currentSyncState: { updateCount: number }
+
     try {
       console.log(`Starting sync for blog ${blogId}, notebook ${notebookGuid}`)
+      
+      // Check if the account has changed since last sync
+      currentSyncState = await evernoteService.getSyncState()
+      console.log(`Current sync state updateCount: ${currentSyncState.updateCount}`)
+      
+      // Get the blog's last sync state
+      const blog = await prisma.blog.findUnique({
+        where: { id: blogId },
+        select: { lastSyncUpdateCount: true }
+      })
+      
+      if (blog?.lastSyncUpdateCount && currentSyncState.updateCount !== -1) {
+        if (currentSyncState.updateCount <= blog.lastSyncUpdateCount) {
+          console.log(`No changes since last sync (current: ${currentSyncState.updateCount}, last: ${blog.lastSyncUpdateCount}). Skipping sync.`)
+          return {
+            ...result,
+            posts: [{
+              title: 'No changes detected since last sync',
+              isNew: false,
+              isUpdated: false,
+              isUnpublished: false
+            }]
+          }
+        }
+        console.log(`Changes detected (current: ${currentSyncState.updateCount}, last: ${blog.lastSyncUpdateCount}). Proceeding with sync.`)
+      } else {
+        console.log(`First sync or unable to get sync state. Proceeding with full sync.`)
+      }
+      
       const notes = await evernoteService.getNotesFromNotebook(notebookGuid)
       console.log(`Found ${notes.length} notes in notebook ${notebookGuid}`)
       
@@ -214,12 +245,13 @@ export class SyncService {
       })
       result.totalPublishedPosts = finalPublishedCount
 
-      // Update the blog's last synced time and attempt time
+      // Update the blog's last synced time, attempt time, and sync state
       await prisma.blog.update({
         where: { id: blogId },
         data: { 
           lastSyncedAt: new Date(),
-          lastSyncAttemptAt: new Date()
+          lastSyncAttemptAt: new Date(),
+          lastSyncUpdateCount: currentSyncState.updateCount !== -1 ? currentSyncState.updateCount : undefined
         }
       })
 
@@ -227,7 +259,7 @@ export class SyncService {
     } catch (error) {
       console.error(`Error syncing blog ${blogId}:`, error)
       
-      // Update only the attempt time for failed syncs
+      // Update only the attempt time for failed syncs (don't update sync state on failure)
       try {
         await prisma.blog.update({
           where: { id: blogId },

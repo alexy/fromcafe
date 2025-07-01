@@ -183,6 +183,111 @@ export class EvernoteService {
     }
   }
 
+  async getSyncState(): Promise<{ updateCount: number }> {
+    try {
+      // Create a fresh client with the access token
+      const EvernoteSDK = require('evernote')
+      const tokenizedClient = new EvernoteSDK.Client({
+        consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
+        consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
+        sandbox: false,
+        china: false,
+        token: this.accessToken
+      })
+      
+      const freshNoteStore = tokenizedClient.getNoteStore()
+      const syncState = await freshNoteStore.getSyncState()
+      
+      return {
+        updateCount: syncState.updateCount
+      }
+    } catch (error) {
+      console.error('Error getting sync state:', error)
+      // If we can't get sync state, assume we need to sync
+      return { updateCount: -1 }
+    }
+  }
+
+  async registerWebhook(notebookGuid: string): Promise<string | null> {
+    try {
+      // Create a fresh client with the access token
+      const EvernoteSDK = require('evernote')
+      const tokenizedClient = new EvernoteSDK.Client({
+        consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
+        consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
+        sandbox: false,
+        china: false,
+        token: this.accessToken
+      })
+      
+      const freshNoteStore = tokenizedClient.getNoteStore()
+      
+      const webhookUrl = `${process.env.APP_URL}/api/evernote/webhook`
+      
+      // Register webhook for this specific notebook
+      const webhook = await freshNoteStore.createWebhook({
+        url: webhookUrl,
+        filter: {
+          notebookGuid: notebookGuid
+        }
+      })
+      
+      console.log(`Webhook registered for notebook ${notebookGuid}: ${webhook.id}`)
+      return webhook.id
+      
+    } catch (error) {
+      console.error('Error registering webhook:', error)
+      return null
+    }
+  }
+
+  async unregisterWebhook(webhookId: string): Promise<boolean> {
+    try {
+      // Create a fresh client with the access token
+      const EvernoteSDK = require('evernote')
+      const tokenizedClient = new EvernoteSDK.Client({
+        consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
+        consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
+        sandbox: false,
+        china: false,
+        token: this.accessToken
+      })
+      
+      const freshNoteStore = tokenizedClient.getNoteStore()
+      
+      await freshNoteStore.expungeWebhook(webhookId)
+      console.log(`Webhook unregistered: ${webhookId}`)
+      return true
+      
+    } catch (error) {
+      console.error('Error unregistering webhook:', error)
+      return false
+    }
+  }
+
+  async listWebhooks(): Promise<any[]> {
+    try {
+      // Create a fresh client with the access token
+      const EvernoteSDK = require('evernote')
+      const tokenizedClient = new EvernoteSDK.Client({
+        consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
+        consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
+        sandbox: false,
+        china: false,
+        token: this.accessToken
+      })
+      
+      const freshNoteStore = tokenizedClient.getNoteStore()
+      
+      const webhooks = await freshNoteStore.listWebhooks()
+      return webhooks || []
+      
+    } catch (error) {
+      console.error('Error listing webhooks:', error)
+      return []
+    }
+  }
+
   isPublished(tagNames: string[]): boolean {
     return tagNames.some(tag => tag.toLowerCase() === 'published')
   }

@@ -53,6 +53,60 @@ export async function PUT(
     const body = await request.json()
     const { title, description, isPublic, evernoteNotebook } = body
 
+    // Get the current blog to check for webhook changes
+    const currentBlog = await prisma.blog.findFirst({
+      where: { 
+        id: resolvedParams.id,
+        userId: session.user.id 
+      },
+      select: {
+        evernoteNotebook: true,
+        evernoteWebhookId: true
+      }
+    })
+
+    if (!currentBlog) {
+      return NextResponse.json({ error: 'Blog not found' }, { status: 404 })
+    }
+
+    let webhookId = currentBlog.evernoteWebhookId
+
+    // Handle webhook registration/unregistration if notebook connection changed
+    if (currentBlog.evernoteNotebook !== evernoteNotebook) {
+      // Get user's Evernote credentials for webhook management
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { 
+          evernoteToken: true,
+          evernoteNoteStoreUrl: true 
+        },
+      })
+
+      if (user?.evernoteToken) {
+        const { EvernoteService } = await import('@/lib/evernote')
+        const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl)
+
+        // Unregister old webhook if it exists
+        if (currentBlog.evernoteWebhookId) {
+          console.log(`Unregistering webhook: ${currentBlog.evernoteWebhookId}`)
+          await evernoteService.unregisterWebhook(currentBlog.evernoteWebhookId)
+          webhookId = null
+        }
+
+        // Register new webhook if connecting to a notebook
+        if (evernoteNotebook) {
+          console.log(`Registering webhook for notebook: ${evernoteNotebook}`)
+          const newWebhookId = await evernoteService.registerWebhook(evernoteNotebook)
+          if (newWebhookId) {
+            webhookId = newWebhookId
+            console.log(`Webhook registered: ${newWebhookId}`)
+          } else {
+            console.warn(`Failed to register webhook for notebook: ${evernoteNotebook}`)
+          }
+        }
+      }
+    }
+
     const blog = await prisma.blog.updateMany({
       where: { 
         id: resolvedParams.id,
@@ -63,6 +117,7 @@ export async function PUT(
         description,
         isPublic,
         evernoteNotebook,
+        evernoteWebhookId: webhookId,
       },
     })
 
@@ -109,10 +164,39 @@ export async function DELETE(
         id: resolvedParams.id,
         userId: session.user.id 
       },
+      select: {
+        evernoteWebhookId: true,
+        evernoteNotebook: true
+      }
     })
 
     if (!blog) {
       return NextResponse.json({ error: 'Blog not found' }, { status: 404 })
+    }
+
+    // Unregister webhook if it exists
+    if (blog.evernoteWebhookId) {
+      try {
+        // Get user's Evernote credentials
+        const user = await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { 
+            evernoteToken: true,
+            evernoteNoteStoreUrl: true 
+          },
+        })
+
+        if (user?.evernoteToken) {
+          const { EvernoteService } = await import('@/lib/evernote')
+          const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl)
+          
+          console.log(`Unregistering webhook before blog deletion: ${blog.evernoteWebhookId}`)
+          await evernoteService.unregisterWebhook(blog.evernoteWebhookId)
+        }
+      } catch (error) {
+        console.error('Error unregistering webhook during blog deletion:', error)
+        // Continue with deletion even if webhook cleanup fails
+      }
     }
 
     // Delete all posts associated with the blog first
