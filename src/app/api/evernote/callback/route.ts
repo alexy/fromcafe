@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { getToken } from 'next-auth/jwt'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEvernoteAccessToken } from '@/lib/evernote'
@@ -22,52 +23,57 @@ function getBaseUrl(): string {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const session = await getServerSession(authOptions)
   
-  console.log('OAuth callback session:', {
+  // Try both session methods for better reliability
+  const session = await getServerSession(authOptions)
+  const token = await getToken({ req: request })
+  
+  // Extract OAuth parameters first
+  const oauthToken = searchParams.get('oauth_token')
+  const oauthVerifier = searchParams.get('oauth_verifier')
+  const edamNoteStoreUrl = searchParams.get('edam_noteStoreUrl')
+  
+  console.log('OAuth callback authentication:', {
     hasSession: !!session,
-    userId: session?.user?.id,
-    userEmail: session?.user?.email
+    sessionUserId: session?.user?.id,
+    sessionUserEmail: session?.user?.email,
+    hasToken: !!token,
+    tokenSub: token?.sub,
+    tokenEmail: token?.email,
+    oauthToken: oauthToken ? 'present' : 'missing',
+    oauthVerifier: oauthVerifier ? 'present' : 'missing',
+    cookies: request.headers.get('cookie') ? 'present' : 'missing'
   })
   
-  if (!session?.user?.id) {
+  // If no OAuth parameters, this is an invalid callback
+  if (!oauthToken || !oauthVerifier) {
+    console.log('Missing OAuth parameters, redirecting to dashboard with error')
+    const baseUrl = getBaseUrl()
+    return NextResponse.redirect(new URL('/dashboard?error=invalid_oauth', baseUrl))
+  }
+  
+  // Use either session or token for user identification
+  const userId = session?.user?.id || token?.sub
+  
+  if (!userId) {
     console.log('No session or user ID, need to sign in first')
     const baseUrl = getBaseUrl()
     console.log('Using base URL for redirect:', baseUrl)
     
-    // Store the Evernote OAuth parameters so we can complete the flow after sign-in
-    const oauthToken = searchParams.get('oauth_token')
-    const oauthVerifier = searchParams.get('oauth_verifier')
-    const edamNoteStoreUrl = searchParams.get('edam_noteStoreUrl')
+    // Store the OAuth parameters in URL params for after sign-in
+    const signInUrl = new URL('/auth/signin', baseUrl)
+    signInUrl.searchParams.set('callbackUrl', 
+      `/api/evernote/callback?oauth_token=${oauthToken}&oauth_verifier=${oauthVerifier}${edamNoteStoreUrl ? `&edam_noteStoreUrl=${edamNoteStoreUrl}` : ''}`)
     
-    if (oauthToken && oauthVerifier) {
-      // Store the OAuth parameters in URL params for after sign-in
-      const signInUrl = new URL('/auth/signin', baseUrl)
-      signInUrl.searchParams.set('callbackUrl', 
-        `/api/evernote/callback?oauth_token=${oauthToken}&oauth_verifier=${oauthVerifier}${edamNoteStoreUrl ? `&edam_noteStoreUrl=${edamNoteStoreUrl}` : ''}`)
-      
-      console.log('Redirecting to sign-in with callback URL to resume Evernote OAuth')
-      return NextResponse.redirect(signInUrl)
-    } else {
-      // No valid OAuth parameters, just redirect to sign-in
-      return NextResponse.redirect(new URL('/auth/signin', baseUrl))
-    }
+    console.log('Redirecting to sign-in with callback URL to resume Evernote OAuth')
+    return NextResponse.redirect(signInUrl)
   }
 
-  const oauthToken = searchParams.get('oauth_token')
-  const oauthVerifier = searchParams.get('oauth_verifier')
-  const edamNoteStoreUrl = searchParams.get('edam_noteStoreUrl')
-
-  console.log('OAuth callback parameters:', {
+  console.log('OAuth callback parameters validated:', {
     oauthToken: oauthToken ? 'present' : 'missing',
     oauthVerifier: oauthVerifier ? 'present' : 'missing',
     edamNoteStoreUrl: edamNoteStoreUrl || 'not provided'
   })
-
-  if (!oauthToken || !oauthVerifier) {
-    const baseUrl = getBaseUrl()
-    return NextResponse.redirect(new URL('/dashboard?error=invalid_oauth', baseUrl))
-  }
 
   try {
     // Exchange the OAuth verifier for an access token
@@ -83,21 +89,25 @@ export async function GET(request: NextRequest) {
     // First check if user exists
     console.log('Checking if user exists...')
     const existingUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       select: { id: true, email: true }
     })
+    
+    const userEmail = session?.user?.email || token?.email
+    const userName = session?.user?.name || token?.name
+    const userImage = session?.user?.image || token?.picture
     
     if (!existingUser) {
       console.log('User not found in database, creating user...')
       // Create the user if they don't exist
       await prisma.user.create({
         data: {
-          id: session.user.id,
-          email: session.user.email!,
-          name: session.user.name,
-          image: session.user.image,
+          id: userId,
+          email: userEmail!,
+          name: userName,
+          image: userImage,
           evernoteToken: accessToken,
-          evernoteUserId: session.user.id,
+          evernoteUserId: userId,
           evernoteNoteStoreUrl: finalNoteStoreUrl,
         }
       })
@@ -105,11 +115,11 @@ export async function GET(request: NextRequest) {
       console.log('User exists, updating with Evernote credentials...')
       // Store the access token and noteStore URL in the database
       await prisma.user.update({
-        where: { id: session.user.id },
+        where: { id: userId },
         data: {
           evernoteToken: accessToken,
-          evernoteUserId: session.user.id, // Use the user's ID for now
-          evernoteNoteStoreUrl: finalNoteStoreUrl, // Store the noteStore URL from OAuth
+          evernoteUserId: userId,
+          evernoteNoteStoreUrl: finalNoteStoreUrl,
         },
       })
     }
