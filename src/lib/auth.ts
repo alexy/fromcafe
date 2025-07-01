@@ -34,7 +34,10 @@ export const authOptions = {
     redirect: async ({ url, baseUrl }: { url: string; baseUrl: string }) => {
       // Force redirect to production URL on Vercel to prevent OAuth mismatch
       if (process.env.VERCEL && process.env.VERCEL_ENV === 'production') {
-        const productionUrl = 'https://fromcafe.vercel.app'
+        // Use NEXTAUTH_URL if set, otherwise construct from VERCEL_URL
+        const productionUrl = process.env.NEXTAUTH_URL || 
+          (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : baseUrl)
+        
         if (url.startsWith('/')) {
           return `${productionUrl}${url}`
         }
