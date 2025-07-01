@@ -268,10 +268,6 @@ export class SyncService {
         let allNotesMetadata: { guid: string; tagGuids?: string[] }[] = []
         try {
           console.log('Fetching all notes metadata to detect unpublished posts...')
-          const allNotesFilter = { notebookGuid: notebookGuid }
-          if (isIncrementalSync && blog?.lastSyncedAt) {
-            allNotesFilter.updated = Math.floor(blog.lastSyncedAt.getTime())
-          }
           
           // Use evernoteService to get all notes metadata (without tag filtering)
           const metadata = await evernoteService.getAllNotesMetadata(notebookGuid, isIncrementalSync && blog?.lastSyncedAt ? blog.lastSyncedAt : undefined)
