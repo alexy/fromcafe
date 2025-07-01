@@ -6,14 +6,17 @@ import { prisma } from '@/lib/prisma'
 
 // Force base URL for consistent OAuth redirects
 const getBaseUrl = () => {
-  // Explicitly use NEXTAUTH_URL if set
+  // If NEXTAUTH_URL is explicitly set, use it (for production override)
   if (process.env.NEXTAUTH_URL) {
+    console.log('Using explicit NEXTAUTH_URL:', process.env.NEXTAUTH_URL)
     return process.env.NEXTAUTH_URL
   }
   
-  // For Vercel production, construct from domain
-  if (process.env.VERCEL_ENV === 'production' && process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`
+  // For Vercel deployments, use the actual VERCEL_URL (allows preview deployments to work)
+  if (process.env.VERCEL && process.env.VERCEL_URL) {
+    const vercelUrl = `https://${process.env.VERCEL_URL}`
+    console.log('Using VERCEL_URL:', vercelUrl)
+    return vercelUrl
   }
   
   // Local development fallback
