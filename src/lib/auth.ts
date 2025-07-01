@@ -12,6 +12,7 @@ export const authOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
   ],
+  debug: process.env.NODE_ENV === 'development',
   callbacks: {
     session: async ({ session, token }: { session: any; token: any }) => {
       if (session?.user) {

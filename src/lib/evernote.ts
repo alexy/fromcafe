@@ -1,9 +1,11 @@
 import * as Evernote from 'evernote'
+import { storeTokenSecret, getTokenSecret, removeToken } from './evernote-session'
 
 const client = new Evernote.Client({
   consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
   consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
-  sandbox: process.env.EVERNOTE_SANDBOX === 'true',
+  sandbox: false,
+  china: false,
 })
 
 export interface EvernoteNote {
@@ -21,43 +23,88 @@ export interface EvernoteNotebook {
 }
 
 export class EvernoteService {
-  private noteStore: Evernote.NoteStore
+  private noteStore: any
+  private userStore: Evernote.UserStore
 
-  constructor(private accessToken: string) {
+  constructor(private accessToken: string, private noteStoreUrl?: string) {
+    this.userStore = client.getUserStore()
     this.noteStore = client.getNoteStore(accessToken)
   }
 
   async getNotebooks(): Promise<EvernoteNotebook[]> {
+    if (!this.noteStore) {
+      throw new Error('NoteStore not initialized')
+    }
+
     try {
-      const notebooks = await this.noteStore.listNotebooks()
-      return notebooks.map((notebook: Evernote.Notebook) => ({
-        guid: notebook.guid,
-        name: notebook.name,
-      }))
+      // Create a fresh client with the access token
+      const tokenizedClient = new (require('evernote')).Client({
+        consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
+        consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
+        sandbox: false,
+        china: false,
+        token: this.accessToken
+      })
+      
+      const freshNoteStore = tokenizedClient.getNoteStore()
+      
+      // Try both approaches: with and without the auth token parameter
+      let notebooks
+      try {
+        // Approach 1: Pass auth token as parameter
+        notebooks = await freshNoteStore.listNotebooks(this.accessToken)
+      } catch (e) {
+        // Approach 2: Use client's built-in token
+        notebooks = await freshNoteStore.listNotebooks()
+      }
+      
+      if (notebooks && Array.isArray(notebooks)) {
+        return notebooks.map((notebook: any) => ({
+          guid: notebook.guid,
+          name: notebook.name,
+        }))
+      } else {
+        throw new Error('Invalid notebooks response from Evernote')
+      }
     } catch (error) {
       console.error('Error fetching notebooks:', error)
-      throw new Error('Failed to fetch notebooks')
+      const errorMessage = (error as any)?.message || 'Unknown error'
+      throw new Error(`Failed to fetch notebooks: ${errorMessage}`)
     }
   }
 
   async getNotesFromNotebook(notebookGuid: string): Promise<EvernoteNote[]> {
     try {
-      const filter = new Evernote.NoteFilter()
-      filter.notebookGuid = notebookGuid
+      // Create a fresh client with the access token
+      const EvernoteSDK = require('evernote')
+      const tokenizedClient = new EvernoteSDK.Client({
+        consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
+        consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
+        sandbox: false,
+        china: false,
+        token: this.accessToken
+      })
       
-      const spec = new Evernote.NotesMetadataResultSpec()
-      spec.includeTitle = true
-      spec.includeTagGuids = true
-      spec.includeCreated = true
-      spec.includeUpdated = true
+      const freshNoteStore = tokenizedClient.getNoteStore()
       
-      const notesMetadata = await this.noteStore.findNotesMetadata(filter, 0, 100, spec)
+      const filter = {
+        notebookGuid: notebookGuid
+      }
+      
+      const spec = {
+        includeTitle: true,
+        includeTagGuids: true,
+        includeCreated: true,
+        includeUpdated: true
+      }
+      
+      const notesMetadata = await freshNoteStore.findNotesMetadata(filter, 0, 100, spec)
       
       const notes: EvernoteNote[] = []
       
       for (const metadata of notesMetadata.notes) {
-        const fullNote = await this.noteStore.getNote(metadata.guid, true, false, false, false)
-        const tagNames = await this.getTagNames(metadata.tagGuids || [])
+        const fullNote = await freshNoteStore.getNote(metadata.guid, true, false, false, false)
+        const tagNames = await this.getTagNamesWithStore(freshNoteStore, metadata.tagGuids || [])
         
         notes.push({
           guid: fullNote.guid,
@@ -72,6 +119,19 @@ export class EvernoteService {
       return notes
     } catch (error) {
       console.error('Error fetching notes:', error)
+      
+      // Handle rate limiting specifically
+      if (error && typeof error === 'object' && 'errorCode' in error && error.errorCode === 19) {
+        const rateLimitDuration = (error as any).rateLimitDuration || 0
+        const waitMinutes = Math.ceil(rateLimitDuration / 60)
+        throw new Error(`Evernote API rate limit exceeded. Please wait ${waitMinutes} minutes before trying again.`)
+      }
+      
+      // Handle other Evernote errors with more context
+      if (error && typeof error === 'object' && 'message' in error) {
+        throw new Error(`Evernote API error: ${(error as any).message || 'Unknown error'}`)
+      }
+      
       throw new Error('Failed to fetch notes')
     }
   }
@@ -109,20 +169,108 @@ export class EvernoteService {
     }
   }
 
+  private async getTagNamesWithStore(noteStore: any, tagGuids: string[]): Promise<string[]> {
+    if (!tagGuids || tagGuids.length === 0) return []
+    
+    try {
+      const tags = await Promise.all(
+        tagGuids.map(guid => noteStore.getTag(guid))
+      )
+      return tags.map(tag => tag.name)
+    } catch (error) {
+      console.error('Error fetching tags:', error)
+      return []
+    }
+  }
+
   isPublished(tagNames: string[]): boolean {
     return tagNames.some(tag => tag.toLowerCase() === 'published')
   }
 }
 
-export function getEvernoteAuthUrl(): string {
-  return client.getRequestToken(
-    `${process.env.APP_URL}/api/evernote/callback`,
-    (error: Error | null, oauthToken: string) => {
-      if (error) {
-        console.error('Error getting request token:', error)
-        throw error
-      }
-      return client.getAuthorizeUrl(oauthToken)
+export function getEvernoteAuthUrl(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!process.env.EVERNOTE_CONSUMER_KEY || !process.env.EVERNOTE_CONSUMER_SECRET) {
+      reject(new Error('Evernote API credentials not configured'))
+      return
     }
-  )
+
+    if (process.env.EVERNOTE_CONSUMER_KEY === 'your-evernote-consumer-key') {
+      reject(new Error('Please configure valid Evernote API credentials'))
+      return
+    }
+
+    try {
+      client.getRequestToken(
+        `${process.env.APP_URL}/api/evernote/callback`,
+        (error: Error | null, oauthToken: string, oauthTokenSecret: string) => {
+          if (error) {
+            console.error('Error getting request token:', error)
+            const errorMessage = error.message || error.toString() || 'Unknown error'
+            const errorCode = (error as any).code
+            const statusCode = (error as any).statusCode || (error as any).status
+            
+            if (errorMessage.includes('ENOTFOUND') || errorCode === 'ENOTFOUND') {
+              reject(new Error('Unable to connect to Evernote. Please check your internet connection.'))
+            } else if (errorMessage.includes('unauthorized') || statusCode === 401) {
+              reject(new Error('Invalid Evernote API credentials. Please check your consumer key and secret.'))
+            } else if (statusCode === 404) {
+              reject(new Error('Evernote API endpoint not found. Please check your API configuration.'))
+            } else {
+              reject(new Error(`Failed to connect to Evernote: ${errorMessage} (Code: ${errorCode || statusCode || 'unknown'})`))
+            }
+            return
+          }
+          
+          storeTokenSecret(oauthToken, oauthTokenSecret)
+          const authUrl = client.getAuthorizeUrl(oauthToken)
+          resolve(authUrl)
+        }
+      )
+    } catch (error) {
+      console.error('Error in getEvernoteAuthUrl:', error)
+      reject(new Error('Failed to generate Evernote auth URL'))
+    }
+  })
+}
+
+export function getEvernoteAccessToken(oauthToken: string, oauthVerifier: string): Promise<{ token: string; secret: string; noteStoreUrl?: string }> {
+  return new Promise((resolve, reject) => {
+    try {
+      const tokenSecret = getTokenSecret(oauthToken)
+      if (!tokenSecret) {
+        reject(new Error('Token secret not found. Please restart the authentication process.'))
+        return
+      }
+
+      client.getAccessToken(
+        oauthToken,
+        tokenSecret,
+        oauthVerifier,
+        (error: Error | null, accessToken: string, accessTokenSecret: string, results?: any) => {
+          if (error) {
+            console.error('Error getting access token:', error)
+            reject(error)
+            return
+          }
+          
+          removeToken(oauthToken)
+          
+          let noteStoreUrl: string | undefined
+          if (results && results.edam_noteStoreUrl) {
+            noteStoreUrl = results.edam_noteStoreUrl
+          }
+          
+          resolve({
+            token: accessToken,
+            secret: accessTokenSecret,
+            noteStoreUrl
+          })
+        }
+      )
+    } catch (error) {
+      console.error('Error in getEvernoteAccessToken:', error)
+      reject(new Error('Failed to get access token'))
+    }
+  })
 }

@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   serverExternalPackages: ['@prisma/client', 'prisma'],
   webpack: (config, { isServer }) => {
+    // Webpack configuration for production builds
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

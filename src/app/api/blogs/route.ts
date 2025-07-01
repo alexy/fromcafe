@@ -13,7 +13,16 @@ export async function GET() {
   try {
     const blogs = await prisma.blog.findMany({
       where: { userId: session.user.id },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        description: true,
+        customDomain: true,
+        evernoteNotebook: true,
+        isPublic: true,
+        lastSyncedAt: true,
+        lastSyncAttemptAt: true,
         _count: {
           select: { posts: true },
         },
@@ -37,7 +46,18 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { title, description, slug, evernoteNotebook } = body
+    const { title, description, slug, evernoteNotebook, isPublic } = body
+
+    // Check if slug already exists
+    const existingBlog = await prisma.blog.findUnique({
+      where: { slug },
+    })
+
+    if (existingBlog) {
+      return NextResponse.json({ 
+        error: `A blog with the URL slug "${slug}" already exists. Please choose a different slug.` 
+      }, { status: 400 })
+    }
 
     const blog = await prisma.blog.create({
       data: {
@@ -46,12 +66,24 @@ export async function POST(request: NextRequest) {
         description,
         slug,
         evernoteNotebook,
+        isPublic: isPublic !== undefined ? isPublic : true,
       },
     })
 
     return NextResponse.json({ blog })
   } catch (error) {
     console.error('Error creating blog:', error)
+    
+    // Handle Prisma unique constraint errors specifically
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      const meta = (error as any).meta
+      if (meta?.target?.includes('slug')) {
+        return NextResponse.json({ 
+          error: 'A blog with this URL slug already exists. Please choose a different slug.' 
+        }, { status: 400 })
+      }
+    }
+    
     return NextResponse.json({ error: 'Failed to create blog' }, { status: 500 })
   }
 }

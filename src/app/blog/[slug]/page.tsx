@@ -51,9 +51,9 @@ export default async function BlogPage({ params }: BlogPageProps) {
         <div className="container mx-auto px-4">
           <h1 className="text-4xl font-bold mb-2">{blog.title}</h1>
           {blog.description && (
-            <p className="text-xl text-gray-300">{blog.description}</p>
+            <p className="text-xl text-white">{blog.description}</p>
           )}
-          <p className="text-sm text-gray-400 mt-4">
+          <p className="text-sm text-gray-200 mt-4">
             By {blog.user.name || blog.user.email}
           </p>
         </div>
@@ -62,7 +62,7 @@ export default async function BlogPage({ params }: BlogPageProps) {
       <main className="container mx-auto px-4 py-8">
         {blog.posts.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-600 text-lg">No posts published yet.</p>
+            <p className="text-black text-lg">No posts published yet.</p>
           </div>
         ) : (
           <div className="grid gap-8">
@@ -72,17 +72,17 @@ export default async function BlogPage({ params }: BlogPageProps) {
                   <h2 className="text-2xl font-bold mb-2">
                     <a
                       href={`/blog/${blog.slug}/${post.slug}`}
-                      className="text-gray-900 hover:text-blue-600 transition-colors"
+                      className="text-black hover:text-blue-600 transition-colors"
                     >
                       {post.title}
                     </a>
                   </h2>
-                  <time className="text-gray-500 text-sm">
+                  <time className="text-black text-sm">
                     {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString() : ''}
                   </time>
                 </header>
                 <div className="prose max-w-none">
-                  {post.excerpt && <p className="text-gray-700">{post.excerpt}</p>}
+                  {post.excerpt && <p className="text-black">{post.excerpt}</p>}
                 </div>
                 <footer className="mt-4">
                   <a

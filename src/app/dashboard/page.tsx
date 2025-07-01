@@ -12,6 +12,8 @@ interface Blog {
   customDomain?: string
   evernoteNotebook?: string
   isPublic: boolean
+  lastSyncedAt?: string
+  lastSyncAttemptAt?: string
   _count: {
     posts: number
   }
@@ -24,19 +26,33 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [evernoteConnected, setEvernoteConnected] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(false)
+  const [showError, setShowError] = useState('')
+  const [disconnecting, setDisconnecting] = useState(false)
+  const [syncingBlog, setSyncingBlog] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/signin')
-    }
-  }, [status, router])
-
-  useEffect(() => {
-    if (session?.user) {
+    } else if (status === 'authenticated') {
       fetchBlogs()
       checkEvernoteConnection()
+      
+      // Check for success/error messages from URL params
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get('success') === 'evernote_connected') {
+        setShowSuccess(true)
+        setEvernoteConnected(true)
+        // Clean up URL
+        window.history.replaceState({}, document.title, '/dashboard')
+      }
+      if (urlParams.get('error')) {
+        setShowError(urlParams.get('error') || 'Unknown error')
+        // Clean up URL
+        window.history.replaceState({}, document.title, '/dashboard')
+      }
     }
-  }, [session])
+  }, [status, router])
 
   const fetchBlogs = async () => {
     try {
@@ -70,9 +86,13 @@ export default function Dashboard() {
       if (response.ok) {
         const data = await response.json()
         window.location.href = data.authUrl
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || 'Failed to connect to Evernote')
       }
     } catch (error) {
       console.error('Error connecting to Evernote:', error)
+      alert('Evernote integration is currently under development. Please check back later.')
     }
   }
 
@@ -80,11 +100,19 @@ export default function Dashboard() {
     setSyncing(true)
     try {
       const response = await fetch('/api/sync', { method: 'POST' })
-      if (response.ok) {
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
         await fetchBlogs()
-        alert('Sync completed successfully!')
+        const message = `Sync completed! ${data.totalNewPosts} new posts, ${data.totalUpdatedPosts} updated posts.`
+        alert(message)
       } else {
-        alert('Sync failed. Please try again.')
+        const errorMessage = data.error || 'Unknown error'
+        if (response.status === 429) {
+          alert(`Rate limit exceeded: ${errorMessage}`)
+        } else {
+          alert(`Sync failed: ${errorMessage}`)
+        }
       }
     } catch (error) {
       console.error('Error syncing:', error)
@@ -93,6 +121,96 @@ export default function Dashboard() {
       setSyncing(false)
     }
   }
+
+  const formatTimeAgo = (dateString: string) => {
+    const now = new Date()
+    const syncTime = new Date(dateString)
+    const diffMs = now.getTime() - syncTime.getTime()
+    const diffMinutes = Math.floor(diffMs / (1000 * 60))
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+    if (diffMinutes < 1) return 'Just now'
+    if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
+    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
+  }
+
+  const syncBlog = async (blogId: string) => {
+    setSyncingBlog(blogId)
+    try {
+      const response = await fetch(`/api/blogs/${blogId}/sync`, { method: 'POST' })
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          // Update the blog's last synced time and attempt time in local state
+          const now = new Date().toISOString()
+          setBlogs(blogs.map(blog => 
+            blog.id === blogId 
+              ? { ...blog, lastSyncedAt: now, lastSyncAttemptAt: now }
+              : blog
+          ))
+          
+          const result = data.result
+          alert(`Sync completed! ${result.newPosts} new posts, ${result.updatedPosts} updated posts.`)
+        } else {
+          // Update only the attempt time for failed syncs
+          setBlogs(blogs.map(blog => 
+            blog.id === blogId 
+              ? { ...blog, lastSyncAttemptAt: new Date().toISOString() }
+              : blog
+          ))
+          alert(`Sync failed: ${data.error || 'Unknown error'}`)
+        }
+      } else {
+        // Update only the attempt time for failed syncs
+        setBlogs(blogs.map(blog => 
+          blog.id === blogId 
+            ? { ...blog, lastSyncAttemptAt: new Date().toISOString() }
+            : blog
+        ))
+        const errorData = await response.json()
+        alert(`Sync failed: ${errorData.error || 'Please try again.'}`)
+      }
+    } catch (error) {
+      // Update only the attempt time for failed syncs
+      setBlogs(blogs.map(blog => 
+        blog.id === blogId 
+          ? { ...blog, lastSyncAttemptAt: new Date().toISOString() }
+          : blog
+      ))
+      console.error('Error syncing blog:', error)
+      alert('Sync failed. Please try again.')
+    } finally {
+      setSyncingBlog(null)
+    }
+  }
+
+  const disconnectEvernote = async () => {
+    if (!confirm('Are you sure you want to disconnect from Evernote? You will need to reconnect to access your notebooks again.')) {
+      return
+    }
+
+    setDisconnecting(true)
+    try {
+      const response = await fetch('/api/evernote/disconnect', { method: 'POST' })
+      if (response.ok) {
+        setEvernoteConnected(false)
+        setShowSuccess(false)
+        setShowError('')
+        alert('Successfully disconnected from Evernote!')
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || 'Failed to disconnect from Evernote')
+      }
+    } catch (error) {
+      console.error('Error disconnecting from Evernote:', error)
+      alert('Failed to disconnect from Evernote. Please try again.')
+    } finally {
+      setDisconnecting(false)
+    }
+  }
+
 
   if (status === 'loading' || loading) {
     return (
@@ -110,9 +228,9 @@ export default function Dashboard() {
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+            <h1 className="text-3xl font-bold text-black">Dashboard</h1>
             <div className="flex items-center space-x-4">
-              <span className="text-gray-600">
+              <span className="text-black">
                 Welcome, {session?.user?.name || session?.user?.email}
               </span>
               <button
@@ -127,22 +245,56 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {showSuccess && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-6">
+            ✓ Successfully connected to Evernote! You can now sync your notebooks.
+          </div>
+        )}
+
+        {showError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+            Error: {showError.replace('_', ' ')}
+          </div>
+        )}
+
         <div className="mb-8">
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">Evernote Integration</h2>
+            <h2 className="text-xl font-semibold mb-4 text-black">Evernote Integration</h2>
             {evernoteConnected ? (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                  <span className="text-green-700">Connected to Evernote</span>
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                    <span className="text-green-700">Connected to Evernote</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {blogs.length > 0 && blogs.some(blog => blog.evernoteNotebook) && (
+                      <button
+                        onClick={syncNow}
+                        disabled={syncing || disconnecting}
+                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {syncing ? 'Syncing...' : 'Sync All Blogs'}
+                      </button>
+                    )}
+                    <button
+                      onClick={disconnectEvernote}
+                      disabled={disconnecting || syncing}
+                      className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {disconnecting ? 'Disconnecting...' : 'Disconnect'}
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={syncNow}
-                  disabled={syncing}
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {syncing ? 'Syncing...' : 'Sync Now'}
-                </button>
+                
+                <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded mb-4">
+                  <p className="text-sm">
+                    <strong>Connected to Evernote!</strong> You can now connect notebooks to individual blogs from their settings pages.
+                  </p>
+                  <p className="text-sm mt-1">
+                    To use different Evernote credentials, click &quot;Disconnect&quot; and then &quot;Connect Evernote&quot; again.
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="flex items-center justify-between">
@@ -162,7 +314,7 @@ export default function Dashboard() {
         </div>
 
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Your Blogs</h2>
+          <h2 className="text-2xl font-bold text-black">Your Blogs</h2>
           <button
             onClick={() => router.push('/dashboard/blogs/new')}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
@@ -173,7 +325,7 @@ export default function Dashboard() {
 
         {blogs.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-6 text-center">
-            <p className="text-gray-600 mb-4">You haven&apos;t created any blogs yet.</p>
+            <p className="text-black mb-4">You haven&apos;t created any blogs yet.</p>
             <button
               onClick={() => router.push('/dashboard/blogs/new')}
               className="bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700"
@@ -185,14 +337,38 @@ export default function Dashboard() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {blogs.map((blog) => (
               <div key={blog.id} className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold mb-2">{blog.title}</h3>
-                <p className="text-gray-600 mb-4">{blog.description}</p>
-                <div className="text-sm text-gray-500 mb-4">
+                <h3 className="text-lg font-semibold mb-2 text-black">{blog.title}</h3>
+                <p className="text-black mb-4">{blog.description}</p>
+                <div className="text-sm text-black mb-4">
                   <p>Posts: {blog._count.posts}</p>
                   <p>Status: {blog.isPublic ? 'Public' : 'Private'}</p>
                   {blog.customDomain && <p>Domain: {blog.customDomain}</p>}
                 </div>
-                <div className="flex justify-between">
+                {/* Sync Status and Actions */}
+                {blog.evernoteNotebook && (
+                  <div className="flex justify-between items-end border-t pt-4 mt-4">
+                    <div className="text-sm">
+                      <div className="text-black font-medium">Last synced</div>
+                      <div className="text-black">
+                        {blog.lastSyncedAt ? formatTimeAgo(blog.lastSyncedAt) : 'Never'}
+                      </div>
+                      {blog.lastSyncAttemptAt && blog.lastSyncAttemptAt !== blog.lastSyncedAt && (
+                        <div className="text-red-600 text-xs mt-1">
+                          Last attempt: {formatTimeAgo(blog.lastSyncAttemptAt)}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => syncBlog(blog.id)}
+                      disabled={syncingBlog === blog.id}
+                      className="bg-green-600 text-white px-3 py-1 text-sm rounded hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {syncingBlog === blog.id ? 'Syncing...' : 'Sync Now'}
+                    </button>
+                  </div>
+                )}
+                
+                <div className="flex justify-between mt-4">
                   <a
                     href={`/blog/${blog.slug}`}
                     target="_blank"
@@ -203,9 +379,9 @@ export default function Dashboard() {
                   </a>
                   <button
                     onClick={() => router.push(`/dashboard/blogs/${blog.id}`)}
-                    className="text-gray-600 hover:text-gray-800"
+                    className="text-black hover:text-blue-600"
                   >
-                    Settings
+                    Edit
                   </button>
                 </div>
               </div>

@@ -16,6 +16,7 @@ datasource db {
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
+  emailVerified DateTime?
   name          String?
   image         String?
   createdAt     DateTime  @default(now())
@@ -28,6 +29,7 @@ model User {
   // Evernote integration
   evernoteToken String?
   evernoteUserId String?
+  evernoteNoteStoreUrl String?
   
   // User's blogs
   blogs         Blog[]
@@ -84,6 +86,8 @@ model Blog {
   evernoteNotebook String?
   theme           String   @default("default")
   isPublic        Boolean  @default(true)
+  lastSyncedAt    DateTime?
+  lastSyncAttemptAt DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   

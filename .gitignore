@@ -30,6 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# logs
+*.log
+
 # env files (can opt-in for committing if needed)
 .env*
 
@@ -41,3 +44,4 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+client_secret_*

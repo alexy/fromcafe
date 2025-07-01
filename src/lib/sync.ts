@@ -2,38 +2,135 @@ import { prisma } from '@/lib/prisma'
 import { EvernoteService } from '@/lib/evernote'
 import * as cron from 'node-cron'
 
+export interface SyncResult {
+  blogId: string
+  blogTitle: string
+  notesFound: number
+  newPosts: number
+  updatedPosts: number
+  unpublishedPosts: number
+  totalPublishedPosts: number
+  error?: string
+  posts: Array<{
+    title: string
+    isNew: boolean
+    isUpdated: boolean
+    isUnpublished: boolean
+  }>
+}
+
+export interface UserSyncResult {
+  success: boolean
+  results: SyncResult[]
+  totalNewPosts: number
+  totalUpdatedPosts: number
+  error?: string
+}
+
 export class SyncService {
-  static async syncUserBlogs(userId: string): Promise<void> {
+  static async syncUserBlogs(userId: string): Promise<UserSyncResult> {
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        include: { blogs: true },
+        select: { 
+          id: true, 
+          evernoteToken: true, 
+          evernoteNoteStoreUrl: true,
+          blogs: {
+            select: {
+              id: true,
+              title: true,
+              evernoteNotebook: true
+            }
+          }
+        },
       })
 
       if (!user?.evernoteToken) {
         console.log(`User ${userId} has no Evernote token, skipping sync`)
-        return
+        return {
+          success: false,
+          results: [],
+          totalNewPosts: 0,
+          totalUpdatedPosts: 0,
+          error: 'No Evernote token found'
+        }
       }
 
-      const evernoteService = new EvernoteService(user.evernoteToken)
+      const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl)
+      const results: SyncResult[] = []
 
       for (const blog of user.blogs) {
         if (blog.evernoteNotebook) {
-          await this.syncBlogPosts(blog.id, blog.evernoteNotebook, evernoteService)
+          try {
+            const result = await this.syncBlogPosts(blog.id, blog.title, blog.evernoteNotebook, evernoteService)
+            results.push(result)
+          } catch (error) {
+            console.error(`Failed to sync blog ${blog.id}:`, error)
+            // Add a failed sync result
+            results.push({
+              blogId: blog.id,
+              blogTitle: blog.title,
+              notesFound: 0,
+              newPosts: 0,
+              updatedPosts: 0,
+              unpublishedPosts: 0,
+              totalPublishedPosts: 0,
+              posts: [{
+                title: `Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                isNew: false,
+                isUpdated: false,
+                isUnpublished: false
+              }]
+            })
+          }
         }
+      }
+
+      const totalNewPosts = results.reduce((sum, r) => sum + r.newPosts, 0)
+      const totalUpdatedPosts = results.reduce((sum, r) => sum + r.updatedPosts, 0)
+
+      return {
+        success: true,
+        results,
+        totalNewPosts,
+        totalUpdatedPosts
       }
     } catch (error) {
       console.error(`Error syncing user ${userId}:`, error)
+      return {
+        success: false,
+        results: [],
+        totalNewPosts: 0,
+        totalUpdatedPosts: 0,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
     }
   }
 
-  static async syncBlogPosts(blogId: string, notebookGuid: string, evernoteService: EvernoteService): Promise<void> {
+  static async syncBlogPosts(blogId: string, blogTitle: string, notebookGuid: string, evernoteService: EvernoteService): Promise<SyncResult> {
+    const result: SyncResult = {
+      blogId,
+      blogTitle,
+      notesFound: 0,
+      newPosts: 0,
+      updatedPosts: 0,
+      unpublishedPosts: 0,
+      totalPublishedPosts: 0,
+      posts: []
+    }
+
     try {
+      console.log(`Starting sync for blog ${blogId}, notebook ${notebookGuid}`)
       const notes = await evernoteService.getNotesFromNotebook(notebookGuid)
+      console.log(`Found ${notes.length} notes in notebook ${notebookGuid}`)
+      
+      result.notesFound = notes.length
       
       for (const note of notes) {
         const isPublished = evernoteService.isPublished(note.tagNames)
         const slug = this.generateSlug(note.title)
+        console.log(`Note "${note.title}" - Published: ${isPublished}, Tags: [${note.tagNames.join(', ')}]`)
         
         const existingPost = await prisma.post.findUnique({
           where: { evernoteNoteId: note.guid },
@@ -52,8 +149,16 @@ export class SyncService {
               updatedAt: new Date(note.updated),
             },
           })
+          result.updatedPosts++
+          result.posts.push({
+            title: note.title,
+            isNew: false,
+            isUpdated: true,
+            isUnpublished: false
+          })
         } else if (isPublished) {
           // Create new published post
+          console.log(`Creating new post for note "${note.title}"`)
           await prisma.post.create({
             data: {
               blogId,
@@ -67,6 +172,13 @@ export class SyncService {
               createdAt: new Date(note.created),
               updatedAt: new Date(note.updated),
             },
+          })
+          result.newPosts++
+          result.posts.push({
+            title: note.title,
+            isNew: true,
+            isUpdated: false,
+            isUnpublished: false
           })
         }
       }
@@ -86,10 +198,57 @@ export class SyncService {
               publishedAt: null,
             },
           })
+          result.unpublishedPosts++
+          result.posts.push({
+            title: post.title,
+            isNew: false,
+            isUpdated: false,
+            isUnpublished: true
+          })
         }
       }
+
+      // Get final count of published posts
+      const finalPublishedCount = await prisma.post.count({
+        where: { blogId, isPublished: true }
+      })
+      result.totalPublishedPosts = finalPublishedCount
+
+      // Update the blog's last synced time and attempt time
+      await prisma.blog.update({
+        where: { id: blogId },
+        data: { 
+          lastSyncedAt: new Date(),
+          lastSyncAttemptAt: new Date()
+        }
+      })
+
+      return result
     } catch (error) {
       console.error(`Error syncing blog ${blogId}:`, error)
+      
+      // Update only the attempt time for failed syncs
+      try {
+        await prisma.blog.update({
+          where: { id: blogId },
+          data: { lastSyncAttemptAt: new Date() }
+        })
+      } catch (updateError) {
+        console.error('Failed to update sync attempt time:', updateError)
+      }
+      
+      // Return error information instead of throwing
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      return {
+        ...result,
+        error: errorMessage,
+        posts: [{
+          title: `Error: ${errorMessage}`,
+          isNew: false,
+          isUpdated: false,
+          isUnpublished: false
+        }]
+      }
     }
   }
 
@@ -129,7 +288,9 @@ export class SyncService {
       })
 
       for (const user of users) {
-        await this.syncUserBlogs(user.id)
+        await this.syncUserBlogs(user.id).catch(error => {
+          console.error(`Failed to sync user ${user.id}:`, error)
+        })
       }
       
       console.log('Scheduled sync completed')

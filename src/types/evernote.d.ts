@@ -9,6 +9,7 @@ declare module 'evernote' {
       
       getNoteStore(token: string): NoteStore
       getRequestToken(callbackUrl: string, callback: (error: Error | null, token: string, tokenSecret?: string, results?: unknown) => void): string
+      getAccessToken(token: string, tokenSecret: string, verifier: string, callback: (error: Error | null, accessToken: string, accessTokenSecret: string) => void): void
       getAuthorizeUrl(token: string): string
     }
     
