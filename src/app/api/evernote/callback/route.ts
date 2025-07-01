@@ -21,6 +21,7 @@ function getBaseUrl(): string {
 }
 
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
   const session = await getServerSession(authOptions)
   
   console.log('OAuth callback session:', {
@@ -30,13 +31,29 @@ export async function GET(request: NextRequest) {
   })
   
   if (!session?.user?.id) {
-    console.log('No session or user ID, redirecting to signin')
+    console.log('No session or user ID, need to sign in first')
     const baseUrl = getBaseUrl()
     console.log('Using base URL for redirect:', baseUrl)
-    return NextResponse.redirect(new URL('/auth/signin', baseUrl))
+    
+    // Store the Evernote OAuth parameters so we can complete the flow after sign-in
+    const oauthToken = searchParams.get('oauth_token')
+    const oauthVerifier = searchParams.get('oauth_verifier')
+    const edamNoteStoreUrl = searchParams.get('edam_noteStoreUrl')
+    
+    if (oauthToken && oauthVerifier) {
+      // Store the OAuth parameters in URL params for after sign-in
+      const signInUrl = new URL('/auth/signin', baseUrl)
+      signInUrl.searchParams.set('callbackUrl', 
+        `/api/evernote/callback?oauth_token=${oauthToken}&oauth_verifier=${oauthVerifier}${edamNoteStoreUrl ? `&edam_noteStoreUrl=${edamNoteStoreUrl}` : ''}`)
+      
+      console.log('Redirecting to sign-in with callback URL to resume Evernote OAuth')
+      return NextResponse.redirect(signInUrl)
+    } else {
+      // No valid OAuth parameters, just redirect to sign-in
+      return NextResponse.redirect(new URL('/auth/signin', baseUrl))
+    }
   }
 
-  const { searchParams } = new URL(request.url)
   const oauthToken = searchParams.get('oauth_token')
   const oauthVerifier = searchParams.get('oauth_verifier')
   const edamNoteStoreUrl = searchParams.get('edam_noteStoreUrl')
