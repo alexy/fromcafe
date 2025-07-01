@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [showError, setShowError] = useState('')
   const [disconnecting, setDisconnecting] = useState(false)
   const [syncingBlog, setSyncingBlog] = useState<string | null>(null)
+  const [resettingSync, setResettingSync] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -136,6 +137,27 @@ export default function Dashboard() {
     return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
   }
 
+  const resetBlogSyncState = async (blogId: string) => {
+    if (!confirm('Reset sync state for this blog? This will force a fresh sync on next attempt.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/blogs/${blogId}/reset-sync`, { method: 'POST' })
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        await fetchBlogs() // Refresh blog data
+        alert('Sync state reset successfully. Next sync will be a fresh full sync.')
+      } else {
+        alert(data.error || 'Failed to reset sync state')
+      }
+    } catch (error) {
+      console.error('Error resetting blog sync state:', error)
+      alert('Failed to reset sync state. Please try again.')
+    }
+  }
+
   const syncBlog = async (blogId: string) => {
     setSyncingBlog(blogId)
     try {
@@ -183,6 +205,30 @@ export default function Dashboard() {
       alert('Sync failed. Please try again.')
     } finally {
       setSyncingBlog(null)
+    }
+  }
+
+  const resetAllSyncStates = async () => {
+    if (!confirm('Reset sync state for all blogs? This will force fresh syncs on next attempt.')) {
+      return
+    }
+
+    setResettingSync(true)
+    try {
+      const response = await fetch('/api/admin/reset-all-sync-states', { method: 'POST' })
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        await fetchBlogs() // Refresh blog data
+        alert(`Reset sync state for ${data.blogsReset} blogs. Next syncs will be fresh full syncs.`)
+      } else {
+        alert(data.error || 'Failed to reset sync states')
+      }
+    } catch (error) {
+      console.error('Error resetting sync states:', error)
+      alert('Failed to reset sync states. Please try again.')
+    } finally {
+      setResettingSync(false)
     }
   }
 
@@ -269,13 +315,23 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center space-x-2">
                     {blogs.length > 0 && blogs.some(blog => blog.evernoteNotebook) && (
-                      <button
-                        onClick={syncNow}
-                        disabled={syncing || disconnecting}
-                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        {syncing ? 'Syncing...' : 'Sync All Blogs'}
-                      </button>
+                      <>
+                        <button
+                          onClick={syncNow}
+                          disabled={syncing || disconnecting || resettingSync}
+                          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {syncing ? 'Syncing...' : 'Sync All Blogs'}
+                        </button>
+                        <button
+                          onClick={resetAllSyncStates}
+                          disabled={syncing || disconnecting || resettingSync}
+                          className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 disabled:opacity-50"
+                          title="Reset sync state for all blogs to force fresh syncs"
+                        >
+                          {resettingSync ? 'Resetting...' : 'Reset Sync'}
+                        </button>
+                      </>
                     )}
                     <button
                       onClick={disconnectEvernote}
@@ -358,13 +414,23 @@ export default function Dashboard() {
                         </div>
                       )}
                     </div>
-                    <button
-                      onClick={() => syncBlog(blog.id)}
-                      disabled={syncingBlog === blog.id}
-                      className="bg-green-600 text-white px-3 py-1 text-sm rounded hover:bg-green-700 disabled:opacity-50"
-                    >
-                      {syncingBlog === blog.id ? 'Syncing...' : 'Sync Now'}
-                    </button>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => syncBlog(blog.id)}
+                        disabled={syncingBlog === blog.id}
+                        className="bg-green-600 text-white px-3 py-1 text-sm rounded hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {syncingBlog === blog.id ? 'Syncing...' : 'Sync Now'}
+                      </button>
+                      <button
+                        onClick={() => resetBlogSyncState(blog.id)}
+                        disabled={syncingBlog === blog.id}
+                        className="bg-yellow-600 text-white px-2 py-1 text-xs rounded hover:bg-yellow-700 disabled:opacity-50"
+                        title="Reset sync state for this blog"
+                      >
+                        Reset
+                      </button>
+                    </div>
                   </div>
                 )}
                 
@@ -392,3 +458,4 @@ export default function Dashboard() {
     </div>
   )
 }
+

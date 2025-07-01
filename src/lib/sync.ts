@@ -126,35 +126,74 @@ export class SyncService {
       console.log(`Starting sync for blog ${blogId}, notebook ${notebookGuid}`)
       
       // Check if the account has changed since last sync
+      // NOTE: getSyncState() returns ACCOUNT-WIDE changes, not notebook-specific
+      // This is still useful as an optimization - if the entire account hasn't changed,
+      // we know this notebook hasn't changed either
       currentSyncState = await evernoteService.getSyncState()
-      console.log(`Current sync state updateCount: ${currentSyncState.updateCount}`)
+      console.log(`Current account sync state updateCount: ${currentSyncState.updateCount}`)
       
-      // Get the blog's last sync state
+      // Get the blog's last SUCCESSFUL sync state
       const blog = await prisma.blog.findUnique({
         where: { id: blogId },
-        select: { lastSyncUpdateCount: true }
+        select: { 
+          lastSyncUpdateCount: true, 
+          lastSyncedAt: true,
+          lastSyncAttemptAt: true 
+        }
       })
       
-      if (blog?.lastSyncUpdateCount && currentSyncState.updateCount !== -1) {
-        if (currentSyncState.updateCount <= blog.lastSyncUpdateCount) {
-          console.log(`No changes since last sync (current: ${currentSyncState.updateCount}, last: ${blog.lastSyncUpdateCount}). Skipping sync.`)
+      // Only use lastSyncUpdateCount if we have BOTH a successful sync time AND the update count
+      // This ensures we don't skip syncs based on failed attempts
+      const hasSuccessfulPreviousSync = blog?.lastSyncedAt && blog?.lastSyncUpdateCount
+      
+      if (hasSuccessfulPreviousSync && currentSyncState.updateCount !== -1) {
+        if (currentSyncState.updateCount <= blog.lastSyncUpdateCount!) {
+          console.log(`No account changes since last SUCCESSFUL sync (current: ${currentSyncState.updateCount}, last successful: ${blog.lastSyncUpdateCount}). Skipping sync.`)
           return {
             ...result,
             posts: [{
-              title: 'No changes detected since last sync',
+              title: 'No changes detected in Evernote account since last successful sync',
               isNew: false,
               isUpdated: false,
               isUnpublished: false
             }]
           }
         }
-        console.log(`Changes detected (current: ${currentSyncState.updateCount}, last: ${blog.lastSyncUpdateCount}). Proceeding with sync.`)
+        console.log(`Account changes detected since last successful sync (current: ${currentSyncState.updateCount}, last successful: ${blog.lastSyncUpdateCount}). Proceeding with sync.`)
       } else {
-        console.log(`First sync or unable to get sync state. Proceeding with full sync.`)
+        if (blog?.lastSyncAttemptAt && !blog?.lastSyncedAt) {
+          console.log(`Previous sync attempts failed. Clearing stale sync state and proceeding with full sync.`)
+          // Clear any stale sync update count from failed attempts
+          try {
+            await prisma.blog.update({
+              where: { id: blogId },
+              data: { lastSyncUpdateCount: null }
+            })
+          } catch (clearError) {
+            console.error('Failed to clear stale sync state:', clearError)
+          }
+        } else {
+          console.log(`First sync or unable to get account sync state. Proceeding with full sync.`)
+        }
       }
       
-      const notes = await evernoteService.getNotesFromNotebook(notebookGuid)
-      console.log(`Found ${notes.length} notes in notebook ${notebookGuid}`)
+      // Determine if this is an incremental sync or full sync
+      // Only do incremental sync if we have a successful previous sync
+      const isIncrementalSync = hasSuccessfulPreviousSync && currentSyncState.updateCount !== -1 && 
+                               currentSyncState.updateCount > blog.lastSyncUpdateCount!
+      
+      let notes: import('@/lib/evernote').EvernoteNote[]
+      if (isIncrementalSync && blog?.lastSyncedAt) {
+        // Incremental sync: only get notes modified since last successful sync
+        console.log(`Performing incremental sync - checking notes modified since ${blog.lastSyncedAt.toISOString()}`)
+        notes = await evernoteService.getNotesFromNotebook(notebookGuid, 100, blog.lastSyncedAt)
+      } else {
+        // Full sync: now more efficient with tag filtering, can handle more notes
+        console.log(`Performing full sync - now optimized to filter by "published" tag first`)
+        notes = await evernoteService.getNotesFromNotebook(notebookGuid, 50)
+      }
+      
+      console.log(`Found ${notes.length} notes to process from notebook ${notebookGuid}`)
       
       result.notesFound = notes.length
       
@@ -215,27 +254,81 @@ export class SyncService {
       }
 
       // Handle unpublished posts (notes that no longer have 'published' tag)
+      // CRITICAL: We need to check ALL notes in the notebook, not just published ones,
+      // to detect notes that had their "published" tag removed
       const currentPosts = await prisma.post.findMany({
         where: { blogId, isPublished: true },
       })
 
-      for (const post of currentPosts) {
-        const noteStillExists = notes.find(note => note.guid === post.evernoteNoteId)
-        if (!noteStillExists || !evernoteService.isPublished(noteStillExists.tagNames)) {
-          await prisma.post.update({
-            where: { id: post.id },
-            data: {
-              isPublished: false,
-              publishedAt: null,
-            },
-          })
-          result.unpublishedPosts++
-          result.posts.push({
-            title: post.title,
-            isNew: false,
-            isUpdated: false,
-            isUnpublished: true
-          })
+      if (currentPosts.length > 0) {
+        console.log(`Checking ${currentPosts.length} published posts for unpublished notes...`)
+        
+        // Fetch ALL notes metadata from notebook to detect unpublished ones
+        // Use the evernoteService method to get all notes metadata (without tag filtering)
+        let allNotesMetadata: { guid: string; tagGuids?: string[] }[] = []
+        try {
+          console.log('Fetching all notes metadata to detect unpublished posts...')
+          const allNotesFilter = { notebookGuid: notebookGuid }
+          if (isIncrementalSync && blog?.lastSyncedAt) {
+            allNotesFilter.updated = Math.floor(blog.lastSyncedAt.getTime())
+          }
+          
+          // Use evernoteService to get all notes metadata (without tag filtering)
+          const metadata = await evernoteService.getAllNotesMetadata(notebookGuid, isIncrementalSync && blog?.lastSyncedAt ? blog.lastSyncedAt : undefined)
+          allNotesMetadata = metadata
+          console.log(`Found ${allNotesMetadata.length} total notes for unpublish check`)
+        } catch (error) {
+          console.error('Failed to fetch all notes metadata for unpublish check:', error)
+          // Fall back to checking only against the published notes we fetched
+          allNotesMetadata = notes.map(note => ({ guid: note.guid, tagGuids: [] }))
+        }
+
+        for (const post of currentPosts) {
+          const noteMetadata = allNotesMetadata.find(note => note.guid === post.evernoteNoteId)
+          
+          if (!noteMetadata) {
+            // Note was deleted from Evernote entirely
+            console.log(`Note ${post.evernoteNoteId} was deleted from Evernote, unpublishing post "${post.title}"`)
+            await prisma.post.update({
+              where: { id: post.id },
+              data: {
+                isPublished: false,
+                publishedAt: null,
+              },
+            })
+            result.unpublishedPosts++
+            result.posts.push({
+              title: post.title,
+              isNew: false,
+              isUpdated: false,
+              isUnpublished: true
+            })
+          } else {
+            // Note still exists - check if it still has "published" tag
+            try {
+              const tagNames = await evernoteService.getTagNames(noteMetadata.tagGuids || [])
+              if (!evernoteService.isPublished(tagNames)) {
+                console.log(`Note "${post.title}" no longer has "published" tag, unpublishing post`)
+                await prisma.post.update({
+                  where: { id: post.id },
+                  data: {
+                    isPublished: false,
+                    publishedAt: null,
+                  },
+                })
+                result.unpublishedPosts++
+                result.posts.push({
+                  title: post.title,
+                  isNew: false,
+                  isUpdated: false,
+                  isUnpublished: true
+                })
+              }
+            } catch (tagError) {
+              console.error(`Failed to check tags for note ${post.evernoteNoteId}:`, tagError)
+              // If we can't check tags, assume it's still published to avoid false unpublishing
+            }
+          }
         }
       }
 
@@ -259,11 +352,15 @@ export class SyncService {
     } catch (error) {
       console.error(`Error syncing blog ${blogId}:`, error)
       
-      // Update only the attempt time for failed syncs (don't update sync state on failure)
+      // Update only the attempt time for failed syncs 
+      // Clear any stale sync update count from previous failed attempts
       try {
         await prisma.blog.update({
           where: { id: blogId },
-          data: { lastSyncAttemptAt: new Date() }
+          data: { 
+            lastSyncAttemptAt: new Date(),
+            // Don't update lastSyncedAt or lastSyncUpdateCount on failure
+          }
         })
       } catch (updateError) {
         console.error('Failed to update sync attempt time:', updateError)

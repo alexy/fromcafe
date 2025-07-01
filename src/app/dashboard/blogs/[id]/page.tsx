@@ -12,6 +12,9 @@ interface Blog {
   customDomain?: string
   evernoteNotebook?: string
   isPublic: boolean
+  lastSyncedAt?: string
+  lastSyncAttemptAt?: string
+  lastSyncUpdateCount?: number
   _count: {
     posts: number
   }
@@ -42,6 +45,7 @@ export default function BlogSettings() {
   const [syncResults, setSyncResults] = useState<{ success: boolean; results: { blogId: string; blogTitle: string; notesFound: number; totalPublishedPosts: number; posts: { isNew: boolean; isUpdated: boolean; isUnpublished: boolean; title: string }[] }[]; totalNewPosts: number; totalUpdatedPosts: number } | null>(null)
   const [showSyncResults, setShowSyncResults] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [resettingSync, setResettingSync] = useState(false)
 
   const fetchBlog = useCallback(async () => {
     try {
@@ -196,6 +200,30 @@ export default function BlogSettings() {
       alert('Failed to disconnect notebook. Please try again.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const resetSyncState = async () => {
+    if (!confirm('Reset sync state for this blog? This will force a fresh sync on next attempt.')) {
+      return
+    }
+
+    setResettingSync(true)
+    try {
+      const response = await fetch(`/api/blogs/${blogId}/reset-sync`, { method: 'POST' })
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        await fetchBlog() // Refresh blog data
+        alert('Sync state reset successfully. Next sync will be a fresh full sync.')
+      } else {
+        alert(data.error || 'Failed to reset sync state')
+      }
+    } catch (error) {
+      console.error('Error resetting sync state:', error)
+      alert('Failed to reset sync state. Please try again.')
+    } finally {
+      setResettingSync(false)
     }
   }
 
@@ -458,14 +486,22 @@ export default function BlogSettings() {
                     <div className="flex space-x-2">
                       <button
                         onClick={syncNow}
-                        disabled={syncing || saving}
+                        disabled={syncing || saving || resettingSync}
                         className="bg-blue-600 text-white px-3 py-1 text-sm rounded hover:bg-blue-700 disabled:opacity-50"
                       >
                         {syncing ? 'Syncing...' : 'Sync Now'}
                       </button>
                       <button
+                        onClick={resetSyncState}
+                        disabled={syncing || saving || resettingSync}
+                        className="bg-yellow-600 text-white px-3 py-1 text-sm rounded hover:bg-yellow-700 disabled:opacity-50"
+                        title="Reset sync state to force fresh sync"
+                      >
+                        {resettingSync ? 'Resetting...' : 'Reset Sync'}
+                      </button>
+                      <button
                         onClick={disconnectNotebook}
-                        disabled={saving || syncing}
+                        disabled={saving || syncing || resettingSync}
                         className="bg-red-600 text-white px-3 py-1 text-sm rounded hover:bg-red-700 disabled:opacity-50"
                       >
                         Disconnect
@@ -494,6 +530,34 @@ export default function BlogSettings() {
                   </div>
                 )}
               </div>
+
+              {/* Sync Status */}
+              {blog.evernoteNotebook && (
+                <div>
+                  <label className="block text-sm font-medium text-black mb-1">Sync Status</label>
+                  <div className="space-y-2">
+                    <div>
+                      <span className="text-sm text-black">Last successful sync: </span>
+                      <span className="text-sm text-black font-medium">
+                        {blog.lastSyncedAt ? formatTimeAgo(blog.lastSyncedAt) : 'Never'}
+                      </span>
+                    </div>
+                    {blog.lastSyncAttemptAt && blog.lastSyncAttemptAt !== blog.lastSyncedAt && (
+                      <div>
+                        <span className="text-sm text-black">Last attempt: </span>
+                        <span className="text-sm text-red-600 font-medium">
+                          {formatTimeAgo(blog.lastSyncAttemptAt)} (failed)
+                        </span>
+                      </div>
+                    )}
+                    {blog.lastSyncUpdateCount && (
+                      <div className="text-xs text-black opacity-60">
+                        Sync state: {blog.lastSyncUpdateCount}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -625,4 +689,19 @@ export default function BlogSettings() {
       )}
     </div>
   )
+}
+
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / (1000 * 60))
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  return date.toLocaleDateString()
 }

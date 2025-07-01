@@ -64,7 +64,7 @@ export class EvernoteService {
     }
   }
 
-  async getNotesFromNotebook(notebookGuid: string): Promise<EvernoteNote[]> {
+  async getNotesFromNotebook(notebookGuid: string, maxNotes: number = 20, sinceDate?: Date): Promise<EvernoteNote[]> {
     try {
       // Create a fresh client with the access token
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -78,8 +78,38 @@ export class EvernoteService {
       
       const freshNoteStore = tokenizedClient.getNoteStore()
       
-      const filter = {
+      // OPTIMIZATION: Find "published" tag first to filter notes efficiently
+      let publishedTagGuid: string | null = null
+      try {
+        console.log('Finding "published" tag...')
+        const tags = await freshNoteStore.listTags()
+        const publishedTag = tags.find((tag: { name: string }) => 
+          tag.name.toLowerCase() === 'published'
+        )
+        if (publishedTag) {
+          publishedTagGuid = publishedTag.guid
+          console.log(`Found "published" tag with GUID: ${publishedTagGuid}`)
+        } else {
+          console.log('No "published" tag found - will check all notes')
+        }
+      } catch (tagError) {
+        console.warn('Could not fetch tags, falling back to checking all notes:', tagError)
+      }
+      
+      const filter: { notebookGuid: string; updated?: number; tagGuids?: string[] } = {
         notebookGuid: notebookGuid
+      }
+      
+      // OPTIMIZATION: Filter by "published" tag at API level if we found it
+      if (publishedTagGuid) {
+        filter.tagGuids = [publishedTagGuid]
+        console.log('Filtering notes by "published" tag at API level')
+      }
+      
+      // Add date filter if provided to only get notes modified since last sync
+      if (sinceDate) {
+        filter.updated = Math.floor(sinceDate.getTime())
+        console.log(`Filtering notes updated since: ${sinceDate.toISOString()}`)
       }
       
       const spec = {
@@ -89,33 +119,60 @@ export class EvernoteService {
         includeUpdated: true
       }
       
-      const notesMetadata = await freshNoteStore.findNotesMetadata(filter, 0, 100, spec)
+      const notesMetadata = await freshNoteStore.findNotesMetadata(filter, 0, Math.min(maxNotes, 50), spec)
+      console.log(`Found ${notesMetadata.notes.length} notes to process (${publishedTagGuid ? 'pre-filtered by published tag' : 'will filter during processing'})`)
       
       const notes: EvernoteNote[] = []
       
-      for (const metadata of notesMetadata.notes) {
-        const fullNote = await freshNoteStore.getNote(metadata.guid, true, false, false, false)
-        const tagNames = await this.getTagNamesWithStore(freshNoteStore, metadata.tagGuids || [])
+      // Process notes with rate limiting - add delay between requests
+      for (let i = 0; i < notesMetadata.notes.length; i++) {
+        const metadata = notesMetadata.notes[i]
         
-        notes.push({
-          guid: fullNote.guid,
-          title: fullNote.title,
-          content: fullNote.content,
-          tagNames,
-          created: fullNote.created,
-          updated: fullNote.updated,
-        })
+        // Add delay between API calls to avoid rate limits (except for first note)
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 200)) // Reduced to 200ms since we're processing fewer notes
+        }
+        
+        try {
+          // OPTIMIZATION: Get tag names first to check if published (avoid expensive getNote call)
+          const tagNames = await this.getTagNamesWithStore(freshNoteStore, metadata.tagGuids || [])
+          
+          // Skip notes without "published" tag (if we couldn't filter at API level)
+          if (!publishedTagGuid && !this.isPublished(tagNames)) {
+            console.log(`Skipping non-published note: ${metadata.title || 'Untitled'}`)
+            continue
+          }
+          
+          // Only fetch full note content for published notes
+          const fullNote = await freshNoteStore.getNote(metadata.guid, true, false, false, false)
+          
+          notes.push({
+            guid: fullNote.guid,
+            title: fullNote.title,
+            content: fullNote.content,
+            tagNames,
+            created: fullNote.created,
+            updated: fullNote.updated,
+          })
+          
+          console.log(`Processed published note ${notes.length}: "${fullNote.title}"`)
+        } catch (noteError) {
+          console.error(`Failed to process note ${metadata.guid}:`, noteError)
+          // Continue with next note instead of failing entire sync
+        }
       }
       
+      console.log(`Found ${notes.length} published notes out of ${notesMetadata.notes.length} total notes`)
       return notes
     } catch (error) {
       console.error('Error fetching notes:', error)
       
       // Handle rate limiting specifically
       if (error && typeof error === 'object' && 'errorCode' in error && error.errorCode === 19) {
-        const rateLimitDuration = (error as { rateLimitDuration?: number }).rateLimitDuration || 0
+        const rateLimitDuration = (error as { rateLimitDuration?: number }).rateLimitDuration || 3600 // Default 1 hour
         const waitMinutes = Math.ceil(rateLimitDuration / 60)
-        throw new Error(`Evernote API rate limit exceeded. Please wait ${waitMinutes} minutes before trying again.`)
+        console.error(`Rate limit hit. Duration: ${rateLimitDuration}s (${waitMinutes} minutes)`)
+        throw new Error(`Evernote API rate limit exceeded. The sync will automatically retry in ${waitMinutes} minutes. This is normal for first-time syncs with many notes.`)
       }
       
       // Handle other Evernote errors with more context
@@ -157,14 +214,45 @@ export class EvernoteService {
     }
   }
 
+  private tagCache = new Map<string, string>()
+
   private async getTagNamesWithStore(noteStore: unknown, tagGuids: string[]): Promise<string[]> {
     if (!tagGuids || tagGuids.length === 0) return []
     
     try {
-      const tags = await Promise.all(
-        tagGuids.map(guid => (noteStore as { getTag: (guid: string) => Promise<{ name: string }> }).getTag(guid))
-      )
-      return tags.map(tag => tag.name)
+      const tagNames: string[] = []
+      const uncachedGuids: string[] = []
+      
+      // Check cache first
+      for (const guid of tagGuids) {
+        const cachedName = this.tagCache.get(guid)
+        if (cachedName) {
+          tagNames.push(cachedName)
+        } else {
+          uncachedGuids.push(guid)
+        }
+      }
+      
+      // Fetch uncached tags with delay between requests
+      for (let i = 0; i < uncachedGuids.length; i++) {
+        const guid = uncachedGuids[i]
+        
+        // Add small delay between tag requests
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+        
+        try {
+          const tag = await (noteStore as { getTag: (guid: string) => Promise<{ name: string }> }).getTag(guid)
+          this.tagCache.set(guid, tag.name)
+          tagNames.push(tag.name)
+        } catch (error) {
+          console.error(`Failed to fetch tag ${guid}:`, error)
+          // Continue with other tags
+        }
+      }
+      
+      return tagNames
     } catch (error) {
       console.error('Error fetching tags:', error)
       return []
@@ -272,6 +360,72 @@ export class EvernoteService {
       
     } catch (error) {
       console.error('Error listing webhooks:', error)
+      return []
+    }
+  }
+
+  async getAllNotesMetadata(notebookGuid: string, sinceDate?: Date): Promise<{ guid: string; tagGuids?: string[] }[]> {
+    try {
+      // Create a fresh client with the access token
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const EvernoteSDK = require('evernote')
+      const tokenizedClient = new EvernoteSDK.Client({
+        consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
+        consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
+        sandbox: false,
+        token: this.accessToken
+      })
+      
+      const freshNoteStore = tokenizedClient.getNoteStore()
+      
+      const filter: { notebookGuid: string; updated?: number } = {
+        notebookGuid: notebookGuid
+      }
+      
+      // Add date filter if provided to only get notes modified since last sync
+      if (sinceDate) {
+        filter.updated = Math.floor(sinceDate.getTime())
+        console.log(`Filtering all notes metadata updated since: ${sinceDate.toISOString()}`)
+      }
+      
+      const spec = {
+        includeTitle: false,
+        includeTagGuids: true,
+        includeCreated: false,
+        includeUpdated: false
+      }
+      
+      const notesMetadata = await freshNoteStore.findNotesMetadata(filter, 0, 250, spec)
+      console.log(`Retrieved ${notesMetadata.notes.length} notes metadata for unpublish detection`)
+      
+      return notesMetadata.notes.map((note: { guid: string; tagGuids?: string[] }) => ({
+        guid: note.guid,
+        tagGuids: note.tagGuids || []
+      }))
+    } catch (error) {
+      console.error('Error fetching all notes metadata:', error)
+      throw new Error('Failed to fetch notes metadata for unpublish detection')
+    }
+  }
+
+  async getTagNames(tagGuids: string[]): Promise<string[]> {
+    if (!tagGuids || tagGuids.length === 0) return []
+    
+    try {
+      // Create a fresh client with the access token
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const EvernoteSDK = require('evernote')
+      const tokenizedClient = new EvernoteSDK.Client({
+        consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
+        consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
+        sandbox: false,
+        token: this.accessToken
+      })
+      
+      const freshNoteStore = tokenizedClient.getNoteStore()
+      return await this.getTagNamesWithStore(freshNoteStore, tagGuids)
+    } catch (error) {
+      console.error('Error fetching tag names:', error)
       return []
     }
   }
