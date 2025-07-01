@@ -4,6 +4,22 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEvernoteAccessToken } from '@/lib/evernote'
 
+// Helper function to get the correct base URL for redirects
+function getBaseUrl(): string {
+  // Use NEXTAUTH_URL if explicitly set (for production override)
+  if (process.env.NEXTAUTH_URL) {
+    return process.env.NEXTAUTH_URL
+  }
+  
+  // For Vercel deployments, use actual VERCEL_URL
+  if (process.env.VERCEL && process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`
+  }
+  
+  // Local development fallback
+  return 'http://localhost:3000'
+}
+
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
   
@@ -15,7 +31,9 @@ export async function GET(request: NextRequest) {
   
   if (!session?.user?.id) {
     console.log('No session or user ID, redirecting to signin')
-    return NextResponse.redirect(new URL('/auth/signin', request.url))
+    const baseUrl = getBaseUrl()
+    console.log('Using base URL for redirect:', baseUrl)
+    return NextResponse.redirect(new URL('/auth/signin', baseUrl))
   }
 
   const { searchParams } = new URL(request.url)
@@ -30,7 +48,8 @@ export async function GET(request: NextRequest) {
   })
 
   if (!oauthToken || !oauthVerifier) {
-    return NextResponse.redirect(new URL('/dashboard?error=invalid_oauth', request.url))
+    const baseUrl = getBaseUrl()
+    return NextResponse.redirect(new URL('/dashboard?error=invalid_oauth', baseUrl))
   }
 
   try {
@@ -78,9 +97,11 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    return NextResponse.redirect(new URL('/dashboard?success=evernote_connected', request.url))
+    const baseUrl = getBaseUrl()
+    return NextResponse.redirect(new URL('/dashboard?success=evernote_connected', baseUrl))
   } catch (error) {
     console.error('Error completing Evernote OAuth:', error)
-    return NextResponse.redirect(new URL('/dashboard?error=connection_failed', request.url))
+    const baseUrl = getBaseUrl()
+    return NextResponse.redirect(new URL('/dashboard?error=connection_failed', baseUrl))
   }
 }
