@@ -6,12 +6,22 @@ import { prisma } from '@/lib/prisma'
 export async function POST() {
   const session = await getServerSession(authOptions)
   
+  console.log('Disconnect request - session check:', {
+    hasSession: !!session,
+    userId: session?.user?.id,
+    userEmail: session?.user?.email
+  })
+  
   if (!session?.user?.id) {
+    console.log('No session found for disconnect request')
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
+    console.log('Starting disconnect process for user:', session.user.id)
+    
     // Get user's current Evernote credentials and connected blogs before disconnecting
+    console.log('Fetching user from database...')
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { 
@@ -28,6 +38,18 @@ export async function POST() {
         }
       },
     })
+
+    console.log('User found in database:', {
+      userId: session.user.id,
+      userExists: !!user,
+      hasEvernoteToken: !!user?.evernoteToken,
+      blogCount: user?.blogs?.length || 0
+    })
+
+    if (!user) {
+      console.log('User not found in database!')
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
 
     // Unregister all webhooks before disconnecting
     if (user?.evernoteToken && user.blogs.length > 0) {

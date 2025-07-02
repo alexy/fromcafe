@@ -6,6 +6,8 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
   const session = await getServerSession(authOptions)
   
+  console.log('Evernote status check for user:', session?.user?.id)
+  
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -13,7 +15,19 @@ export async function GET() {
   try {
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { evernoteToken: true },
+      select: { 
+        evernoteToken: true,
+        evernoteUserId: true,
+        evernoteNoteStoreUrl: true
+      },
+    })
+
+    console.log('User Evernote status:', {
+      userId: session.user.id,
+      userExists: !!user,
+      hasEvernoteToken: !!user?.evernoteToken,
+      evernoteUserId: user?.evernoteUserId,
+      hasNoteStoreUrl: !!user?.evernoteNoteStoreUrl
     })
 
     return NextResponse.json({ 
