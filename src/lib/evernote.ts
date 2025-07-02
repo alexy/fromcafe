@@ -104,7 +104,7 @@ export class EvernoteService {
       let publishedTagGuid: string | null = null
       try {
         console.log('Finding "published" tag...')
-        const tags = await freshNoteStore.listTags()
+        const tags = await freshNoteStore.listTags(this.accessToken)
         const publishedTag = tags.find((tag: { name: string }) => 
           tag.name.toLowerCase() === 'published'
         )
@@ -141,7 +141,7 @@ export class EvernoteService {
         includeUpdated: true
       }
       
-      const notesMetadata = await freshNoteStore.findNotesMetadata(filter, 0, Math.min(maxNotes, 50), spec)
+      const notesMetadata = await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, Math.min(maxNotes, 50), spec)
       console.log(`Found ${notesMetadata.notes.length} notes to process (${publishedTagGuid ? 'pre-filtered by published tag' : 'will filter during processing'})`)
       
       const notes: EvernoteNote[] = []
@@ -166,7 +166,7 @@ export class EvernoteService {
           }
           
           // Only fetch full note content for published notes
-          const fullNote = await freshNoteStore.getNote(metadata.guid, true, false, false, false)
+          const fullNote = await freshNoteStore.getNote(this.accessToken, metadata.guid, true, false, false, false)
           
           notes.push({
             guid: fullNote.guid,
@@ -222,7 +222,7 @@ export class EvernoteService {
       const freshNoteStore = this.noteStoreUrl 
         ? tokenizedClient.getNoteStore(this.noteStoreUrl)
         : tokenizedClient.getNoteStore()
-      const fullNote = await freshNoteStore.getNote(noteGuid, true, false, false, false)
+      const fullNote = await freshNoteStore.getNote(this.accessToken, noteGuid, true, false, false, false)
       const tagNames = await this.getTagNamesWithStore(freshNoteStore, fullNote.tagGuids || [])
       
       return {
@@ -268,7 +268,7 @@ export class EvernoteService {
         }
         
         try {
-          const tag = await (noteStore as { getTag: (guid: string) => Promise<{ name: string }> }).getTag(guid)
+          const tag = await (noteStore as { getTag: (token: string, guid: string) => Promise<{ name: string }> }).getTag(this.accessToken, guid)
           this.tagCache.set(guid, tag.name)
           tagNames.push(tag.name)
         } catch (error) {
@@ -365,7 +365,7 @@ export class EvernoteService {
         includeUpdated: false
       }
       
-      const notesMetadata = await freshNoteStore.findNotesMetadata(filter, 0, 250, spec)
+      const notesMetadata = await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, 250, spec)
       console.log(`Retrieved ${notesMetadata.notes.length} notes metadata for unpublish detection`)
       
       return notesMetadata.notes.map((note: { guid: string; tagGuids?: string[] }) => ({
