@@ -24,9 +24,17 @@ export async function GET() {
       return NextResponse.json({ error: 'Evernote not connected' }, { status: 400 })
     }
 
+    console.log('Fetching notebooks for user:', {
+      userId: session.user.id,
+      hasToken: !!user.evernoteToken,
+      hasNoteStoreUrl: !!user.evernoteNoteStoreUrl,
+      noteStoreUrl: user.evernoteNoteStoreUrl
+    })
+
     const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined)
     const notebooks = await evernoteService.getNotebooks()
 
+    console.log('Successfully fetched notebooks:', notebooks.length)
     return NextResponse.json({ notebooks })
   } catch (error) {
     console.error('Error fetching Evernote notebooks:', error)

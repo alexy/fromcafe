@@ -53,7 +53,10 @@ export class EvernoteService {
         token: this.accessToken
       })
       
-      const freshNoteStore = tokenizedClient.getNoteStore()
+      // Use stored noteStoreUrl if available to avoid getUserUrls() call
+      const freshNoteStore = this.noteStoreUrl 
+        ? tokenizedClient.getNoteStore(this.noteStoreUrl)
+        : tokenizedClient.getNoteStore()
       
       // Try both approaches: with and without the auth token parameter
       let notebooks
@@ -92,7 +95,10 @@ export class EvernoteService {
         token: this.accessToken
       })
       
-      const freshNoteStore = tokenizedClient.getNoteStore()
+      // Use stored noteStoreUrl if available to avoid getUserUrls() call
+      const freshNoteStore = this.noteStoreUrl 
+        ? tokenizedClient.getNoteStore(this.noteStoreUrl)
+        : tokenizedClient.getNoteStore()
       
       // OPTIMIZATION: Find "published" tag first to filter notes efficiently
       let publishedTagGuid: string | null = null
@@ -212,7 +218,10 @@ export class EvernoteService {
         token: this.accessToken
       })
       
-      const freshNoteStore = tokenizedClient.getNoteStore()
+      // Use stored noteStoreUrl if available to avoid getUserUrls() call
+      const freshNoteStore = this.noteStoreUrl 
+        ? tokenizedClient.getNoteStore(this.noteStoreUrl)
+        : tokenizedClient.getNoteStore()
       const fullNote = await freshNoteStore.getNote(noteGuid, true, false, false, false)
       const tagNames = await this.getTagNamesWithStore(freshNoteStore, fullNote.tagGuids || [])
       
@@ -287,7 +296,10 @@ export class EvernoteService {
         token: this.accessToken
       })
       
-      const freshNoteStore = tokenizedClient.getNoteStore()
+      // Use stored noteStoreUrl if available to avoid getUserUrls() call
+      const freshNoteStore = this.noteStoreUrl 
+        ? tokenizedClient.getNoteStore(this.noteStoreUrl)
+        : tokenizedClient.getNoteStore()
       const syncState = await freshNoteStore.getSyncState()
       
       return {
@@ -312,7 +324,10 @@ export class EvernoteService {
         token: this.accessToken
       })
       
-      const freshNoteStore = tokenizedClient.getNoteStore()
+      // Use stored noteStoreUrl if available to avoid getUserUrls() call
+      const freshNoteStore = this.noteStoreUrl 
+        ? tokenizedClient.getNoteStore(this.noteStoreUrl)
+        : tokenizedClient.getNoteStore()
       
       // Build webhook URL using the same logic as the auth system
       const baseUrl = getBaseUrl()
@@ -348,7 +363,10 @@ export class EvernoteService {
         token: this.accessToken
       })
       
-      const freshNoteStore = tokenizedClient.getNoteStore()
+      // Use stored noteStoreUrl if available to avoid getUserUrls() call
+      const freshNoteStore = this.noteStoreUrl 
+        ? tokenizedClient.getNoteStore(this.noteStoreUrl)
+        : tokenizedClient.getNoteStore()
       
       await freshNoteStore.expungeWebhook(webhookId)
       console.log(`Webhook unregistered: ${webhookId}`)
@@ -372,7 +390,10 @@ export class EvernoteService {
         token: this.accessToken
       })
       
-      const freshNoteStore = tokenizedClient.getNoteStore()
+      // Use stored noteStoreUrl if available to avoid getUserUrls() call
+      const freshNoteStore = this.noteStoreUrl 
+        ? tokenizedClient.getNoteStore(this.noteStoreUrl)
+        : tokenizedClient.getNoteStore()
       
       const webhooks = await freshNoteStore.listWebhooks()
       return webhooks || []
@@ -395,7 +416,10 @@ export class EvernoteService {
         token: this.accessToken
       })
       
-      const freshNoteStore = tokenizedClient.getNoteStore()
+      // Use stored noteStoreUrl if available to avoid getUserUrls() call
+      const freshNoteStore = this.noteStoreUrl 
+        ? tokenizedClient.getNoteStore(this.noteStoreUrl)
+        : tokenizedClient.getNoteStore()
       
       const filter: { notebookGuid: string; updated?: number } = {
         notebookGuid: notebookGuid
@@ -441,7 +465,10 @@ export class EvernoteService {
         token: this.accessToken
       })
       
-      const freshNoteStore = tokenizedClient.getNoteStore()
+      // Use stored noteStoreUrl if available to avoid getUserUrls() call
+      const freshNoteStore = this.noteStoreUrl 
+        ? tokenizedClient.getNoteStore(this.noteStoreUrl)
+        : tokenizedClient.getNoteStore()
       return await this.getTagNamesWithStore(freshNoteStore, tagGuids)
     } catch (error) {
       console.error('Error fetching tag names:', error)
