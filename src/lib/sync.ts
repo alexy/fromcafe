@@ -57,6 +57,8 @@ export class SyncService {
           results: [],
           totalNewPosts: 0,
           totalUpdatedPosts: 0,
+          totalUnpublishedPosts: 0,
+          totalRepublishedPosts: 0,
           error: 'No Evernote token found'
         }
       }
@@ -126,6 +128,7 @@ export class SyncService {
       newPosts: 0,
       updatedPosts: 0,
       unpublishedPosts: 0,
+      republishedPosts: 0,
       totalPublishedPosts: 0,
       posts: []
     }
