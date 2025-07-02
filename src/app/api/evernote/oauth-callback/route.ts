@@ -5,16 +5,16 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEvernoteAccessToken } from '@/lib/evernote'
 
-// Helper function to get the correct base URL for redirects
+// Helper function to get the correct base URL (prioritizes actual deployment URL)
 function getBaseUrl(): string {
-  // Use NEXTAUTH_URL if explicitly set (for production override)
-  if (process.env.NEXTAUTH_URL) {
-    return process.env.NEXTAUTH_URL
-  }
-  
-  // For Vercel deployments, use actual VERCEL_URL
+  // For Vercel deployments, always use the actual VERCEL_URL (preview or production)
   if (process.env.VERCEL && process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`
+  }
+  
+  // Use NEXTAUTH_URL if explicitly set and not on Vercel
+  if (process.env.NEXTAUTH_URL) {
+    return process.env.NEXTAUTH_URL
   }
   
   // Local development fallback
