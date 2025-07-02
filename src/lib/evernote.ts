@@ -1,6 +1,22 @@
 import * as Evernote from 'evernote'
 import { storeTokenSecret, getTokenSecret, removeToken } from './evernote-session'
 
+// Helper function to get the correct base URL (matches auth.ts logic)
+function getBaseUrl(): string {
+  // Use NEXTAUTH_URL if explicitly set (for production override)
+  if (process.env.NEXTAUTH_URL) {
+    return process.env.NEXTAUTH_URL
+  }
+  
+  // For Vercel deployments, use actual VERCEL_URL
+  if (process.env.VERCEL && process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`
+  }
+  
+  // Local development fallback
+  return 'http://localhost:3000'
+}
+
 const client = new Evernote.Client({
   consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
   consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
@@ -298,10 +314,8 @@ export class EvernoteService {
       
       const freshNoteStore = tokenizedClient.getNoteStore()
       
-      // Build webhook URL - use VERCEL_URL for Vercel deployments, fallback to APP_URL for local dev
-      const baseUrl = process.env.VERCEL_URL 
-        ? `https://${process.env.VERCEL_URL}` 
-        : process.env.APP_URL || 'http://localhost:3000'
+      // Build webhook URL using the same logic as the auth system
+      const baseUrl = getBaseUrl()
       
       const webhookUrl = `${baseUrl}/api/evernote/webhook`
       
@@ -453,10 +467,8 @@ export function getEvernoteAuthUrl(userId?: string): Promise<string> {
     }
 
     try {
-      // Build callback URL - use VERCEL_URL for Vercel deployments, fallback to APP_URL for local dev
-      const baseUrl = process.env.VERCEL_URL 
-        ? `https://${process.env.VERCEL_URL}` 
-        : process.env.APP_URL || 'http://localhost:3000'
+      // Build callback URL using the same logic as the auth system
+      const baseUrl = getBaseUrl()
       
       const callbackUrl = `${baseUrl}/api/evernote/oauth-callback${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`
       console.log('Using Evernote callback URL:', callbackUrl)
