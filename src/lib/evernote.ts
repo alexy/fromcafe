@@ -174,6 +174,13 @@ export class EvernoteService {
             }
             
             // Only fetch full note content for published notes
+            // RACE CONDITION FIX: If this is a recently updated note, add small delay
+            // to allow Evernote content changes to propagate after tag changes
+            if (metadata.updated && Date.now() - metadata.updated < 30000) {
+              console.log(`Note "${metadata.title}" was updated recently (${new Date(metadata.updated).toISOString()}), adding small delay for content propagation`)
+              await new Promise(resolve => setTimeout(resolve, 2000)) // 2 second delay
+            }
+            
             const fullNote = await freshNoteStore.getNote(this.accessToken, metadata.guid, true, false, false, false)
             
             notes.push({

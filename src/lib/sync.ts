@@ -251,9 +251,18 @@ export class SyncService {
             console.log(`  - Content changed: ${contentChanged} (${existingPost.content?.length || 0} vs ${newContent.length} chars)`)
             console.log(`  - Excerpt changed: ${excerptChanged}`)
             console.log(`  - Overall hasContentChanges: ${hasContentChanges}`)
+            console.log(`  - Note updated timestamp: ${new Date(note.updated).toISOString()}`)
+            console.log(`  - Time since update: ${Math.round((Date.now() - note.updated) / 1000)}s ago`)
             if (existingPost.content && newContent && existingPost.content.length > 0 && newContent.length > 0) {
               console.log(`  - Old content start: "${existingPost.content.substring(0, 200)}..."`)
               console.log(`  - New content start: "${newContent.substring(0, 200)}..."`)
+              
+              // RACE CONDITION DETECTION: If content is identical but note was updated recently,
+              // this might be a race condition where tag change propagated before content change
+              if (!contentChanged && (Date.now() - note.updated) < 60000) {
+                console.log(`  ⚠️  POTENTIAL RACE CONDITION: Content unchanged but note updated ${Math.round((Date.now() - note.updated) / 1000)}s ago`)
+                console.log(`  📝 This republished post may need another sync to pick up content changes`)
+              }
             }
           }
           
