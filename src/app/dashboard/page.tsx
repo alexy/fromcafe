@@ -254,8 +254,10 @@ export default function Dashboard() {
       if (response.ok) {
         const data = await response.json()
         if (data.success) {
-          // Refresh blog data from server to get updated post counts
-          await fetchBlogs()
+          // Wait a moment for database to fully update, then refresh blog data
+          setTimeout(async () => {
+            await fetchBlogs()
+          }, 500)
           
           const result = data.result
           const messages = []
@@ -266,7 +268,8 @@ export default function Dashboard() {
           if (result.republishedUpdatedPosts > 0) messages.push(`${result.republishedUpdatedPosts} re-published and updated posts`)
           
           const message = messages.length > 0 ? messages.join(', ') : 'No changes'
-          alert(`Sync completed! ${message}.`)
+          const debugInfo = `\n\nDebug Info:\n- Total published posts: ${result.totalPublishedPosts}\n- Notes found: ${result.notesFound}`
+          alert(`Sync completed! ${message}.${debugInfo}`)
         } else {
           // Update only the attempt time for failed syncs
           setBlogs(blogs.map(blog => 
