@@ -244,6 +244,19 @@ export class SyncService {
           
           const hasContentChanges = titleChanged || contentChanged || excerptChanged
           
+          // EMERGENCY DEBUG: Always log content comparison for republished posts
+          if (!existingPost.isPublished && isPublished) {
+            console.log(`EMERGENCY DEBUG - Republished post "${note.title}":`)
+            console.log(`  - Title changed: ${titleChanged} ("${existingPost.title}" vs "${note.title}")`)
+            console.log(`  - Content changed: ${contentChanged} (${existingPost.content?.length || 0} vs ${newContent.length} chars)`)
+            console.log(`  - Excerpt changed: ${excerptChanged}`)
+            console.log(`  - Overall hasContentChanges: ${hasContentChanges}`)
+            if (existingPost.content && newContent && existingPost.content.length > 0 && newContent.length > 0) {
+              console.log(`  - Old content start: "${existingPost.content.substring(0, 200)}..."`)
+              console.log(`  - New content start: "${newContent.substring(0, 200)}..."`)
+            }
+          }
+          
           // Debug logging for content change detection
           if (hasContentChanges) {
             console.log(`Content changes detected for "${note.title}":`)
@@ -307,7 +320,7 @@ export class SyncService {
               console.log(`Re-published and updated post "${note.title}" - was unpublished, now published with content changes`)
               console.log(`  DEBUG: Content updated in DB: title="${note.title}", contentLength=${newContent.length}, excerpt="${newExcerpt}"`)
             } else if (isRepublishing) {
-              // Re-published without content changes
+              // Re-published without content changes (BUT STILL UPDATE CONTENT FROM EVERNOTE)
               result.republishedPosts = (result.republishedPosts || 0) + 1
               result.posts.push({
                 title: note.title,
@@ -316,8 +329,9 @@ export class SyncService {
                 isUnpublished: false,
                 isRepublished: true
               })
-              console.log(`Re-published post "${note.title}" - was unpublished, now published (no content changes)`)
-              console.log(`  DEBUG: Content should be same: oldLength=${existingPost.content?.length || 0}, newLength=${newContent.length}`)
+              console.log(`Re-published post "${note.title}" - was unpublished, now published (no content changes detected)`)
+              console.log(`  DEBUG: Content lengths: old=${existingPost.content?.length || 0}, new=${newContent.length}`)
+              console.log(`  NOTE: Content from Evernote was still saved to database even if no changes detected`)
             } else {
               // Just content updates (already published)
               result.updatedPosts++
