@@ -39,7 +39,7 @@ export default function Dashboard() {
     const isEvernoteConnected = localStorage.getItem('evernoteConnected') === 'true'
     
     if (isPostOAuth) {
-      console.log('Post-Evernote OAuth state detected, bypassing NextAuth')
+      console.log('Post-Evernote OAuth state detected, bypassing NextAuth permanently')
       setPostEvernoteAuth(true)
       
       // Load dashboard data directly
@@ -49,11 +49,15 @@ export default function Dashboard() {
       if (isEvernoteConnected) {
         setShowSuccess(true)
         setEvernoteConnected(true)
-        // Clear the localStorage flags
-        localStorage.removeItem('postEvernoteOAuth')
-        localStorage.removeItem('evernoteConnected')
-        // Clean up URL
+        // Clean up URL but KEEP localStorage flags for persistence
         window.history.replaceState({}, document.title, '/dashboard')
+        
+        // Set a timeout to clear flags after dashboard is fully loaded
+        setTimeout(() => {
+          localStorage.removeItem('postEvernoteOAuth')
+          localStorage.removeItem('evernoteConnected')
+          console.log('Cleared localStorage flags after successful dashboard load')
+        }, 10000) // 10 seconds delay
       }
       return
     }
@@ -62,10 +66,12 @@ export default function Dashboard() {
   useEffect(() => {
     // Skip NextAuth checks if in post-OAuth state
     if (postEvernoteAuth) {
+      console.log('Skipping NextAuth session check - in post-OAuth mode')
       return
     }
     
     if (status === 'unauthenticated') {
+      console.log('NextAuth status unauthenticated, redirecting to signin')
       router.push('/auth/signin')
     } else if (status === 'authenticated') {
       fetchBlogs()
