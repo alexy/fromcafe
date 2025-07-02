@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { getSession } from 'next-auth/react'
 
 export default function EvernoteSuccessPage() {
   const router = useRouter()

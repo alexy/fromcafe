@@ -85,7 +85,7 @@ export default function Dashboard() {
         window.history.replaceState({}, document.title, '/dashboard')
       }
     }
-  }, [status, router])
+  }, [status, router, postEvernoteAuth])
 
   const fetchBlogs = async () => {
     try {
