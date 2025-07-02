@@ -245,13 +245,8 @@ export default function Dashboard() {
       if (response.ok) {
         const data = await response.json()
         if (data.success) {
-          // Update the blog's last synced time and attempt time in local state
-          const now = new Date().toISOString()
-          setBlogs(blogs.map(blog => 
-            blog.id === blogId 
-              ? { ...blog, lastSyncedAt: now, lastSyncAttemptAt: now }
-              : blog
-          ))
+          // Refresh blog data from server to get updated post counts
+          await fetchBlogs()
           
           const result = data.result
           alert(`Sync completed! ${result.newPosts} new posts, ${result.updatedPosts} updated posts.`)
