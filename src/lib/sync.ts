@@ -237,11 +237,11 @@ export class SyncService {
           const newPublishedAt = isPublished ? (existingPost.publishedAt || new Date()) : null
           
           // Separate content changes from publication status changes
+          // Note: Don't compare updatedAt as it represents our DB timestamp, not Evernote's
           const hasContentChanges = (
             existingPost.title !== note.title ||
             existingPost.content !== newContent ||
-            existingPost.excerpt !== newExcerpt ||
-            existingPost.updatedAt.getTime() !== newUpdatedAt.getTime()
+            existingPost.excerpt !== newExcerpt
           )
           
           const hasPublicationChanges = (
