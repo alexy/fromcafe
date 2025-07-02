@@ -246,23 +246,19 @@ export class SyncService {
           
           // EMERGENCY DEBUG: Always log content comparison for republished posts
           if (!existingPost.isPublished && isPublished) {
-            console.log(`EMERGENCY DEBUG - Republished post "${note.title}":`)
-            console.log(`  - Title changed: ${titleChanged} ("${existingPost.title}" vs "${note.title}")`)
-            console.log(`  - Content changed: ${contentChanged} (${existingPost.content?.length || 0} vs ${newContent.length} chars)`)
-            console.log(`  - Excerpt changed: ${excerptChanged}`)
-            console.log(`  - Overall hasContentChanges: ${hasContentChanges}`)
-            console.log(`  - Note updated timestamp: ${new Date(note.updated).toISOString()}`)
-            console.log(`  - Time since update: ${Math.round((Date.now() - note.updated) / 1000)}s ago`)
-            if (existingPost.content && newContent && existingPost.content.length > 0 && newContent.length > 0) {
-              console.log(`  - Old content start: "${existingPost.content.substring(0, 200)}..."`)
-              console.log(`  - New content start: "${newContent.substring(0, 200)}..."`)
-              
-              // RACE CONDITION DETECTION: If content is identical but note was updated recently,
-              // this might be a race condition where tag change propagated before content change
-              if (!contentChanged && (Date.now() - note.updated) < 60000) {
-                console.log(`  ⚠️  POTENTIAL RACE CONDITION: Content unchanged but note updated ${Math.round((Date.now() - note.updated) / 1000)}s ago`)
-                console.log(`  📝 This republished post may need another sync to pick up content changes`)
-              }
+            console.log(`🔍 REPUBLISHED POST DEBUG: "${note.title}" - titleChanged=${titleChanged}, contentChanged=${contentChanged}, excerptChanged=${excerptChanged}, hasContentChanges=${hasContentChanges}`)
+            console.log(`📏 CONTENT LENGTHS: old=${existingPost.content?.length || 0}, new=${newContent.length}, timeSinceUpdate=${Math.round((Date.now() - note.updated) / 1000)}s`)
+            
+            // Show actual content comparison if lengths differ
+            if (existingPost.content && newContent && existingPost.content.length !== newContent.length) {
+              console.log(`📝 CONTENT DIFFERS: "${existingPost.content.substring(0, 100)}" vs "${newContent.substring(0, 100)}"`)
+            } else if (existingPost.content && newContent) {
+              console.log(`⚠️ SAME LENGTH BUT CHECK CONTENT: "${existingPost.content.substring(0, 100)}" vs "${newContent.substring(0, 100)}"`)
+            }
+            
+            // RACE CONDITION DETECTION
+            if (!contentChanged && (Date.now() - note.updated) < 60000) {
+              console.log(`🚨 RACE CONDITION DETECTED: Content unchanged but note updated ${Math.round((Date.now() - note.updated) / 1000)}s ago`)
             }
           }
           
