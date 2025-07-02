@@ -238,11 +238,21 @@ export class SyncService {
           
           // Separate content changes from publication status changes
           // Note: Don't compare updatedAt as it represents our DB timestamp, not Evernote's
-          const hasContentChanges = (
-            existingPost.title !== note.title ||
-            existingPost.content !== newContent ||
-            existingPost.excerpt !== newExcerpt
-          )
+          const titleChanged = existingPost.title !== note.title
+          const contentChanged = existingPost.content !== newContent
+          const excerptChanged = existingPost.excerpt !== newExcerpt
+          
+          const hasContentChanges = titleChanged || contentChanged || excerptChanged
+          
+          // Debug logging for content change detection
+          if (hasContentChanges) {
+            console.log(`Content changes detected for "${note.title}":`)
+            if (titleChanged) console.log(`  - Title: "${existingPost.title}" → "${note.title}"`)
+            if (contentChanged) console.log(`  - Content changed (lengths: ${existingPost.content?.length || 0} → ${newContent.length})`)
+            if (excerptChanged) console.log(`  - Excerpt: "${existingPost.excerpt}" → "${newExcerpt}"`)
+          } else {
+            console.log(`No content changes detected for "${note.title}"`)
+          }
           
           const hasPublicationChanges = (
             existingPost.isPublished !== isPublished ||
@@ -254,6 +264,8 @@ export class SyncService {
           if (hasAnyChanges) {
             // Detect republishing scenarios
             const isRepublishing = !existingPost.isPublished && isPublished
+            
+            console.log(`Processing post "${note.title}": isRepublishing=${isRepublishing}, hasContentChanges=${hasContentChanges}, hasPublicationChanges=${hasPublicationChanges}`)
             
             // Only update if there are actual changes
             await prisma.post.update({
