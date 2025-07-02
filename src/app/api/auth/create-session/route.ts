@@ -36,7 +36,15 @@ export async function POST() {
     })
     
     // Create a NextAuth-compatible JWE session token (encrypted)
-    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!)
+    // Derive a 256-bit key from NEXTAUTH_SECRET for A256GCM
+    const secretBytes = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!)
+    const key = await crypto.subtle.importKey(
+      'raw',
+      secretBytes.slice(0, 32), // Take exactly 32 bytes (256 bits)
+      { name: 'AES-GCM' },
+      false,
+      ['encrypt', 'decrypt']
+    )
     
     const sessionToken = await new EncryptJWT({
       sub: recentUser.id,
@@ -47,7 +55,7 @@ export async function POST() {
       exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60) // 30 days
     })
       .setProtectedHeader({ alg: 'dir', enc: 'A256GCM' })
-      .encrypt(secret)
+      .encrypt(key)
     
     // Set the session cookie manually
     const isSecure = !!process.env.VERCEL
