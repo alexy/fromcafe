@@ -147,41 +147,72 @@ export class EvernoteService {
       const notes: EvernoteNote[] = []
       
       // Process notes with rate limiting - add delay between requests
+      let rateLimitErrors = 0
+      const maxRetries = 3
+      
       for (let i = 0; i < notesMetadata.notes.length; i++) {
         const metadata = notesMetadata.notes[i]
         
         // Add delay between API calls to avoid rate limits (except for first note)
         if (i > 0) {
-          await new Promise(resolve => setTimeout(resolve, 200)) // Reduced to 200ms since we're processing fewer notes
+          await new Promise(resolve => setTimeout(resolve, 1000)) // Increased to 1 second to avoid rate limits
         }
         
-        try {
-          // OPTIMIZATION: Get tag names first to check if published (avoid expensive getNote call)
-          const tagNames = await this.getTagNamesWithStore(freshNoteStore, metadata.tagGuids || [])
-          
-          // Skip notes without "published" tag (if we couldn't filter at API level)
-          if (!publishedTagGuid && !this.isPublished(tagNames)) {
-            console.log(`Skipping non-published note: ${metadata.title || 'Untitled'}`)
-            continue
+        let retryCount = 0
+        let noteProcessed = false
+        
+        while (!noteProcessed && retryCount < maxRetries) {
+          try {
+            // OPTIMIZATION: Get tag names first to check if published (avoid expensive getNote call)
+            const tagNames = await this.getTagNamesWithStore(freshNoteStore, metadata.tagGuids || [])
+            
+            // Skip notes without "published" tag (if we couldn't filter at API level)
+            if (!publishedTagGuid && !this.isPublished(tagNames)) {
+              console.log(`Skipping non-published note: ${metadata.title || 'Untitled'}`)
+              noteProcessed = true
+              continue
+            }
+            
+            // Only fetch full note content for published notes
+            const fullNote = await freshNoteStore.getNote(this.accessToken, metadata.guid, true, false, false, false)
+            
+            notes.push({
+              guid: fullNote.guid,
+              title: fullNote.title,
+              content: fullNote.content,
+              tagNames,
+              created: fullNote.created,
+              updated: fullNote.updated,
+            })
+            
+            console.log(`Processed published note ${notes.length}: "${fullNote.title}"`)
+            noteProcessed = true
+            
+          } catch (noteError) {
+            retryCount++
+            
+            // Check if it's a rate limit error
+            if (noteError && typeof noteError === 'object' && 'errorCode' in noteError && noteError.errorCode === 19) {
+              rateLimitErrors++
+              const rateLimitDuration = (noteError as { rateLimitDuration?: number }).rateLimitDuration || 30
+              console.log(`Rate limit hit for note ${metadata.guid}, waiting ${rateLimitDuration}s before retry ${retryCount}/${maxRetries}`)
+              
+              if (retryCount < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, rateLimitDuration * 1000))
+              } else {
+                console.error(`Failed to process note ${metadata.guid} after ${maxRetries} retries due to rate limiting`)
+              }
+            } else {
+              console.error(`Failed to process note ${metadata.guid}:`, noteError)
+              noteProcessed = true // Skip this note for non-rate-limit errors
+            }
           }
-          
-          // Only fetch full note content for published notes
-          const fullNote = await freshNoteStore.getNote(this.accessToken, metadata.guid, true, false, false, false)
-          
-          notes.push({
-            guid: fullNote.guid,
-            title: fullNote.title,
-            content: fullNote.content,
-            tagNames,
-            created: fullNote.created,
-            updated: fullNote.updated,
-          })
-          
-          console.log(`Processed published note ${notes.length}: "${fullNote.title}"`)
-        } catch (noteError) {
-          console.error(`Failed to process note ${metadata.guid}:`, noteError)
-          // Continue with next note instead of failing entire sync
         }
+      }
+      
+      // If too many notes failed due to rate limiting, throw an error
+      if (rateLimitErrors > notesMetadata.notes.length / 2) {
+        throw new Error(`Too many rate limit errors (${rateLimitErrors}/${notesMetadata.notes.length}). Please wait a few minutes before syncing again.`)
       }
       
       console.log(`Found ${notes.length} published notes out of ${notesMetadata.notes.length} total notes`)
