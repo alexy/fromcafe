@@ -185,7 +185,14 @@ export default function Dashboard() {
       
       if (response.ok && data.success) {
         await fetchBlogs()
-        const message = `Sync completed! ${data.totalNewPosts} new posts, ${data.totalUpdatedPosts} updated posts.`
+        const messages = []
+        if (data.totalNewPosts > 0) messages.push(`${data.totalNewPosts} new posts`)
+        if (data.totalUpdatedPosts > 0) messages.push(`${data.totalUpdatedPosts} updated posts`)
+        if (data.totalUnpublishedPosts > 0) messages.push(`${data.totalUnpublishedPosts} unpublished posts`)
+        
+        const message = messages.length > 0 
+          ? `Sync completed! ${messages.join(', ')}.`
+          : 'Sync completed! No changes.'
         alert(message)
       } else {
         const errorMessage = data.error || 'Unknown error'
@@ -249,7 +256,13 @@ export default function Dashboard() {
           await fetchBlogs()
           
           const result = data.result
-          alert(`Sync completed! ${result.newPosts} new posts, ${result.updatedPosts} updated posts.`)
+          const messages = []
+          if (result.newPosts > 0) messages.push(`${result.newPosts} new posts`)
+          if (result.updatedPosts > 0) messages.push(`${result.updatedPosts} updated posts`)
+          if (result.unpublishedPosts > 0) messages.push(`${result.unpublishedPosts} unpublished posts`)
+          
+          const message = messages.length > 0 ? messages.join(', ') : 'No changes'
+          alert(`Sync completed! ${message}.`)
         } else {
           // Update only the attempt time for failed syncs
           setBlogs(blogs.map(blog => 
