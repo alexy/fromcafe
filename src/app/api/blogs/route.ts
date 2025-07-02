@@ -26,7 +26,11 @@ export async function GET() {
         lastSyncAttemptAt: true,
         lastSyncUpdateCount: true,
         _count: {
-          select: { posts: true },
+          select: { 
+            posts: {
+              where: { isPublished: true }
+            }
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
