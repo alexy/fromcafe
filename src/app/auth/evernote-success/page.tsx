@@ -13,8 +13,24 @@ export default function EvernoteSuccessPage() {
     // Check if we need to refresh the session after Evernote OAuth
     const urlParams = new URLSearchParams(window.location.search)
     if (urlParams.get('refresh_session') === 'true') {
-      console.log('Refreshing NextAuth session after Evernote OAuth')
-      update() // This triggers a session refresh
+      console.log('Refreshing session after Evernote OAuth using custom endpoint')
+      
+      // Use custom session refresh endpoint
+      fetch('/api/auth/refresh-session', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+          console.log('Session refresh result:', data)
+          if (data.success && data.sessionValid) {
+            console.log('Session refreshed successfully, triggering NextAuth update')
+            update() // Now trigger NextAuth to pick up the refreshed session
+          } else {
+            console.error('Session refresh failed:', data.error)
+          }
+        })
+        .catch(error => {
+          console.error('Session refresh error:', error)
+        })
+      
       // Clean up URL
       window.history.replaceState({}, document.title, '/auth/evernote-success')
     }
