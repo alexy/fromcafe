@@ -32,14 +32,16 @@ export async function GET(request: NextRequest) {
   const oauthToken = searchParams.get('oauth_token')
   const oauthVerifier = searchParams.get('oauth_verifier')
   const edamNoteStoreUrl = searchParams.get('edam_noteStoreUrl')
+  const userIdFromUrl = searchParams.get('userId')
   
-  console.log('Evernote OAuth callback - user already authenticated:', {
+  console.log('Evernote OAuth callback - checking authentication:', {
     hasSession: !!session,
     sessionUserId: session?.user?.id,
     sessionUserEmail: session?.user?.email,
     hasToken: !!token,
     tokenSub: token?.sub,
     tokenEmail: token?.email,
+    userIdFromUrl: userIdFromUrl || 'not provided',
     oauthToken: oauthToken ? 'present' : 'missing',
     oauthVerifier: oauthVerifier ? 'present' : 'missing'
   })
@@ -51,14 +53,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard?error=invalid_oauth_params', baseUrl))
   }
   
-  // Use either session or token for user identification
-  const userId = session?.user?.id || token?.sub
+  // Try to get user ID from multiple sources
+  const userId = session?.user?.id || token?.sub || userIdFromUrl
   
   if (!userId) {
-    console.log('ERROR: No user authentication found in oauth-callback - this should not happen')
+    console.log('ERROR: No user identification found - session lost and no userId in URL')
     const baseUrl = getBaseUrl()
-    return NextResponse.redirect(new URL('/dashboard?error=no_authentication', baseUrl))
+    return NextResponse.redirect(new URL('/dashboard?error=session_lost', baseUrl))
   }
+  
+  console.log('Using userId for Evernote connection:', userId)
 
   try {
     // Exchange the OAuth verifier for an access token
@@ -71,43 +75,29 @@ export async function GET(request: NextRequest) {
     const finalNoteStoreUrl = noteStoreUrl || edamNoteStoreUrl
     console.log('Final noteStore URL to store:', finalNoteStoreUrl)
     
-    // First check if user exists
+    // Check if user exists in database
     console.log('Checking if user exists...')
     const existingUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true }
+      select: { id: true, email: true, name: true, image: true }
     })
     
-    const userEmail = session?.user?.email || token?.email
-    const userName = session?.user?.name || token?.name
-    const userImage = session?.user?.image || token?.picture
-    
     if (!existingUser) {
-      console.log('User not found in database, creating user...')
-      // Create the user if they don't exist
-      await prisma.user.create({
-        data: {
-          id: userId,
-          email: userEmail!,
-          name: userName,
-          image: userImage,
-          evernoteToken: accessToken,
-          evernoteUserId: userId,
-          evernoteNoteStoreUrl: finalNoteStoreUrl,
-        }
-      })
-    } else {
-      console.log('User exists, updating with Evernote credentials...')
-      // Store the access token and noteStore URL in the database
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          evernoteToken: accessToken,
-          evernoteUserId: userId,
-          evernoteNoteStoreUrl: finalNoteStoreUrl,
-        },
-      })
+      console.log('ERROR: User not found in database - this should not happen as user should be created during sign-in')
+      const baseUrl = getBaseUrl()
+      return NextResponse.redirect(new URL('/dashboard?error=user_not_found', baseUrl))
     }
+    
+    console.log('User exists, updating with Evernote credentials...')
+    // Store the access token and noteStore URL in the database
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        evernoteToken: accessToken,
+        evernoteUserId: userId,
+        evernoteNoteStoreUrl: finalNoteStoreUrl,
+      },
+    })
 
     console.log('Evernote connection successful, redirecting to dashboard')
     const baseUrl = getBaseUrl()

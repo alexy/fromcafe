@@ -11,7 +11,7 @@ export async function GET() {
   }
 
   try {
-    const authUrl = await getEvernoteAuthUrl()
+    const authUrl = await getEvernoteAuthUrl(session.user.id)
     return NextResponse.json({ authUrl })
   } catch (error) {
     console.error('Error getting Evernote auth URL:', error)
