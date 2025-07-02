@@ -207,25 +207,46 @@ export class SyncService {
         })
 
         if (existingPost) {
-          // Update existing post
-          await prisma.post.update({
-            where: { id: existingPost.id },
-            data: {
+          // Check if post actually needs updating by comparing content
+          const newContent = this.convertEvernoteToHtml(note.content)
+          const newExcerpt = this.generateExcerpt(note.content)
+          const newUpdatedAt = new Date(note.updated)
+          const newPublishedAt = isPublished ? (existingPost.publishedAt || new Date()) : null
+          
+          // Determine if any content has actually changed
+          const hasChanges = (
+            existingPost.title !== note.title ||
+            existingPost.content !== newContent ||
+            existingPost.excerpt !== newExcerpt ||
+            existingPost.isPublished !== isPublished ||
+            (existingPost.publishedAt?.getTime() !== newPublishedAt?.getTime()) ||
+            existingPost.updatedAt.getTime() !== newUpdatedAt.getTime()
+          )
+          
+          if (hasChanges) {
+            // Only update if there are actual changes
+            await prisma.post.update({
+              where: { id: existingPost.id },
+              data: {
+                title: note.title,
+                content: newContent,
+                excerpt: newExcerpt,
+                isPublished,
+                publishedAt: newPublishedAt,
+                updatedAt: newUpdatedAt,
+              },
+            })
+            result.updatedPosts++
+            result.posts.push({
               title: note.title,
-              content: this.convertEvernoteToHtml(note.content),
-              excerpt: this.generateExcerpt(note.content),
-              isPublished,
-              publishedAt: isPublished ? (existingPost.publishedAt || new Date()) : null,
-              updatedAt: new Date(note.updated),
-            },
-          })
-          result.updatedPosts++
-          result.posts.push({
-            title: note.title,
-            isNew: false,
-            isUpdated: true,
-            isUnpublished: false
-          })
+              isNew: false,
+              isUpdated: true,
+              isUnpublished: false
+            })
+            console.log(`Updated post "${note.title}" - changes detected`)
+          } else {
+            console.log(`Post "${note.title}" - no changes detected, skipping update`)
+          }
         } else if (isPublished) {
           // Create new published post
           console.log(`Creating new post for note "${note.title}"`)
