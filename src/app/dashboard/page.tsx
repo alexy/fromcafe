@@ -189,6 +189,7 @@ export default function Dashboard() {
         if (data.totalNewPosts > 0) messages.push(`${data.totalNewPosts} new posts`)
         if (data.totalUpdatedPosts > 0) messages.push(`${data.totalUpdatedPosts} updated posts`)
         if (data.totalUnpublishedPosts > 0) messages.push(`${data.totalUnpublishedPosts} unpublished posts`)
+        if (data.totalRepublishedPosts > 0) messages.push(`${data.totalRepublishedPosts} re-published posts`)
         
         const message = messages.length > 0 
           ? `Sync completed! ${messages.join(', ')}.`
@@ -260,6 +261,7 @@ export default function Dashboard() {
           if (result.newPosts > 0) messages.push(`${result.newPosts} new posts`)
           if (result.updatedPosts > 0) messages.push(`${result.updatedPosts} updated posts`)
           if (result.unpublishedPosts > 0) messages.push(`${result.unpublishedPosts} unpublished posts`)
+          if (result.republishedPosts > 0) messages.push(`${result.republishedPosts} re-published posts`)
           
           const message = messages.length > 0 ? messages.join(', ') : 'No changes'
           alert(`Sync completed! ${message}.`)

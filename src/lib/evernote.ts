@@ -131,7 +131,7 @@ export class EvernoteService {
       // Add date filter if provided to only get notes modified since last sync
       if (sinceDate) {
         filter.updated = Math.floor(sinceDate.getTime())
-        console.log(`Filtering notes updated since: ${sinceDate.toISOString()}`)
+        console.log(`Filtering notes updated since: ${sinceDate.toISOString()} (timestamp: ${filter.updated})`)
       }
       
       const spec = {

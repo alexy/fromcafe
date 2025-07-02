@@ -9,6 +9,7 @@ export interface SyncResult {
   newPosts: number
   updatedPosts: number
   unpublishedPosts: number
+  republishedPosts?: number
   totalPublishedPosts: number
   error?: string
   posts: Array<{
@@ -16,6 +17,7 @@ export interface SyncResult {
     isNew: boolean
     isUpdated: boolean
     isUnpublished: boolean
+    isRepublished?: boolean
   }>
 }
 
@@ -24,6 +26,8 @@ export interface UserSyncResult {
   results: SyncResult[]
   totalNewPosts: number
   totalUpdatedPosts: number
+  totalUnpublishedPosts: number
+  totalRepublishedPosts?: number
   error?: string
 }
 
@@ -89,12 +93,16 @@ export class SyncService {
 
       const totalNewPosts = results.reduce((sum, r) => sum + r.newPosts, 0)
       const totalUpdatedPosts = results.reduce((sum, r) => sum + r.updatedPosts, 0)
+      const totalUnpublishedPosts = results.reduce((sum, r) => sum + r.unpublishedPosts, 0)
+      const totalRepublishedPosts = results.reduce((sum, r) => sum + (r.republishedPosts || 0), 0)
 
       return {
         success: true,
         results,
         totalNewPosts,
-        totalUpdatedPosts
+        totalUpdatedPosts,
+        totalUnpublishedPosts,
+        totalRepublishedPosts
       }
     } catch (error) {
       console.error(`Error syncing user ${userId}:`, error)
@@ -103,6 +111,8 @@ export class SyncService {
         results: [],
         totalNewPosts: 0,
         totalUpdatedPosts: 0,
+        totalUnpublishedPosts: 0,
+        totalRepublishedPosts: 0,
         error: error instanceof Error ? error.message : 'Unknown error'
       }
     }
@@ -186,10 +196,12 @@ export class SyncService {
       if (isIncrementalSync && blog?.lastSyncedAt) {
         // Incremental sync: only get notes modified since last successful sync
         console.log(`Performing incremental sync - checking notes modified since ${blog.lastSyncedAt.toISOString()}`)
+        console.log(`Sync state: updateCount=${currentSyncState.updateCount}, lastSyncUpdateCount=${blog.lastSyncUpdateCount}`)
         notes = await evernoteService.getNotesFromNotebook(notebookGuid, 100, blog.lastSyncedAt)
       } else {
         // Full sync: now more efficient with tag filtering, can handle more notes
         console.log(`Performing full sync - now optimized to filter by "published" tag first`)
+        console.log(`Full sync reasons - hasSuccessfulPreviousSync: ${hasSuccessfulPreviousSync}, updateCount: ${currentSyncState.updateCount}, lastSyncUpdateCount: ${blog?.lastSyncUpdateCount}`)
         notes = await evernoteService.getNotesFromNotebook(notebookGuid, 50)
       }
       
@@ -224,6 +236,9 @@ export class SyncService {
           )
           
           if (hasChanges) {
+            // Detect if this is a re-publishing (unpublished -> published)
+            const isRepublishing = !existingPost.isPublished && isPublished
+            
             // Only update if there are actual changes
             await prisma.post.update({
               where: { id: existingPost.id },
@@ -236,14 +251,27 @@ export class SyncService {
                 updatedAt: newUpdatedAt,
               },
             })
-            result.updatedPosts++
-            result.posts.push({
-              title: note.title,
-              isNew: false,
-              isUpdated: true,
-              isUnpublished: false
-            })
-            console.log(`Updated post "${note.title}" - changes detected`)
+            
+            if (isRepublishing) {
+              result.republishedPosts = (result.republishedPosts || 0) + 1
+              result.posts.push({
+                title: note.title,
+                isNew: false,
+                isUpdated: false,
+                isUnpublished: false,
+                isRepublished: true
+              })
+              console.log(`Re-published post "${note.title}" - was unpublished, now published`)
+            } else {
+              result.updatedPosts++
+              result.posts.push({
+                title: note.title,
+                isNew: false,
+                isUpdated: true,
+                isUnpublished: false
+              })
+              console.log(`Updated post "${note.title}" - changes detected`)
+            }
           } else {
             console.log(`Post "${note.title}" - no changes detected, skipping update`)
           }
