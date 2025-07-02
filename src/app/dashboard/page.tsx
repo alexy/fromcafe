@@ -40,12 +40,36 @@ export default function Dashboard() {
     const evernoteSuccess = urlParams.get('success') === 'evernote_connected'
     
     if (evernoteBypass) {
-      console.log('Evernote bypass mode detected, skipping NextAuth entirely')
+      console.log('Evernote bypass mode detected, using minimal NextAuth')
       setPostEvernoteAuth(true)
       
-      // Load dashboard data directly
-      fetchBlogs()
-      checkEvernoteConnection()
+      // Try to force NextAuth session restoration without triggering Google OAuth
+      const restoreSession = async () => {
+        try {
+          // Use manual session creation that we already have
+          const response = await fetch('/api/auth/create-session', { method: 'POST' })
+          const result = await response.json()
+          
+          if (result.success) {
+            console.log('Minimal session restored for API calls')
+            // Now load dashboard data with proper authentication
+            setTimeout(() => {
+              fetchBlogs()
+              checkEvernoteConnection()
+            }, 1000)
+          } else {
+            console.log('Session restoration failed, loading data anyway')
+            fetchBlogs()
+            checkEvernoteConnection()
+          }
+        } catch (error) {
+          console.error('Session restoration error:', error)
+          fetchBlogs()
+          checkEvernoteConnection()
+        }
+      }
+      
+      restoreSession()
       
       if (evernoteSuccess) {
         setShowSuccess(true)
