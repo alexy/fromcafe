@@ -33,15 +33,33 @@ export default function Dashboard() {
   const [resettingSync, setResettingSync] = useState(false)
 
   useEffect(() => {
+    console.log('Dashboard useEffect - status:', status, 'session:', !!session)
+    
+    // Check if coming from Evernote OAuth success first
+    const urlParams = new URLSearchParams(window.location.search)
+    const fromEvernoteSuccess = urlParams.get('success') === 'evernote_connected'
+    
     if (status === 'unauthenticated') {
-      router.push('/auth/signin')
+      if (fromEvernoteSuccess) {
+        console.log('Coming from Evernote success - bypassing signin redirect and setting up manually')
+        // Don't redirect to signin, just set up the success state
+        setShowSuccess(true)
+        setEvernoteConnected(true)
+        // Clean up URL
+        window.history.replaceState({}, document.title, '/dashboard')
+        // Try to fetch data anyway - the API endpoints will handle auth
+        fetchBlogs()
+        checkEvernoteConnection()
+      } else {
+        console.log('Dashboard redirecting to signin due to unauthenticated status')
+        router.push('/auth/signin')
+      }
     } else if (status === 'authenticated') {
       fetchBlogs()
       checkEvernoteConnection()
       
       // Check for success/error messages from URL params
-      const urlParams = new URLSearchParams(window.location.search)
-      if (urlParams.get('success') === 'evernote_connected') {
+      if (fromEvernoteSuccess) {
         setShowSuccess(true)
         setEvernoteConnected(true)
         // Clean up URL
