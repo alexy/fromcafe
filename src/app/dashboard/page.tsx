@@ -33,8 +33,17 @@ export default function Dashboard() {
   const [resettingSync, setResettingSync] = useState(false)
 
   useEffect(() => {
+    // Don't redirect to sign-in immediately - wait for session to stabilize
+    // This prevents premature redirects after OAuth completion
     if (status === 'unauthenticated') {
-      router.push('/auth/signin')
+      // Add a small delay to allow session to settle after OAuth
+      const timer = setTimeout(() => {
+        if (status === 'unauthenticated') {
+          router.push('/auth/signin')
+        }
+      }, 2000) // 2 second delay
+      
+      return () => clearTimeout(timer)
     } else if (status === 'authenticated') {
       fetchBlogs()
       checkEvernoteConnection()
