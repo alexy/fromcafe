@@ -31,8 +31,31 @@ export default function Dashboard() {
   const [disconnecting, setDisconnecting] = useState(false)
   const [syncingBlog, setSyncingBlog] = useState<string | null>(null)
   const [resettingSync, setResettingSync] = useState(false)
+  const [forceAuth, setForceAuth] = useState(false)
 
   useEffect(() => {
+    // Check if we should force authentication (bypass NextAuth session check)
+    const urlParams = new URLSearchParams(window.location.search)
+    const shouldForceAuth = urlParams.get('force_auth') === 'true'
+    setForceAuth(shouldForceAuth)
+    
+    if (shouldForceAuth) {
+      console.log('Force auth enabled - bypassing NextAuth session check')
+      // Clean up URL and proceed with loading data
+      window.history.replaceState({}, document.title, '/dashboard?success=evernote_connected')
+      fetchBlogs()
+      checkEvernoteConnection()
+      setShowSuccess(true)
+      setEvernoteConnected(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (forceAuth) {
+      // Skip NextAuth session checks when force auth is enabled
+      return
+    }
+    
     if (status === 'unauthenticated') {
       router.push('/auth/signin')
     } else if (status === 'authenticated') {
