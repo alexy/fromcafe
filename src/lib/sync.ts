@@ -248,10 +248,15 @@ export class SyncService {
           if (hasContentChanges) {
             console.log(`Content changes detected for "${note.title}":`)
             if (titleChanged) console.log(`  - Title: "${existingPost.title}" → "${note.title}"`)
-            if (contentChanged) console.log(`  - Content changed (lengths: ${existingPost.content?.length || 0} → ${newContent.length})`)
+            if (contentChanged) {
+              console.log(`  - Content changed (lengths: ${existingPost.content?.length || 0} → ${newContent.length})`)
+              console.log(`  - Old content preview: "${(existingPost.content || '').substring(0, 100)}..."`)
+              console.log(`  - New content preview: "${newContent.substring(0, 100)}..."`)
+            }
             if (excerptChanged) console.log(`  - Excerpt: "${existingPost.excerpt}" → "${newExcerpt}"`)
           } else {
             console.log(`No content changes detected for "${note.title}"`)
+            console.log(`  - Content lengths: old=${existingPost.content?.length || 0}, new=${newContent.length}`)
           }
           
           const hasPublicationChanges = (
@@ -268,7 +273,7 @@ export class SyncService {
             console.log(`Processing post "${note.title}": isRepublishing=${isRepublishing}, hasContentChanges=${hasContentChanges}, hasPublicationChanges=${hasPublicationChanges}`)
             
             // Only update if there are actual changes
-            await prisma.post.update({
+            const updatedPost = await prisma.post.update({
               where: { id: existingPost.id },
               data: {
                 title: note.title,
@@ -279,6 +284,14 @@ export class SyncService {
                 updatedAt: newUpdatedAt,
               },
             })
+            
+            // Verify the content was actually updated in the database
+            if (hasContentChanges && contentChanged) {
+              console.log(`  VERIFY: Post "${note.title}" content updated in DB (new length: ${updatedPost.content?.length || 0})`)
+              if (updatedPost.content !== newContent) {
+                console.error(`  ERROR: Content mismatch after DB update! Expected length ${newContent.length}, got ${updatedPost.content?.length || 0}`)
+              }
+            }
             
             if (isRepublishing && hasContentChanges) {
               // Re-published AND content was updated
@@ -292,6 +305,7 @@ export class SyncService {
                 isRepublishedUpdated: true
               })
               console.log(`Re-published and updated post "${note.title}" - was unpublished, now published with content changes`)
+              console.log(`  DEBUG: Content updated in DB: title="${note.title}", contentLength=${newContent.length}, excerpt="${newExcerpt}"`)
             } else if (isRepublishing) {
               // Re-published without content changes
               result.republishedPosts = (result.republishedPosts || 0) + 1
@@ -303,6 +317,7 @@ export class SyncService {
                 isRepublished: true
               })
               console.log(`Re-published post "${note.title}" - was unpublished, now published (no content changes)`)
+              console.log(`  DEBUG: Content should be same: oldLength=${existingPost.content?.length || 0}, newLength=${newContent.length}`)
             } else {
               // Just content updates (already published)
               result.updatedPosts++
