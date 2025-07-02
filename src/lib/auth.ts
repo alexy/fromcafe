@@ -97,7 +97,7 @@ export const authOptions = {
       name: `${process.env.VERCEL ? '__Secure-' : ''}next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: process.env.VERCEL ? 'none' : 'lax', // 'none' for cross-site OAuth on Vercel
         path: '/',
         secure: !!process.env.VERCEL,
       },

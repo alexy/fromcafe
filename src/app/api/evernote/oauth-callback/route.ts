@@ -56,10 +56,16 @@ export async function GET(request: NextRequest) {
   
   let userId: string | undefined
   
-  // Priority: Use secure token first, then fallback to session
-  if (userTokenFromUrl) {
+  // Try to get user ID from session first, then token fallback
+  if (session?.user?.id) {
+    userId = session.user.id
+    console.log('Using session for user info')
+  } else if (token?.sub) {
+    userId = token.sub
+    console.log('Using JWT token for user info')
+  } else if (userTokenFromUrl) {
     try {
-      // Verify the secure token from URL
+      // Verify the secure token from URL as last resort
       const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!)
       const { payload } = await jwtVerify(userTokenFromUrl, secret)
       userId = payload.userId as string
@@ -67,12 +73,6 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       console.error('Failed to verify secure token:', error)
     }
-  } else if (session?.user?.id) {
-    userId = session.user.id
-    console.log('Using session for user info')
-  } else if (token?.sub) {
-    userId = token.sub
-    console.log('Using JWT token for user info')
   }
   
   if (!userId) {
