@@ -31,8 +31,40 @@ export default function Dashboard() {
   const [disconnecting, setDisconnecting] = useState(false)
   const [syncingBlog, setSyncingBlog] = useState<string | null>(null)
   const [resettingSync, setResettingSync] = useState(false)
+  const [postEvernoteAuth, setPostEvernoteAuth] = useState(false)
 
   useEffect(() => {
+    // Check if we're in post-Evernote OAuth state
+    const isPostOAuth = localStorage.getItem('postEvernoteOAuth') === 'true'
+    const isEvernoteConnected = localStorage.getItem('evernoteConnected') === 'true'
+    
+    if (isPostOAuth) {
+      console.log('Post-Evernote OAuth state detected, bypassing NextAuth')
+      setPostEvernoteAuth(true)
+      
+      // Load dashboard data directly
+      fetchBlogs()
+      checkEvernoteConnection()
+      
+      if (isEvernoteConnected) {
+        setShowSuccess(true)
+        setEvernoteConnected(true)
+        // Clear the localStorage flags
+        localStorage.removeItem('postEvernoteOAuth')
+        localStorage.removeItem('evernoteConnected')
+        // Clean up URL
+        window.history.replaceState({}, document.title, '/dashboard')
+      }
+      return
+    }
+  }, [])
+
+  useEffect(() => {
+    // Skip NextAuth checks if in post-OAuth state
+    if (postEvernoteAuth) {
+      return
+    }
+    
     if (status === 'unauthenticated') {
       router.push('/auth/signin')
     } else if (status === 'authenticated') {

@@ -10,46 +10,30 @@ export default function EvernoteSuccessPage() {
   const [restoring, setRestoring] = useState(true)
 
   useEffect(() => {
-    const createSession = async () => {
-      console.log('Creating manual NextAuth session after Evernote OAuth')
+    const handlePostOAuth = async () => {
+      console.log('Handling post-Evernote OAuth flow')
       
       try {
-        // Check if we already have a valid session
-        const currentSession = await getSession()
-        console.log('Current session check:', !!currentSession)
+        // Skip session creation entirely and go directly to dashboard
+        // We'll rely on the API endpoints to handle authentication server-side
+        console.log('Bypassing NextAuth session creation, proceeding to dashboard')
         
-        if (currentSession) {
-          console.log('Session already exists, proceeding to dashboard')
+        // Add a flag to localStorage to indicate we're in post-OAuth state
+        localStorage.setItem('postEvernoteOAuth', 'true')
+        localStorage.setItem('evernoteConnected', 'true')
+        
+        // Delay slightly to show the success message, then proceed
+        setTimeout(() => {
           setRestoring(false)
-          return
-        }
-        
-        // Create manual session using custom endpoint
-        console.log('No session found, creating manual session')
-        const response = await fetch('/api/auth/create-session', { method: 'POST' })
-        const result = await response.json()
-        
-        console.log('Manual session creation result:', result)
-        
-        if (result.success) {
-          console.log('Manual session created successfully')
-          // Force NextAuth to refresh and pick up the new session
-          setTimeout(async () => {
-            await getSession()
-            setRestoring(false)
-          }, 1000)
-        } else {
-          console.error('Manual session creation failed:', result.error)
-          setRestoring(false)
-        }
+        }, 2000)
         
       } catch (error) {
-        console.error('Session creation error:', error)
+        console.error('Post-OAuth handling error:', error)
         setRestoring(false)
       }
     }
     
-    createSession()
+    handlePostOAuth()
   }, [])
 
   const handleContinue = () => {
