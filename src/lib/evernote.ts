@@ -499,9 +499,13 @@ export function getEvernoteAuthUrl(userToken?: string): Promise<string> {
             return
           }
           
-          storeTokenSecret(oauthToken, oauthTokenSecret)
-          const authUrl = client.getAuthorizeUrl(oauthToken)
-          resolve(authUrl)
+          storeTokenSecret(oauthToken, oauthTokenSecret).then(() => {
+            const authUrl = client.getAuthorizeUrl(oauthToken)
+            resolve(authUrl)
+          }).catch(error => {
+            console.error('Error storing token secret:', error)
+            reject(new Error('Failed to store OAuth token'))
+          })
         }
       )
     } catch (error) {
@@ -512,9 +516,9 @@ export function getEvernoteAuthUrl(userToken?: string): Promise<string> {
 }
 
 export function getEvernoteAccessToken(oauthToken: string, oauthVerifier: string): Promise<{ token: string; secret: string; noteStoreUrl?: string }> {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     try {
-      const tokenSecret = getTokenSecret(oauthToken)
+      const tokenSecret = await getTokenSecret(oauthToken)
       if (!tokenSecret) {
         reject(new Error('Token secret not found. Please restart the authentication process.'))
         return
@@ -531,7 +535,9 @@ export function getEvernoteAccessToken(oauthToken: string, oauthVerifier: string
             return
           }
           
-          removeToken(oauthToken)
+          removeToken(oauthToken).catch(error => {
+            console.error('Error removing token:', error)
+          })
           
           let noteStoreUrl: string | undefined
           if (results && results.edam_noteStoreUrl) {

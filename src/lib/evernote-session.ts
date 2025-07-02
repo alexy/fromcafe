@@ -1,39 +1,57 @@
-// Temporary storage for OAuth tokens during the flow
-// In production, this should use Redis or another persistent store
+// Database-backed storage for OAuth tokens during the flow
+// Uses Prisma's VerificationToken table for serverless compatibility
 
-interface TokenData {
-  secret: string
-  timestamp: number
+import { prisma } from './prisma'
+
+export const storeTokenSecret = async (token: string, secret: string): Promise<void> => {
+  // Clean up any existing token with same identifier
+  await prisma.verificationToken.deleteMany({
+    where: { identifier: `evernote_oauth:${token}` }
+  })
+  
+  // Store the new token secret with 10 minute expiry
+  await prisma.verificationToken.create({
+    data: {
+      identifier: `evernote_oauth:${token}`,
+      token: secret,
+      expires: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+    }
+  })
+  
+  console.log('Stored OAuth token secret in database for serverless compatibility')
 }
 
-const tokenStore = new Map<string, TokenData>()
-
-// Clean up old tokens (older than 10 minutes)
-const cleanupOldTokens = () => {
-  const now = Date.now()
-  const tenMinutes = 10 * 60 * 1000
-  
-  for (const [token, data] of tokenStore.entries()) {
-    if (now - data.timestamp > tenMinutes) {
-      tokenStore.delete(token)
+export const getTokenSecret = async (token: string): Promise<string | null> => {
+  try {
+    const result = await prisma.verificationToken.findFirst({
+      where: { identifier: `evernote_oauth:${token}` }
+    })
+    
+    if (!result) {
+      console.log('OAuth token secret not found in database')
+      return null
     }
+    
+    // Check if expired
+    if (result.expires < new Date()) {
+      console.log('OAuth token secret expired, removing from database')
+      await prisma.verificationToken.deleteMany({
+        where: { identifier: `evernote_oauth:${token}` }
+      })
+      return null
+    }
+    
+    console.log('Retrieved OAuth token secret from database')
+    return result.token
+  } catch (error) {
+    console.error('Error retrieving OAuth token secret:', error)
+    return null
   }
 }
 
-export const storeTokenSecret = (token: string, secret: string): void => {
-  cleanupOldTokens()
-  tokenStore.set(token, {
-    secret,
-    timestamp: Date.now()
+export const removeToken = async (token: string): Promise<void> => {
+  await prisma.verificationToken.deleteMany({
+    where: { identifier: `evernote_oauth:${token}` }
   })
-}
-
-export const getTokenSecret = (token: string): string | null => {
-  cleanupOldTokens()
-  const data = tokenStore.get(token)
-  return data ? data.secret : null
-}
-
-export const removeToken = (token: string): void => {
-  tokenStore.delete(token)
+  console.log('Removed OAuth token secret from database')
 }
