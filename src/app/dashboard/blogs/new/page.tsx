@@ -22,7 +22,10 @@ function NewBlogForm() {
   const notebookName = searchParams.get('name')
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    // Check if we're in force auth mode (no NextAuth session required)
+    const isForceAuth = sessionStorage.getItem('forceAuth') === 'true'
+    
+    if (!isForceAuth && status === 'unauthenticated') {
       router.push('/auth/signin')
     }
     

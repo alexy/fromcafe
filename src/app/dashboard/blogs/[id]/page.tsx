@@ -83,9 +83,12 @@ export default function BlogSettings() {
   }, [blogId, router])
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    // Check if we're in force auth mode (no NextAuth session required)
+    const isForceAuth = sessionStorage.getItem('forceAuth') === 'true'
+    
+    if (!isForceAuth && status === 'unauthenticated') {
       router.push('/auth/signin')
-    } else if (status === 'authenticated' && blogId) {
+    } else if ((isForceAuth || status === 'authenticated') && blogId) {
       fetchBlog()
     }
   }, [status, router, blogId, fetchBlog])

@@ -41,6 +41,8 @@ export default function Dashboard() {
     
     if (shouldForceAuth) {
       console.log('Force auth enabled - bypassing NextAuth session check')
+      // Set sessionStorage flag so other pages know we're in force auth mode
+      sessionStorage.setItem('forceAuth', 'true')
       // Clean up URL and proceed with loading data
       window.history.replaceState({}, document.title, '/dashboard?success=evernote_connected')
       fetchBlogs()
