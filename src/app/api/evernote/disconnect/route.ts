@@ -58,16 +58,28 @@ export async function POST() {
     }
 
     // Remove Evernote credentials from the user's account
-    await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: session.user.id },
       data: { 
         evernoteToken: null,
         evernoteUserId: null,
         evernoteNoteStoreUrl: null
       },
+      select: {
+        id: true,
+        evernoteToken: true,
+        evernoteUserId: true,
+        evernoteNoteStoreUrl: true
+      }
     })
 
     console.log('Successfully disconnected Evernote for user:', session.user.id)
+    console.log('Updated user state:', {
+      id: updatedUser.id,
+      hasEvernoteToken: !!updatedUser.evernoteToken,
+      evernoteUserId: updatedUser.evernoteUserId,
+      evernoteNoteStoreUrl: updatedUser.evernoteNoteStoreUrl
+    })
     
     return NextResponse.json({ 
       success: true, 

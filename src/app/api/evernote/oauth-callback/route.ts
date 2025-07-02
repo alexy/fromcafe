@@ -56,14 +56,8 @@ export async function GET(request: NextRequest) {
   
   let userId: string | undefined
   
-  // Try to get user info from multiple sources
-  if (session?.user?.id) {
-    userId = session.user.id
-    console.log('Using session for user info')
-  } else if (token?.sub) {
-    userId = token.sub
-    console.log('Using JWT token for user info')
-  } else if (userTokenFromUrl) {
+  // Priority: Use secure token first, then fallback to session
+  if (userTokenFromUrl) {
     try {
       // Verify the secure token from URL
       const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!)
@@ -73,6 +67,12 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       console.error('Failed to verify secure token:', error)
     }
+  } else if (session?.user?.id) {
+    userId = session.user.id
+    console.log('Using session for user info')
+  } else if (token?.sub) {
+    userId = token.sub
+    console.log('Using JWT token for user info')
   }
   
   if (!userId) {
@@ -126,6 +126,7 @@ export async function GET(request: NextRequest) {
     })
     
     const baseUrl = getBaseUrl()
+    console.log('Evernote connection completed successfully, redirecting to dashboard')
     return NextResponse.redirect(new URL('/dashboard?success=evernote_connected', baseUrl))
   } catch (error) {
     console.error('Error completing Evernote OAuth:', error)

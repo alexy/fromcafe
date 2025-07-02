@@ -35,42 +35,43 @@ export default function Dashboard() {
   useEffect(() => {
     console.log('Dashboard session status:', status, 'session:', !!session)
     
-    // Check if we're coming from an OAuth success (which might temporarily lose session)
+    // Check if we're coming from an OAuth success
     const urlParams = new URLSearchParams(window.location.search)
     const isFromOAuthSuccess = urlParams.get('success') === 'evernote_connected'
     
-    if (status === 'unauthenticated') {
-      if (isFromOAuthSuccess) {
-        console.log('Coming from OAuth success, waiting for session to restore...')
-        // Give the session a moment to restore after OAuth redirect
-        const timer = setTimeout(() => {
-          if (status === 'unauthenticated') {
-            console.log('Session still not restored, redirecting to sign-in')
-            router.push('/auth/signin')
-          }
-        }, 2000)
-        return () => clearTimeout(timer)
-      } else {
-        console.log('Redirecting to sign-in due to unauthenticated status')
-        router.push('/auth/signin')
-      }
-    } else if (status === 'authenticated') {
+    if (status === 'authenticated') {
       fetchBlogs()
       checkEvernoteConnection()
       
       // Check for success/error messages from URL params
-      const urlParams = new URLSearchParams(window.location.search)
-      if (urlParams.get('success') === 'evernote_connected') {
+      if (isFromOAuthSuccess) {
         setShowSuccess(true)
         setEvernoteConnected(true)
         // Clean up URL
         window.history.replaceState({}, document.title, '/dashboard')
       }
-      if (urlParams.get('error')) {
-        setShowError(urlParams.get('error') || 'Unknown error')
-        // Clean up URL
-        window.history.replaceState({}, document.title, '/dashboard')
+    } else if (status === 'unauthenticated') {
+      if (isFromOAuthSuccess) {
+        console.log('Coming from OAuth success but no session - waiting longer for session restore...')
+        // Give extra time for session to restore after OAuth success
+        const timer = setTimeout(() => {
+          if (status === 'unauthenticated') {
+            console.log('Session still not restored after OAuth, redirecting to sign-in')
+            router.push('/auth/signin')
+          }
+        }, 5000) // 5 seconds instead of 2
+        return () => clearTimeout(timer)
+      } else {
+        console.log('No session detected, redirecting to sign-in')
+        router.push('/auth/signin')
       }
+    }
+    
+    // Check for error messages from URL params
+    if (urlParams.get('error')) {
+      setShowError(urlParams.get('error') || 'Unknown error')
+      // Clean up URL
+      window.history.replaceState({}, document.title, '/dashboard')
     }
   }, [status, router])
 
