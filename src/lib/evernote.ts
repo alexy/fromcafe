@@ -458,7 +458,7 @@ export function getEvernoteAuthUrl(): Promise<string> {
         ? `https://${process.env.VERCEL_URL}` 
         : process.env.APP_URL || 'http://localhost:3000'
       
-      const callbackUrl = `${baseUrl}/api/evernote/callback`
+      const callbackUrl = `${baseUrl}/api/evernote/oauth-callback`
       console.log('Using Evernote callback URL:', callbackUrl)
       
       client.getRequestToken(
