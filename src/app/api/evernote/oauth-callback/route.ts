@@ -4,6 +4,7 @@ import { getToken } from 'next-auth/jwt'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEvernoteAccessToken } from '@/lib/evernote'
+import { jwtVerify } from 'jose'
 
 // Helper function to get the correct base URL (prioritizes actual deployment URL)
 function getBaseUrl(): string {
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
   const oauthToken = searchParams.get('oauth_token')
   const oauthVerifier = searchParams.get('oauth_verifier')
   const edamNoteStoreUrl = searchParams.get('edam_noteStoreUrl')
-  const userIdFromUrl = searchParams.get('userId')
+  const userTokenFromUrl = searchParams.get('token')
   
   console.log('Evernote OAuth callback - checking authentication:', {
     hasSession: !!session,
@@ -41,15 +42,9 @@ export async function GET(request: NextRequest) {
     hasToken: !!token,
     tokenSub: token?.sub,
     tokenEmail: token?.email,
-    userIdFromUrl: userIdFromUrl || 'not provided',
+    userTokenFromUrl: userTokenFromUrl ? 'present' : 'not provided',
     oauthToken: oauthToken ? 'present' : 'missing',
-    oauthVerifier: oauthVerifier ? 'present' : 'missing',
-    requestUrl: request.url,
-    headers: {
-      cookie: request.headers.get('cookie') ? 'present' : 'missing',
-      referer: request.headers.get('referer'),
-      userAgent: request.headers.get('user-agent')
-    }
+    oauthVerifier: oauthVerifier ? 'present' : 'missing'
   })
   
   // If no OAuth parameters, this is an invalid callback
@@ -59,11 +54,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard?error=invalid_oauth_params', baseUrl))
   }
   
-  // Try to get user ID from multiple sources
-  const userId = session?.user?.id || token?.sub || userIdFromUrl
+  let userId: string | undefined
+  
+  // Try to get user info from multiple sources
+  if (session?.user?.id) {
+    userId = session.user.id
+    console.log('Using session for user info')
+  } else if (token?.sub) {
+    userId = token.sub
+    console.log('Using JWT token for user info')
+  } else if (userTokenFromUrl) {
+    try {
+      // Verify the secure token from URL
+      const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!)
+      const { payload } = await jwtVerify(userTokenFromUrl, secret)
+      userId = payload.userId as string
+      console.log('Using secure token from URL for user info:', { userId, email: payload.email })
+    } catch (error) {
+      console.error('Failed to verify secure token:', error)
+    }
+  }
   
   if (!userId) {
-    console.log('ERROR: No user identification found - session lost and no userId in URL')
+    console.log('ERROR: No user identification found')
     const baseUrl = getBaseUrl()
     return NextResponse.redirect(new URL('/dashboard?error=session_lost', baseUrl))
   }

@@ -454,7 +454,7 @@ export class EvernoteService {
   }
 }
 
-export function getEvernoteAuthUrl(userId?: string): Promise<string> {
+export function getEvernoteAuthUrl(userToken?: string): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!process.env.EVERNOTE_CONSUMER_KEY || !process.env.EVERNOTE_CONSUMER_SECRET) {
       reject(new Error('Evernote API credentials not configured'))
@@ -470,7 +470,7 @@ export function getEvernoteAuthUrl(userId?: string): Promise<string> {
       // Build callback URL using the same logic as the auth system
       const baseUrl = getBaseUrl()
       
-      const callbackUrl = `${baseUrl}/api/evernote/oauth-callback${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`
+      const callbackUrl = `${baseUrl}/api/evernote/oauth-callback${userToken ? `?token=${encodeURIComponent(userToken)}` : ''}`
       console.log('Using Evernote callback URL:', callbackUrl)
       
       client.getRequestToken(
