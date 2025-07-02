@@ -23,12 +23,8 @@ const getBaseUrl = () => {
   return 'http://localhost:3000'
 }
 
-// Ensure NEXTAUTH_URL is set for NextAuth's internal URL detection
-if (process.env.VERCEL && !process.env.NEXTAUTH_URL) {
-  const computedUrl = getBaseUrl()
-  console.log('Setting NEXTAUTH_URL to computed value:', computedUrl)
-  process.env.NEXTAUTH_URL = computedUrl
-}
+// Let NextAuth handle URL detection automatically on Vercel
+// Don't override NEXTAUTH_URL - let Vercel's automatic detection work
 
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
@@ -58,34 +54,26 @@ export const authOptions = {
       return token
     },
     redirect: async ({ url, baseUrl }: { url: string; baseUrl: string }) => {
-      // Always use our explicit base URL to prevent random redirects
-      const forcedBaseUrl = getBaseUrl()
-      
       console.log('NextAuth redirect:', { 
         url, 
-        originalBaseUrl: baseUrl, 
-        forcedBaseUrl,
+        baseUrl,
         NEXTAUTH_URL: process.env.NEXTAUTH_URL,
         VERCEL_URL: process.env.VERCEL_URL,
         VERCEL_ENV: process.env.VERCEL_ENV 
       })
       
+      // For relative URLs, use the baseUrl
       if (url.startsWith('/')) {
-        return `${forcedBaseUrl}${url}`
+        return `${baseUrl}${url}`
       }
       
-      // If the URL starts with the original baseUrl, replace it with our forced one
+      // For absolute URLs that match our domain, allow them
       if (url.startsWith(baseUrl)) {
-        return url.replace(baseUrl, forcedBaseUrl)
-      }
-      
-      // If it's already using our forced base URL, keep it
-      if (url.startsWith(forcedBaseUrl)) {
         return url
       }
       
-      // Default to forced base URL
-      return forcedBaseUrl
+      // Default to dashboard for any other case
+      return `${baseUrl}/dashboard`
     },
   },
   session: {
