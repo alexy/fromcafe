@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'No connected blogs for this notebook' })
     }
 
-    const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined, evernoteUserId)
+    const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined, user.id)
 
     for (const blog of relevantBlogs) {
       await handleNoteChange(noteGuid, reason, blog.id, blog.title, evernoteService)
