@@ -92,6 +92,17 @@ export const authOptions = {
     strategy: 'jwt' as const,
     maxAge: 7 * 24 * 60 * 60, // 7 days (in seconds)
   },
+  cookies: {
+    sessionToken: {
+      name: `${process.env.VERCEL ? '__Secure-' : ''}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: !!process.env.VERCEL,
+      },
+    },
+  },
   pages: {
     signIn: '/auth/signin',
     error: '/auth/error',

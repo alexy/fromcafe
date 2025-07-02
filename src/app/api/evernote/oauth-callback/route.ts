@@ -125,29 +125,8 @@ export async function GET(request: NextRequest) {
       noteStoreUrl: finalNoteStoreUrl
     })
     
-    // Return an HTML page that will do a client-side redirect
-    // This preserves the browser's session cookies better than server redirects
-    const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Evernote Connected</title>
-      <script>
-        console.log('Evernote connection successful, redirecting to dashboard...');
-        window.location.href = '/dashboard?success=evernote_connected';
-      </script>
-    </head>
-    <body>
-      <p>Successfully connected to Evernote! Redirecting...</p>
-    </body>
-    </html>
-    `
-    
-    return new NextResponse(html, {
-      headers: {
-        'Content-Type': 'text/html',
-      },
-    })
+    const baseUrl = getBaseUrl()
+    return NextResponse.redirect(new URL('/dashboard?success=evernote_connected', baseUrl))
   } catch (error) {
     console.error('Error completing Evernote OAuth:', error)
     const baseUrl = getBaseUrl()
