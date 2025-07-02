@@ -25,7 +25,7 @@ export async function POST() {
       })
       
       // Force session cookie refresh by updating its value
-      const cookieStore = cookies()
+      const cookieStore = await cookies()
       const sessionCookie = cookieStore.get('next-auth.session-token') || cookieStore.get('__Secure-next-auth.session-token')
       
       if (sessionCookie) {
