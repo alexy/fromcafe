@@ -118,6 +118,21 @@ export default function Dashboard() {
       if (response.ok) {
         const data = await response.json()
         setBlogs(data.blogs)
+      } else if (response.status === 401) {
+        // JWT decryption error - try to clear invalid cookies
+        console.log('Authentication error, attempting to clear invalid cookies')
+        try {
+          const clearResponse = await fetch('/api/auth/clear-invalid-session', { method: 'POST' })
+          const clearResult = await clearResponse.json()
+          
+          if (clearResult.clearedInvalidCookies) {
+            console.log('Invalid cookies cleared, please refresh the page')
+            // Show user-friendly message
+            setShowError('Session expired. Please refresh the page and sign in again.')
+          }
+        } catch (clearError) {
+          console.error('Error clearing invalid cookies:', clearError)
+        }
       }
     } catch (error) {
       console.error('Error fetching blogs:', error)
@@ -132,6 +147,14 @@ export default function Dashboard() {
       if (response.ok) {
         const data = await response.json()
         setEvernoteConnected(data.connected)
+      } else if (response.status === 401) {
+        // JWT decryption error - try to clear invalid cookies
+        console.log('Authentication error checking Evernote status, attempting to clear invalid cookies')
+        try {
+          await fetch('/api/auth/clear-invalid-session', { method: 'POST' })
+        } catch (clearError) {
+          console.error('Error clearing invalid cookies:', clearError)
+        }
       }
     } catch (error) {
       console.error('Error checking Evernote connection:', error)
