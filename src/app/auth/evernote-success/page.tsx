@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react'
 export default function EvernoteSuccessPage() {
   const router = useRouter()
   const [clicked, setClicked] = useState(false)
-  const { data: session, update } = useSession()
+  const { update } = useSession()
 
   useEffect(() => {
     // Check if we need to refresh the session after Evernote OAuth
