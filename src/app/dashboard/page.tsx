@@ -524,7 +524,12 @@ export default function Dashboard() {
                     View Blog
                   </a>
                   <button
-                    onClick={() => router.push(`/dashboard/blogs/${blog.id}`)}
+                    onClick={() => {
+                      const editUrl = postEvernoteAuth 
+                        ? `/dashboard/blogs/${blog.id}?evernote_bypass=true`
+                        : `/dashboard/blogs/${blog.id}`
+                      router.push(editUrl)
+                    }}
                     className="text-black hover:text-blue-600"
                   >
                     Edit

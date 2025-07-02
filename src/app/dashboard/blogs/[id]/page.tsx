@@ -83,8 +83,39 @@ export default function BlogSettings() {
   }, [blogId, router])
 
   useEffect(() => {
+    // Check URL parameters for Evernote bypass mode (same as dashboard)
+    const urlParams = new URLSearchParams(window.location.search)
+    const evernoteBypass = urlParams.get('evernote_bypass') === 'true'
+    
     // Check if we're in force auth mode (no NextAuth session required)
-    const isForceAuth = sessionStorage.getItem('forceAuth') === 'true'
+    const isForceAuth = sessionStorage.getItem('forceAuth') === 'true' || evernoteBypass
+    
+    if (evernoteBypass) {
+      console.log('Evernote bypass mode detected in blog edit page')
+      // Try to restore session like the dashboard does
+      const restoreSession = async () => {
+        try {
+          const response = await fetch('/api/auth/create-session', { method: 'POST' })
+          const result = await response.json()
+          
+          if (result.success) {
+            console.log('Session restored for blog edit page')
+            setTimeout(() => fetchBlog(), 1000)
+          } else {
+            console.log('Session restoration failed, loading blog anyway')
+            fetchBlog()
+          }
+        } catch (error) {
+          console.error('Session restoration error:', error)
+          fetchBlog()
+        }
+      }
+      
+      restoreSession()
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+      return
+    }
     
     if (!isForceAuth && status === 'unauthenticated') {
       router.push('/auth/signin')
