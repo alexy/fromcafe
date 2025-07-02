@@ -1,5 +1,6 @@
 import * as Evernote from 'evernote'
 import { storeTokenSecret, getTokenSecret, removeToken } from './evernote-session'
+import { prisma } from './prisma'
 
 // Helper function to get the correct base URL (prioritizes actual deployment URL)
 function getBaseUrl(): string {
@@ -38,7 +39,11 @@ export interface EvernoteNotebook {
 }
 
 export class EvernoteService {
-  constructor(private accessToken: string, private noteStoreUrl?: string) {
+  constructor(
+    private accessToken: string, 
+    private noteStoreUrl?: string,
+    private userId?: string
+  ) {
   }
 
   async getNotebooks(): Promise<EvernoteNotebook[]> {
@@ -102,20 +107,62 @@ export class EvernoteService {
       
       // OPTIMIZATION: Find "published" tag first to filter notes efficiently
       let publishedTagGuid: string | null = null
-      try {
-        console.log('Finding "published" tag...')
-        const tags = await freshNoteStore.listTags(this.accessToken)
-        const publishedTag = tags.find((tag: { name: string }) => 
-          tag.name.toLowerCase() === 'published'
-        )
-        if (publishedTag) {
-          publishedTagGuid = publishedTag.guid
-          console.log(`Found "published" tag with GUID: ${publishedTagGuid}`)
-        } else {
-          console.log('No "published" tag found - will check all notes')
+      
+      // Try to get cached published tag GUID first
+      if (this.userId) {
+        try {
+          const user = await prisma.user.findUnique({
+            where: { id: this.userId },
+            select: { 
+              evernotePublishedTagGuid: true, 
+              evernoteAccountId: true,
+              evernoteUserId: true
+            }
+          })
+          
+          // Use cached GUID if it's for the same Evernote account
+          if (user?.evernotePublishedTagGuid && user.evernoteAccountId === user.evernoteUserId) {
+            publishedTagGuid = user.evernotePublishedTagGuid
+            console.log(`Using cached "published" tag GUID: ${publishedTagGuid}`)
+          }
+        } catch (cacheError) {
+          console.warn('Failed to load cached published tag GUID:', cacheError)
         }
-      } catch (tagError) {
-        console.warn('Could not fetch tags, falling back to checking all notes:', tagError)
+      }
+      
+      // Fetch from API if no cached GUID available
+      if (!publishedTagGuid) {
+        try {
+          console.log('Finding "published" tag via API...')
+          const tags = await freshNoteStore.listTags(this.accessToken)
+          const publishedTag = tags.find((tag: { name: string }) => 
+            tag.name.toLowerCase() === 'published'
+          )
+          if (publishedTag) {
+            publishedTagGuid = publishedTag.guid
+            console.log(`Found "published" tag with GUID: ${publishedTagGuid}`)
+            
+            // Cache the GUID for future use
+            if (this.userId) {
+              try {
+                await prisma.user.update({
+                  where: { id: this.userId },
+                  data: { 
+                    evernotePublishedTagGuid: publishedTagGuid,
+                    evernoteAccountId: await this.getCurrentEvernoteAccountId(freshNoteStore)
+                  }
+                })
+                console.log('Cached published tag GUID for future syncs')
+              } catch (updateError) {
+                console.warn('Failed to cache published tag GUID:', updateError)
+              }
+            }
+          } else {
+            console.log('No "published" tag found - will check all notes')
+          }
+        } catch (tagError) {
+          console.warn('Could not fetch tags, falling back to checking all notes:', tagError)
+        }
       }
       
       const filter: { notebookGuid: string; updated?: number; tagGuids?: string[] } = {
@@ -453,6 +500,17 @@ export class EvernoteService {
 
   isPublished(tagNames: string[]): boolean {
     return tagNames.some(tag => tag.toLowerCase() === 'published')
+  }
+
+  private async getCurrentEvernoteAccountId(noteStore: unknown): Promise<string | null> {
+    try {
+      // Get current user info to identify the Evernote account
+      const user = await (noteStore as { getUser: (token: string) => Promise<{ id: number }> }).getUser(this.accessToken)
+      return user.id.toString()
+    } catch (error) {
+      console.warn('Failed to get Evernote account ID:', error)
+      return null
+    }
   }
 }
 

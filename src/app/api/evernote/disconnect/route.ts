@@ -54,7 +54,7 @@ export async function POST() {
     // Unregister all webhooks before disconnecting
     if (user?.evernoteToken && user.blogs.length > 0) {
       const { EvernoteService } = await import('@/lib/evernote')
-      const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined)
+      const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined, session.user.id)
       
       console.log(`Unregistering ${user.blogs.length} webhooks before disconnecting Evernote`)
       
@@ -85,7 +85,9 @@ export async function POST() {
       data: { 
         evernoteToken: null,
         evernoteUserId: null,
-        evernoteNoteStoreUrl: null
+        evernoteNoteStoreUrl: null,
+        evernotePublishedTagGuid: null,  // Clear cached tag GUID
+        evernoteAccountId: null          // Clear account ID cache
       },
       select: {
         id: true,

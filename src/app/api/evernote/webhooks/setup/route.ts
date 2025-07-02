@@ -45,7 +45,7 @@ export async function POST() {
       })
     }
 
-    const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined)
+    const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined, session.user.id)
     let registered = 0
     let failed = 0
 

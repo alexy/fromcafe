@@ -67,7 +67,7 @@ export class SyncService {
         }
       }
 
-      const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined)
+      const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined, user.id)
       const results: SyncResult[] = []
 
       for (const blog of user.blogs) {
@@ -379,8 +379,7 @@ export class SyncService {
       }
 
       // Handle unpublished posts (notes that no longer have 'published' tag)
-      // CRITICAL: We need to check ALL notes in the notebook, not just published ones,
-      // to detect notes that had their "published" tag removed
+      // OPTIMIZATION: Use the published notes we already fetched instead of separate API call
       const currentPosts = await prisma.post.findMany({
         where: { blogId, isPublished: true },
       })
@@ -388,76 +387,29 @@ export class SyncService {
       if (currentPosts.length > 0) {
         console.log(`Checking ${currentPosts.length} published posts for unpublished notes...`)
         
-        // Fetch ALL notes metadata from notebook to detect unpublished ones
-        // Use the evernoteService method to get all notes metadata (without tag filtering)
-        let allNotesMetadata: { guid: string; tagGuids?: string[] }[] = []
-        try {
-          console.log('Fetching all notes metadata to detect unpublished posts...')
-          
-          // Use evernoteService to get all notes metadata (without tag filtering)
-          const metadata = await evernoteService.getAllNotesMetadata(notebookGuid, isIncrementalSync && blog?.lastSyncedAt ? blog.lastSyncedAt : undefined)
-          allNotesMetadata = metadata
-          console.log(`Found ${allNotesMetadata.length} total notes for unpublish check`)
-        } catch (error) {
-          console.error('Failed to fetch all notes metadata for unpublish check:', error)
-          console.log('⚠️  SKIPPING UNPUBLISH CHECK due to metadata fetch failure - this prevents false unpublishing')
-          // CRITICAL: Don't fall back with empty tagGuids as this causes false unpublishing
-          // Instead, skip unpublish check entirely when metadata fetch fails
-          allNotesMetadata = []
-        }
+        // OPTIMIZATION: Create a set of note GUIDs that are still published (from our main sync)
+        const stillPublishedNoteGuids = new Set(notes.map(note => note.guid))
+        console.log(`Found ${stillPublishedNoteGuids.size} notes still published in current sync`)
 
         for (const post of currentPosts) {
-          const noteMetadata = allNotesMetadata.find(note => note.guid === post.evernoteNoteId)
-          
-          if (!noteMetadata) {
-            // SAFETY CHECK: Only unpublish if we actually have metadata to work with
-            // If allNotesMetadata is empty due to fetch failure, don't unpublish anything
-            if (allNotesMetadata.length > 0) {
-              // Note was deleted from Evernote entirely
-              console.log(`Note ${post.evernoteNoteId} was deleted from Evernote, unpublishing post "${post.title}"`)
-              await prisma.post.update({
-                where: { id: post.id },
-                data: {
-                  isPublished: false,
-                  publishedAt: null,
-                },
-              })
-              result.unpublishedPosts++
-              result.posts.push({
-                title: post.title,
-                isNew: false,
-                isUpdated: false,
-                isUnpublished: true
-              })
-            } else {
-              console.log(`⚠️  SKIPPING unpublish check for "${post.title}" - no metadata available due to API limits`)
-            }
-          } else {
-            // Note still exists - check if it still has "published" tag
-            try {
-              const tagNames = await evernoteService.getTagNames(noteMetadata.tagGuids || [])
-              if (!evernoteService.isPublished(tagNames)) {
-                console.log(`Note "${post.title}" no longer has "published" tag, unpublishing post`)
-                await prisma.post.update({
-                  where: { id: post.id },
-                  data: {
-                    isPublished: false,
-                    publishedAt: null,
-                  },
-                })
-                result.unpublishedPosts++
-                result.posts.push({
-                  title: post.title,
-                  isNew: false,
-                  isUpdated: false,
-                  isUnpublished: true
-                })
-              }
-            } catch (tagError) {
-              console.error(`Failed to check tags for note ${post.evernoteNoteId}:`, tagError)
-              console.log(`⚠️  SKIPPING unpublish check for "${post.title}" - tag check failed, assuming still published`)
-              // If we can't check tags, assume it's still published to avoid false unpublishing
-            }
+          // Check if this post's note is still in the published notes we fetched
+          if (!stillPublishedNoteGuids.has(post.evernoteNoteId)) {
+            // Note is no longer published (either deleted or lost "published" tag)
+            console.log(`Note "${post.title}" (${post.evernoteNoteId}) no longer published, unpublishing post`)
+            await prisma.post.update({
+              where: { id: post.id },
+              data: {
+                isPublished: false,
+                publishedAt: null,
+              },
+            })
+            result.unpublishedPosts++
+            result.posts.push({
+              title: post.title,
+              isNew: false,
+              isUpdated: false,
+              isUnpublished: true
+            })
           }
         }
       }

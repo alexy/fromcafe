@@ -96,7 +96,7 @@ export async function PUT(
 
       if (user?.evernoteToken) {
         const { EvernoteService } = await import('@/lib/evernote')
-        const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined)
+        const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined, session.user.id)
 
         // Unregister old webhook if it exists
         if (currentBlog.evernoteWebhookId) {
@@ -195,7 +195,7 @@ export async function DELETE(
 
         if (user?.evernoteToken) {
           const { EvernoteService } = await import('@/lib/evernote')
-          const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined)
+          const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined, session.user.id)
           
           console.log(`Unregistering webhook before blog deletion: ${blog.evernoteWebhookId}`)
           await evernoteService.unregisterWebhook(blog.evernoteWebhookId)

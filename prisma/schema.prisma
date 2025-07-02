@@ -8,19 +8,21 @@ datasource db {
 }
 
 model User {
-  id                   String    @id @default(cuid())
-  email                String    @unique
-  emailVerified        DateTime?
-  name                 String?
-  image                String?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-  evernoteToken        String?
-  evernoteUserId       String?
-  evernoteNoteStoreUrl String?
-  accounts             Account[]
-  blogs                Blog[]
-  sessions             Session[]
+  id                     String    @id @default(cuid())
+  email                  String    @unique
+  emailVerified          DateTime?
+  name                   String?
+  image                  String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  evernoteToken          String?
+  evernoteUserId         String?
+  evernoteNoteStoreUrl   String?
+  evernotePublishedTagGuid String?  // Cached GUID for "published" tag
+  evernoteAccountId      String?   // Track which Evernote account the cache is for
+  accounts               Account[]
+  blogs                  Blog[]
+  sessions               Session[]
 
   @@map("users")
 }

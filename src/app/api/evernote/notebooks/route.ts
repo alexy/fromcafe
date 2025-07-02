@@ -31,7 +31,7 @@ export async function GET() {
       noteStoreUrl: user.evernoteNoteStoreUrl
     })
 
-    const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined)
+    const evernoteService = new EvernoteService(user.evernoteToken, user.evernoteNoteStoreUrl || undefined, session.user.id)
     const notebooks = await evernoteService.getNotebooks()
 
     console.log('Successfully fetched notebooks:', notebooks.length)
