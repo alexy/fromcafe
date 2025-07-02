@@ -43,7 +43,13 @@ export async function GET(request: NextRequest) {
     tokenEmail: token?.email,
     userIdFromUrl: userIdFromUrl || 'not provided',
     oauthToken: oauthToken ? 'present' : 'missing',
-    oauthVerifier: oauthVerifier ? 'present' : 'missing'
+    oauthVerifier: oauthVerifier ? 'present' : 'missing',
+    requestUrl: request.url,
+    headers: {
+      cookie: request.headers.get('cookie') ? 'present' : 'missing',
+      referer: request.headers.get('referer'),
+      userAgent: request.headers.get('user-agent')
+    }
   })
   
   // If no OAuth parameters, this is an invalid callback
