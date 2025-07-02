@@ -300,7 +300,7 @@ export class EvernoteService {
       const freshNoteStore = this.noteStoreUrl 
         ? tokenizedClient.getNoteStore(this.noteStoreUrl)
         : tokenizedClient.getNoteStore()
-      const syncState = await freshNoteStore.getSyncState()
+      const syncState = await freshNoteStore.getSyncState(this.accessToken)
       
       return {
         updateCount: syncState.updateCount
@@ -313,95 +313,22 @@ export class EvernoteService {
   }
 
   async registerWebhook(notebookGuid: string): Promise<string | null> {
-    try {
-      // Create a fresh client with the access token
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const EvernoteSDK = require('evernote')
-      const tokenizedClient = new EvernoteSDK.Client({
-        consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
-        consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
-        sandbox: false,
-        token: this.accessToken
-      })
-      
-      // Use stored noteStoreUrl if available to avoid getUserUrls() call
-      const freshNoteStore = this.noteStoreUrl 
-        ? tokenizedClient.getNoteStore(this.noteStoreUrl)
-        : tokenizedClient.getNoteStore()
-      
-      // Build webhook URL using the same logic as the auth system
-      const baseUrl = getBaseUrl()
-      
-      const webhookUrl = `${baseUrl}/api/evernote/webhook`
-      
-      // Register webhook for this specific notebook
-      const webhook = await freshNoteStore.createWebhook({
-        url: webhookUrl,
-        filter: {
-          notebookGuid: notebookGuid
-        }
-      })
-      
-      console.log(`Webhook registered for notebook ${notebookGuid}: ${webhook.id}`)
-      return webhook.id
-      
-    } catch (error) {
-      console.error('Error registering webhook:', error)
-      return null
-    }
+    // Webhook functionality is not supported in Evernote SDK v2.0.5
+    // TODO: Implement direct API calls or upgrade SDK version
+    console.log(`Webhook registration skipped for notebook ${notebookGuid} - not supported in current SDK`)
+    return null
   }
 
   async unregisterWebhook(webhookId: string): Promise<boolean> {
-    try {
-      // Create a fresh client with the access token
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const EvernoteSDK = require('evernote')
-      const tokenizedClient = new EvernoteSDK.Client({
-        consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
-        consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
-        sandbox: false,
-        token: this.accessToken
-      })
-      
-      // Use stored noteStoreUrl if available to avoid getUserUrls() call
-      const freshNoteStore = this.noteStoreUrl 
-        ? tokenizedClient.getNoteStore(this.noteStoreUrl)
-        : tokenizedClient.getNoteStore()
-      
-      await freshNoteStore.expungeWebhook(webhookId)
-      console.log(`Webhook unregistered: ${webhookId}`)
-      return true
-      
-    } catch (error) {
-      console.error('Error unregistering webhook:', error)
-      return false
-    }
+    // Webhook functionality is not supported in Evernote SDK v2.0.5
+    console.log(`Webhook unregistration skipped for ${webhookId} - not supported in current SDK`)
+    return true
   }
 
   async listWebhooks(): Promise<unknown[]> {
-    try {
-      // Create a fresh client with the access token
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const EvernoteSDK = require('evernote')
-      const tokenizedClient = new EvernoteSDK.Client({
-        consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
-        consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
-        sandbox: false,
-        token: this.accessToken
-      })
-      
-      // Use stored noteStoreUrl if available to avoid getUserUrls() call
-      const freshNoteStore = this.noteStoreUrl 
-        ? tokenizedClient.getNoteStore(this.noteStoreUrl)
-        : tokenizedClient.getNoteStore()
-      
-      const webhooks = await freshNoteStore.listWebhooks()
-      return webhooks || []
-      
-    } catch (error) {
-      console.error('Error listing webhooks:', error)
-      return []
-    }
+    // Webhook functionality is not supported in Evernote SDK v2.0.5
+    console.log('Webhook listing skipped - not supported in current SDK')
+    return []
   }
 
   async getAllNotesMetadata(notebookGuid: string, sinceDate?: Date): Promise<{ guid: string; tagGuids?: string[] }[]> {
