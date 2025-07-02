@@ -2,43 +2,76 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
+import { signIn, getSession } from 'next-auth/react'
 
 export default function EvernoteSuccessPage() {
   const router = useRouter()
   const [clicked, setClicked] = useState(false)
-  const { update } = useSession()
+  const [restoring, setRestoring] = useState(true)
 
   useEffect(() => {
-    // Check if we need to refresh the session after Evernote OAuth
-    const urlParams = new URLSearchParams(window.location.search)
-    if (urlParams.get('refresh_session') === 'true') {
-      console.log('Refreshing session after Evernote OAuth using custom endpoint')
+    const restoreSession = async () => {
+      console.log('Attempting to restore NextAuth session after Evernote OAuth')
       
-      // Use custom session refresh endpoint
-      fetch('/api/auth/refresh-session', { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-          console.log('Session refresh result:', data)
-          if (data.success && data.sessionValid) {
-            console.log('Session refreshed successfully, triggering NextAuth update')
-            update() // Now trigger NextAuth to pick up the refreshed session
-          } else {
-            console.error('Session refresh failed:', data.error)
-          }
+      try {
+        // Check if we already have a valid session
+        const currentSession = await getSession()
+        console.log('Current session check:', !!currentSession)
+        
+        if (currentSession) {
+          console.log('Session already exists, proceeding to dashboard')
+          setRestoring(false)
+          return
+        }
+        
+        // Try to restore session by triggering Google sign-in silently
+        console.log('No session found, attempting silent Google sign-in')
+        const result = await signIn('google', { 
+          redirect: false,
+          prompt: 'none' // Silent sign-in attempt
         })
-        .catch(error => {
-          console.error('Session refresh error:', error)
-        })
-      
-      // Clean up URL
-      window.history.replaceState({}, document.title, '/auth/evernote-success')
+        
+        console.log('Sign-in result:', result)
+        
+        if (result?.ok) {
+          console.log('Session restored successfully')
+        } else {
+          console.log('Silent sign-in failed, will need manual intervention')
+        }
+        
+      } catch (error) {
+        console.error('Session restoration error:', error)
+      } finally {
+        setRestoring(false)
+      }
     }
-  }, [update])
+    
+    restoreSession()
+  }, [])
 
   const handleContinue = () => {
     setClicked(true)
     router.push('/dashboard?success=evernote_connected')
+  }
+
+  if (restoring) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full space-y-8 text-center">
+          <div>
+            <h2 className="text-3xl font-extrabold text-gray-900">
+              ✅ Evernote Connected Successfully!
+            </h2>
+            <p className="mt-4 text-sm text-gray-600">
+              Restoring your session...
+            </p>
+            <div className="mt-6 flex justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

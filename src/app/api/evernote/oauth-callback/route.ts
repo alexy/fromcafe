@@ -126,14 +126,11 @@ export async function GET(request: NextRequest) {
     })
     
     const baseUrl = getBaseUrl()
-    console.log('Evernote connection completed successfully, redirecting to dashboard')
+    console.log('Evernote connection completed successfully, redirecting to success page')
     
-    // Since NextAuth session is lost during external OAuth, redirect directly to dashboard
-    // The dashboard will handle the user as authenticated since the database is updated
-    const dashboardUrl = new URL('/dashboard', baseUrl)
-    dashboardUrl.searchParams.set('success', 'evernote_connected')
-    dashboardUrl.searchParams.set('force_auth', 'true') // Signal to bypass session check
-    return NextResponse.redirect(dashboardUrl)
+    // Redirect to success page which will handle session restoration
+    const successUrl = new URL('/auth/evernote-success', baseUrl)
+    return NextResponse.redirect(successUrl)
   } catch (error) {
     console.error('Error completing Evernote OAuth:', error)
     const baseUrl = getBaseUrl()
