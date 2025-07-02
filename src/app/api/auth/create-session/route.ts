@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { SignJWT } from 'jose'
+import { EncryptJWT } from 'jose'
 
 export async function POST() {
   try {
@@ -35,10 +35,10 @@ export async function POST() {
       name: recentUser.name
     })
     
-    // Create a NextAuth-compatible JWT session token
+    // Create a NextAuth-compatible JWE session token (encrypted)
     const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!)
     
-    const sessionToken = await new SignJWT({
+    const sessionToken = await new EncryptJWT({
       sub: recentUser.id,
       email: recentUser.email,
       name: recentUser.name,
@@ -46,8 +46,8 @@ export async function POST() {
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60) // 30 days
     })
-      .setProtectedHeader({ alg: 'HS256' })
-      .sign(secret)
+      .setProtectedHeader({ alg: 'dir', enc: 'A256GCM' })
+      .encrypt(secret)
     
     // Set the session cookie manually
     const isSecure = !!process.env.VERCEL
