@@ -96,11 +96,27 @@ export async function POST() {
     })
 
     console.log('Successfully disconnected Evernote for user:', session.user.id)
-    console.log('Updated user state:', {
+    console.log('Updated user state after disconnect:', {
       id: updatedUser.id,
       hasEvernoteToken: !!updatedUser.evernoteToken,
       evernoteUserId: updatedUser.evernoteUserId,
       evernoteNoteStoreUrl: updatedUser.evernoteNoteStoreUrl
+    })
+    
+    // Double-check by reading the user again
+    const verifyUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { 
+        evernoteToken: true,
+        evernoteUserId: true,
+        evernoteNoteStoreUrl: true
+      }
+    })
+    
+    console.log('Verification read after disconnect:', {
+      hasEvernoteToken: !!verifyUser?.evernoteToken,
+      evernoteUserId: verifyUser?.evernoteUserId,
+      evernoteNoteStoreUrl: verifyUser?.evernoteNoteStoreUrl
     })
     
     return NextResponse.json({ 
