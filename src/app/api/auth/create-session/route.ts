@@ -36,12 +36,27 @@ export async function POST() {
     })
     
     // Create a NextAuth-compatible JWE session token (encrypted)
-    // Derive a 256-bit key from NEXTAUTH_SECRET for A256GCM
-    const secretBytes = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!)
-    const key = await crypto.subtle.importKey(
+    // Use NextAuth's key derivation process (HKDF with SHA-256)
+    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!)
+    
+    // Derive key using HKDF-SHA256 (same as NextAuth)
+    const baseKey = await crypto.subtle.importKey(
       'raw',
-      secretBytes.slice(0, 32), // Take exactly 32 bytes (256 bits)
-      { name: 'AES-GCM' },
+      secret,
+      { name: 'HKDF' },
+      false,
+      ['deriveKey']
+    )
+    
+    const key = await crypto.subtle.deriveKey(
+      {
+        name: 'HKDF',
+        hash: 'SHA-256',
+        salt: new Uint8Array(),
+        info: new TextEncoder().encode('NextAuth.js Generated Encryption Key')
+      },
+      baseKey,
+      { name: 'AES-GCM', length: 256 },
       false,
       ['encrypt', 'decrypt']
     )
@@ -52,7 +67,7 @@ export async function POST() {
       name: recentUser.name,
       picture: recentUser.image,
       iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60) // 30 days
+      exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) // 7 days (matches NextAuth config)
     })
       .setProtectedHeader({ alg: 'dir', enc: 'A256GCM' })
       .encrypt(key)
@@ -72,7 +87,7 @@ export async function POST() {
       secure: isSecure,
       sameSite: isSecure ? 'none' : 'lax',
       path: '/',
-      maxAge: 30 * 24 * 60 * 60 // 30 days
+      maxAge: 7 * 24 * 60 * 60 // 7 days (matches NextAuth config)
     })
     
     console.log('Manual session created successfully for user:', recentUser.id)
