@@ -198,8 +198,8 @@ export default function Dashboard() {
         alert(message)
       } else {
         const errorMessage = data.error || 'Unknown error'
-        if (response.status === 429) {
-          alert(`Rate limit exceeded: ${errorMessage}`)
+        if (response.status === 429 || errorMessage.includes('rate limit')) {
+          alert(`⏱️ Rate Limited\n\n${errorMessage}\n\nThis is normal when syncing frequently. The sync will work again after the wait period.`)
         } else {
           alert(`Sync failed: ${errorMessage}`)
         }
@@ -277,7 +277,12 @@ export default function Dashboard() {
               ? { ...blog, lastSyncAttemptAt: new Date().toISOString() }
               : blog
           ))
-          alert(`Sync failed: ${data.error || 'Unknown error'}`)
+          const errorMsg = data.error || 'Unknown error'
+          if (errorMsg.includes('rate limit')) {
+            alert(`⏱️ Rate Limited\n\n${errorMsg}\n\nThis is normal when syncing frequently. Try again after the wait period.`)
+          } else {
+            alert(`Sync failed: ${errorMsg}`)
+          }
         }
       } else {
         // Update only the attempt time for failed syncs
@@ -287,7 +292,12 @@ export default function Dashboard() {
             : blog
         ))
         const errorData = await response.json()
-        alert(`Sync failed: ${errorData.error || 'Please try again.'}`)
+        const errorMsg = errorData.error || 'Please try again.'
+        if (errorMsg.includes('rate limit')) {
+          alert(`⏱️ Rate Limited\n\n${errorMsg}\n\nThis is normal when syncing frequently. Try again after the wait period.`)
+        } else {
+          alert(`Sync failed: ${errorMsg}`)
+        }
       }
     } catch (error) {
       // Update only the attempt time for failed syncs

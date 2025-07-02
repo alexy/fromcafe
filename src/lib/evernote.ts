@@ -194,13 +194,23 @@ export class EvernoteService {
             // Check if it's a rate limit error
             if (noteError && typeof noteError === 'object' && 'errorCode' in noteError && noteError.errorCode === 19) {
               rateLimitErrors++
-              const rateLimitDuration = (noteError as { rateLimitDuration?: number }).rateLimitDuration || 30
-              console.log(`Rate limit hit for note ${metadata.guid}, waiting ${rateLimitDuration}s before retry ${retryCount}/${maxRetries}`)
+              const rateLimitDuration = (noteError as { rateLimitDuration?: number }).rateLimitDuration || 60
+              console.log(`Rate limit hit for note ${metadata.guid}, duration: ${rateLimitDuration}s`)
               
+              // Don't wait for long periods during sync - fail fast instead
+              if (rateLimitDuration > 60) {
+                console.error(`Rate limit duration too long (${rateLimitDuration}s), failing sync immediately`)
+                throw new Error(`Evernote API rate limit exceeded. Please wait ${Math.ceil(rateLimitDuration / 60)} minutes before syncing again.`)
+              }
+              
+              // Only retry with short waits (max 1 minute)
               if (retryCount < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, rateLimitDuration * 1000))
+                const waitTime = Math.min(rateLimitDuration, 60)
+                console.log(`Waiting ${waitTime}s before retry ${retryCount}/${maxRetries}`)
+                await new Promise(resolve => setTimeout(resolve, waitTime * 1000))
               } else {
                 console.error(`Failed to process note ${metadata.guid} after ${maxRetries} retries due to rate limiting`)
+                noteProcessed = true // Skip this note and continue
               }
             } else {
               console.error(`Failed to process note ${metadata.guid}:`, noteError)
@@ -211,8 +221,8 @@ export class EvernoteService {
       }
       
       // If too many notes failed due to rate limiting, throw an error
-      if (rateLimitErrors > notesMetadata.notes.length / 2) {
-        throw new Error(`Too many rate limit errors (${rateLimitErrors}/${notesMetadata.notes.length}). Please wait a few minutes before syncing again.`)
+      if (rateLimitErrors > Math.max(1, notesMetadata.notes.length / 3)) {
+        throw new Error(`Rate limited by Evernote API (${rateLimitErrors}/${notesMetadata.notes.length} notes failed). Please wait 5-10 minutes before syncing again.`)
       }
       
       console.log(`Found ${notes.length} published notes out of ${notesMetadata.notes.length} total notes`)
@@ -222,10 +232,10 @@ export class EvernoteService {
       
       // Handle rate limiting specifically
       if (error && typeof error === 'object' && 'errorCode' in error && error.errorCode === 19) {
-        const rateLimitDuration = (error as { rateLimitDuration?: number }).rateLimitDuration || 3600 // Default 1 hour
+        const rateLimitDuration = (error as { rateLimitDuration?: number }).rateLimitDuration || 600 // Default 10 minutes
         const waitMinutes = Math.ceil(rateLimitDuration / 60)
         console.error(`Rate limit hit. Duration: ${rateLimitDuration}s (${waitMinutes} minutes)`)
-        throw new Error(`Evernote API rate limit exceeded. The sync will automatically retry in ${waitMinutes} minutes. This is normal for first-time syncs with many notes.`)
+        throw new Error(`Evernote API rate limit exceeded. Please wait ${waitMinutes} minutes before syncing again.`)
       }
       
       // Handle other Evernote errors with more context
