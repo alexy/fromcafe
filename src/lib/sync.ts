@@ -10,6 +10,7 @@ export interface SyncResult {
   updatedPosts: number
   unpublishedPosts: number
   republishedPosts?: number
+  republishedUpdatedPosts?: number
   totalPublishedPosts: number
   error?: string
   posts: Array<{
@@ -18,6 +19,7 @@ export interface SyncResult {
     isUpdated: boolean
     isUnpublished: boolean
     isRepublished?: boolean
+    isRepublishedUpdated?: boolean
   }>
 }
 
@@ -28,6 +30,7 @@ export interface UserSyncResult {
   totalUpdatedPosts: number
   totalUnpublishedPosts: number
   totalRepublishedPosts?: number
+  totalRepublishedUpdatedPosts?: number
   error?: string
 }
 
@@ -59,6 +62,7 @@ export class SyncService {
           totalUpdatedPosts: 0,
           totalUnpublishedPosts: 0,
           totalRepublishedPosts: 0,
+          totalRepublishedUpdatedPosts: 0,
           error: 'No Evernote token found'
         }
       }
@@ -97,6 +101,7 @@ export class SyncService {
       const totalUpdatedPosts = results.reduce((sum, r) => sum + r.updatedPosts, 0)
       const totalUnpublishedPosts = results.reduce((sum, r) => sum + r.unpublishedPosts, 0)
       const totalRepublishedPosts = results.reduce((sum, r) => sum + (r.republishedPosts || 0), 0)
+      const totalRepublishedUpdatedPosts = results.reduce((sum, r) => sum + (r.republishedUpdatedPosts || 0), 0)
 
       return {
         success: true,
@@ -104,7 +109,8 @@ export class SyncService {
         totalNewPosts,
         totalUpdatedPosts,
         totalUnpublishedPosts,
-        totalRepublishedPosts
+        totalRepublishedPosts,
+        totalRepublishedUpdatedPosts
       }
     } catch (error) {
       console.error(`Error syncing user ${userId}:`, error)
@@ -115,6 +121,7 @@ export class SyncService {
         totalUpdatedPosts: 0,
         totalUnpublishedPosts: 0,
         totalRepublishedPosts: 0,
+        totalRepublishedUpdatedPosts: 0,
         error: error instanceof Error ? error.message : 'Unknown error'
       }
     }
@@ -129,6 +136,7 @@ export class SyncService {
       updatedPosts: 0,
       unpublishedPosts: 0,
       republishedPosts: 0,
+      republishedUpdatedPosts: 0,
       totalPublishedPosts: 0,
       posts: []
     }
@@ -228,18 +236,23 @@ export class SyncService {
           const newUpdatedAt = new Date(note.updated)
           const newPublishedAt = isPublished ? (existingPost.publishedAt || new Date()) : null
           
-          // Determine if any content has actually changed
-          const hasChanges = (
+          // Separate content changes from publication status changes
+          const hasContentChanges = (
             existingPost.title !== note.title ||
             existingPost.content !== newContent ||
             existingPost.excerpt !== newExcerpt ||
-            existingPost.isPublished !== isPublished ||
-            (existingPost.publishedAt?.getTime() !== newPublishedAt?.getTime()) ||
             existingPost.updatedAt.getTime() !== newUpdatedAt.getTime()
           )
           
-          if (hasChanges) {
-            // Detect if this is a re-publishing (unpublished -> published)
+          const hasPublicationChanges = (
+            existingPost.isPublished !== isPublished ||
+            (existingPost.publishedAt?.getTime() !== newPublishedAt?.getTime())
+          )
+          
+          const hasAnyChanges = hasContentChanges || hasPublicationChanges
+          
+          if (hasAnyChanges) {
+            // Detect republishing scenarios
             const isRepublishing = !existingPost.isPublished && isPublished
             
             // Only update if there are actual changes
@@ -255,7 +268,20 @@ export class SyncService {
               },
             })
             
-            if (isRepublishing) {
+            if (isRepublishing && hasContentChanges) {
+              // Re-published AND content was updated
+              result.republishedUpdatedPosts = (result.republishedUpdatedPosts || 0) + 1
+              result.posts.push({
+                title: note.title,
+                isNew: false,
+                isUpdated: false,
+                isUnpublished: false,
+                isRepublished: true,
+                isRepublishedUpdated: true
+              })
+              console.log(`Re-published and updated post "${note.title}" - was unpublished, now published with content changes`)
+            } else if (isRepublishing) {
+              // Re-published without content changes
               result.republishedPosts = (result.republishedPosts || 0) + 1
               result.posts.push({
                 title: note.title,
@@ -264,8 +290,9 @@ export class SyncService {
                 isUnpublished: false,
                 isRepublished: true
               })
-              console.log(`Re-published post "${note.title}" - was unpublished, now published`)
+              console.log(`Re-published post "${note.title}" - was unpublished, now published (no content changes)`)
             } else {
+              // Just content updates (already published)
               result.updatedPosts++
               result.posts.push({
                 title: note.title,
@@ -273,7 +300,7 @@ export class SyncService {
                 isUpdated: true,
                 isUnpublished: false
               })
-              console.log(`Updated post "${note.title}" - changes detected`)
+              console.log(`Updated post "${note.title}" - content changes detected`)
             }
           } else {
             console.log(`Post "${note.title}" - no changes detected, skipping update`)

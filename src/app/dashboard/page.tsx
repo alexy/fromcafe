@@ -190,6 +190,7 @@ export default function Dashboard() {
         if (data.totalUpdatedPosts > 0) messages.push(`${data.totalUpdatedPosts} updated posts`)
         if (data.totalUnpublishedPosts > 0) messages.push(`${data.totalUnpublishedPosts} unpublished posts`)
         if (data.totalRepublishedPosts > 0) messages.push(`${data.totalRepublishedPosts} re-published posts`)
+        if (data.totalRepublishedUpdatedPosts > 0) messages.push(`${data.totalRepublishedUpdatedPosts} re-published and updated posts`)
         
         const message = messages.length > 0 
           ? `Sync completed! ${messages.join(', ')}.`
@@ -262,6 +263,7 @@ export default function Dashboard() {
           if (result.updatedPosts > 0) messages.push(`${result.updatedPosts} updated posts`)
           if (result.unpublishedPosts > 0) messages.push(`${result.unpublishedPosts} unpublished posts`)
           if (result.republishedPosts > 0) messages.push(`${result.republishedPosts} re-published posts`)
+          if (result.republishedUpdatedPosts > 0) messages.push(`${result.republishedUpdatedPosts} re-published and updated posts`)
           
           const message = messages.length > 0 ? messages.join(', ') : 'No changes'
           alert(`Sync completed! ${message}.`)
