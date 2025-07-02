@@ -33,8 +33,27 @@ export default function Dashboard() {
   const [resettingSync, setResettingSync] = useState(false)
 
   useEffect(() => {
+    console.log('Dashboard session status:', status, 'session:', !!session)
+    
+    // Check if we're coming from an OAuth success (which might temporarily lose session)
+    const urlParams = new URLSearchParams(window.location.search)
+    const isFromOAuthSuccess = urlParams.get('success') === 'evernote_connected'
+    
     if (status === 'unauthenticated') {
-      router.push('/auth/signin')
+      if (isFromOAuthSuccess) {
+        console.log('Coming from OAuth success, waiting for session to restore...')
+        // Give the session a moment to restore after OAuth redirect
+        const timer = setTimeout(() => {
+          if (status === 'unauthenticated') {
+            console.log('Session still not restored, redirecting to sign-in')
+            router.push('/auth/signin')
+          }
+        }, 2000)
+        return () => clearTimeout(timer)
+      } else {
+        console.log('Redirecting to sign-in due to unauthenticated status')
+        router.push('/auth/signin')
+      }
     } else if (status === 'authenticated') {
       fetchBlogs()
       checkEvernoteConnection()
