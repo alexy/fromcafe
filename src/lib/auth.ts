@@ -4,24 +4,6 @@ import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import GoogleProvider from 'next-auth/providers/google'
 import { prisma } from '@/lib/prisma'
 
-// Force base URL for consistent OAuth redirects (prioritizes actual deployment URL)
-const getBaseUrl = () => {
-  // For Vercel deployments, always use the actual VERCEL_URL (preview or production)
-  if (process.env.VERCEL && process.env.VERCEL_URL) {
-    const vercelUrl = `https://${process.env.VERCEL_URL}`
-    console.log('Using VERCEL_URL:', vercelUrl)
-    return vercelUrl
-  }
-  
-  // Use NEXTAUTH_URL if explicitly set and not on Vercel
-  if (process.env.NEXTAUTH_URL) {
-    console.log('Using explicit NEXTAUTH_URL:', process.env.NEXTAUTH_URL)
-    return process.env.NEXTAUTH_URL
-  }
-  
-  // Local development fallback
-  return 'http://localhost:3000'
-}
 
 // Let NextAuth handle URL detection automatically on Vercel
 // Don't override NEXTAUTH_URL - let Vercel's automatic detection work
