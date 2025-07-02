@@ -126,8 +126,8 @@ export async function GET(request: NextRequest) {
     })
     
     const baseUrl = getBaseUrl()
-    console.log('Evernote connection completed successfully, redirecting to dashboard')
-    return NextResponse.redirect(new URL('/dashboard?success=evernote_connected', baseUrl))
+    console.log('Evernote connection completed successfully, redirecting to success page')
+    return NextResponse.redirect(new URL('/auth/evernote-success', baseUrl))
   } catch (error) {
     console.error('Error completing Evernote OAuth:', error)
     const baseUrl = getBaseUrl()
