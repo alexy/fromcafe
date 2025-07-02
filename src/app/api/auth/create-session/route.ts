@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { SignJWT } from 'jose'
-import { cookies } from 'next/headers'
 
 export async function POST() {
   try {
@@ -51,7 +50,6 @@ export async function POST() {
       .sign(secret)
     
     // Set the session cookie manually
-    const cookieStore = await cookies()
     const isSecure = !!process.env.VERCEL
     const cookieName = isSecure ? '__Secure-next-auth.session-token' : 'next-auth.session-token'
     
