@@ -10,8 +10,8 @@ export default function EvernoteSuccessPage() {
   const [restoring, setRestoring] = useState(true)
 
   useEffect(() => {
-    const restoreSession = async () => {
-      console.log('Attempting to restore NextAuth session after Evernote OAuth')
+    const createSession = async () => {
+      console.log('Creating manual NextAuth session after Evernote OAuth')
       
       try {
         // Check if we already have a valid session
@@ -24,29 +24,32 @@ export default function EvernoteSuccessPage() {
           return
         }
         
-        // Try to restore session by triggering Google sign-in silently
-        console.log('No session found, attempting silent Google sign-in')
-        const result = await signIn('google', { 
-          redirect: false,
-          prompt: 'none' // Silent sign-in attempt
-        })
+        // Create manual session using custom endpoint
+        console.log('No session found, creating manual session')
+        const response = await fetch('/api/auth/create-session', { method: 'POST' })
+        const result = await response.json()
         
-        console.log('Sign-in result:', result)
+        console.log('Manual session creation result:', result)
         
-        if (result?.ok) {
-          console.log('Session restored successfully')
+        if (result.success) {
+          console.log('Manual session created successfully')
+          // Force NextAuth to refresh and pick up the new session
+          setTimeout(async () => {
+            await getSession()
+            setRestoring(false)
+          }, 1000)
         } else {
-          console.log('Silent sign-in failed, will need manual intervention')
+          console.error('Manual session creation failed:', result.error)
+          setRestoring(false)
         }
         
       } catch (error) {
-        console.error('Session restoration error:', error)
-      } finally {
+        console.error('Session creation error:', error)
         setRestoring(false)
       }
     }
     
-    restoreSession()
+    createSession()
   }, [])
 
   const handleContinue = () => {
