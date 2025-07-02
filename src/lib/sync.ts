@@ -400,30 +400,38 @@ export class SyncService {
           console.log(`Found ${allNotesMetadata.length} total notes for unpublish check`)
         } catch (error) {
           console.error('Failed to fetch all notes metadata for unpublish check:', error)
-          // Fall back to checking only against the published notes we fetched
-          allNotesMetadata = notes.map(note => ({ guid: note.guid, tagGuids: [] }))
+          console.log('⚠️  SKIPPING UNPUBLISH CHECK due to metadata fetch failure - this prevents false unpublishing')
+          // CRITICAL: Don't fall back with empty tagGuids as this causes false unpublishing
+          // Instead, skip unpublish check entirely when metadata fetch fails
+          allNotesMetadata = []
         }
 
         for (const post of currentPosts) {
           const noteMetadata = allNotesMetadata.find(note => note.guid === post.evernoteNoteId)
           
           if (!noteMetadata) {
-            // Note was deleted from Evernote entirely
-            console.log(`Note ${post.evernoteNoteId} was deleted from Evernote, unpublishing post "${post.title}"`)
-            await prisma.post.update({
-              where: { id: post.id },
-              data: {
-                isPublished: false,
-                publishedAt: null,
-              },
-            })
-            result.unpublishedPosts++
-            result.posts.push({
-              title: post.title,
-              isNew: false,
-              isUpdated: false,
-              isUnpublished: true
-            })
+            // SAFETY CHECK: Only unpublish if we actually have metadata to work with
+            // If allNotesMetadata is empty due to fetch failure, don't unpublish anything
+            if (allNotesMetadata.length > 0) {
+              // Note was deleted from Evernote entirely
+              console.log(`Note ${post.evernoteNoteId} was deleted from Evernote, unpublishing post "${post.title}"`)
+              await prisma.post.update({
+                where: { id: post.id },
+                data: {
+                  isPublished: false,
+                  publishedAt: null,
+                },
+              })
+              result.unpublishedPosts++
+              result.posts.push({
+                title: post.title,
+                isNew: false,
+                isUpdated: false,
+                isUnpublished: true
+              })
+            } else {
+              console.log(`⚠️  SKIPPING unpublish check for "${post.title}" - no metadata available due to API limits`)
+            }
           } else {
             // Note still exists - check if it still has "published" tag
             try {
@@ -447,6 +455,7 @@ export class SyncService {
               }
             } catch (tagError) {
               console.error(`Failed to check tags for note ${post.evernoteNoteId}:`, tagError)
+              console.log(`⚠️  SKIPPING unpublish check for "${post.title}" - tag check failed, assuming still published`)
               // If we can't check tags, assume it's still published to avoid false unpublishing
             }
           }
