@@ -4,15 +4,14 @@
 import { prisma } from './prisma'
 
 export const storeTokenSecret = async (token: string, secret: string): Promise<void> => {
-  // Clean up any existing token with same identifier
-  await prisma.verificationToken.deleteMany({
-    where: { identifier: `evernote_oauth:${token}` }
-  })
+  // Use timestamp to make identifier unique and avoid need to delete
+  const timestamp = Date.now()
+  const uniqueIdentifier = `evernote_oauth:${token}:${timestamp}`
   
   // Store the new token secret with 10 minute expiry
   await prisma.verificationToken.create({
     data: {
-      identifier: `evernote_oauth:${token}`,
+      identifier: uniqueIdentifier,
       token: secret,
       expires: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
     }
@@ -24,20 +23,15 @@ export const storeTokenSecret = async (token: string, secret: string): Promise<v
 export const getTokenSecret = async (token: string): Promise<string | null> => {
   try {
     const result = await prisma.verificationToken.findFirst({
-      where: { identifier: `evernote_oauth:${token}` }
+      where: { 
+        identifier: { startsWith: `evernote_oauth:${token}:` },
+        expires: { gt: new Date() } // Only get non-expired tokens
+      },
+      orderBy: { expires: 'desc' } // Get the most recent one
     })
     
     if (!result) {
-      console.log('OAuth token secret not found in database')
-      return null
-    }
-    
-    // Check if expired
-    if (result.expires < new Date()) {
-      console.log('OAuth token secret expired, removing from database')
-      await prisma.verificationToken.deleteMany({
-        where: { identifier: `evernote_oauth:${token}` }
-      })
+      console.log('OAuth token secret not found or expired in database')
       return null
     }
     
@@ -49,9 +43,7 @@ export const getTokenSecret = async (token: string): Promise<string | null> => {
   }
 }
 
-export const removeToken = async (token: string): Promise<void> => {
-  await prisma.verificationToken.deleteMany({
-    where: { identifier: `evernote_oauth:${token}` }
-  })
-  console.log('Removed OAuth token secret from database')
+export const removeToken = async (): Promise<void> => {
+  // Don't try to delete due to replica identity issues - let expiry handle cleanup
+  console.log('OAuth token will expire automatically - skipping manual deletion')
 }

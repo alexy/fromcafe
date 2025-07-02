@@ -535,7 +535,7 @@ export function getEvernoteAccessToken(oauthToken: string, oauthVerifier: string
             return
           }
           
-          removeToken(oauthToken).catch(error => {
+          removeToken().catch(error => {
             console.error('Error removing token:', error)
           })
           
