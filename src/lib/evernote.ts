@@ -63,15 +63,8 @@ export class EvernoteService {
         ? tokenizedClient.getNoteStore(this.noteStoreUrl)
         : tokenizedClient.getNoteStore()
       
-      // Try both approaches: with and without the auth token parameter
-      let notebooks
-      try {
-        // Approach 1: Pass auth token as parameter
-        notebooks = await freshNoteStore.listNotebooks(this.accessToken)
-      } catch {
-        // Approach 2: Use client's built-in token
-        notebooks = await freshNoteStore.listNotebooks()
-      }
+      // Use client's built-in token (correct approach)
+      const notebooks = await freshNoteStore.listNotebooks()
       
       if (notebooks && Array.isArray(notebooks)) {
         return notebooks.map((notebook: { guid: string; name: string }) => ({
@@ -134,7 +127,7 @@ export class EvernoteService {
       if (!publishedTagGuid) {
         try {
           console.log('Finding "published" tag via API...')
-          const tags = await freshNoteStore.listTags(this.accessToken)
+          const tags = await freshNoteStore.listTags()
           const publishedTag = tags.find((tag: { name: string }) => 
             tag.name.toLowerCase() === 'published'
           )
@@ -188,7 +181,7 @@ export class EvernoteService {
         includeUpdated: true
       }
       
-      const notesMetadata = await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, Math.min(maxNotes, 50), spec)
+      const notesMetadata = await freshNoteStore.findNotesMetadata(filter, 0, Math.min(maxNotes, 50), spec)
       console.log(`Found ${notesMetadata.notes.length} notes to process (${publishedTagGuid ? 'pre-filtered by published tag' : 'will filter during processing'})`)
       
       const notes: EvernoteNote[] = []
@@ -228,7 +221,7 @@ export class EvernoteService {
               await new Promise(resolve => setTimeout(resolve, 2000)) // 2 second delay
             }
             
-            const fullNote = await freshNoteStore.getNote(this.accessToken, metadata.guid, true, false, false, false)
+            const fullNote = await freshNoteStore.getNote(metadata.guid, true, false, false, false)
             
             notes.push({
               guid: fullNote.guid,
@@ -317,7 +310,7 @@ export class EvernoteService {
       const freshNoteStore = this.noteStoreUrl 
         ? tokenizedClient.getNoteStore(this.noteStoreUrl)
         : tokenizedClient.getNoteStore()
-      const fullNote = await freshNoteStore.getNote(this.accessToken, noteGuid, true, false, false, false)
+      const fullNote = await freshNoteStore.getNote(noteGuid, true, false, false, false)
       const tagNames = await this.getTagNamesWithStore(freshNoteStore, fullNote.tagGuids || [])
       
       return {
@@ -363,7 +356,7 @@ export class EvernoteService {
         }
         
         try {
-          const tag = await (noteStore as { getTag: (token: string, guid: string) => Promise<{ name: string }> }).getTag(this.accessToken, guid)
+          const tag = await (noteStore as { getTag: (guid: string) => Promise<{ name: string }> }).getTag(guid)
           this.tagCache.set(guid, tag.name)
           tagNames.push(tag.name)
         } catch (error) {
@@ -395,7 +388,7 @@ export class EvernoteService {
       const freshNoteStore = this.noteStoreUrl 
         ? tokenizedClient.getNoteStore(this.noteStoreUrl)
         : tokenizedClient.getNoteStore()
-      const syncState = await freshNoteStore.getSyncState(this.accessToken)
+      const syncState = await freshNoteStore.getSyncState()
       
       return {
         updateCount: syncState.updateCount
@@ -460,7 +453,7 @@ export class EvernoteService {
         includeUpdated: false
       }
       
-      const notesMetadata = await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, 250, spec)
+      const notesMetadata = await freshNoteStore.findNotesMetadata(filter, 0, 250, spec)
       console.log(`Retrieved ${notesMetadata.notes.length} notes metadata for unpublish detection`)
       
       return notesMetadata.notes.map((note: { guid: string; tagGuids?: string[] }) => ({
@@ -505,7 +498,7 @@ export class EvernoteService {
   private async getCurrentEvernoteAccountId(noteStore: unknown): Promise<string | null> {
     try {
       // Get current user info to identify the Evernote account
-      const user = await (noteStore as { getUser: (token: string) => Promise<{ id: number }> }).getUser(this.accessToken)
+      const user = await (noteStore as { getUser: () => Promise<{ id: number }> }).getUser()
       return user.id.toString()
     } catch (error) {
       console.warn('Failed to get Evernote account ID:', error)
