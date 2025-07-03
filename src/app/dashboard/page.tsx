@@ -476,12 +476,20 @@ export default function Dashboard() {
 
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-black">Your Blogs</h2>
-          <button
-            onClick={() => router.push('/dashboard/blogs/new')}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Create New Blog
-          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={() => router.push('/dashboard/tenants')}
+              className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+            >
+              Manage Tenants
+            </button>
+            <button
+              onClick={() => router.push('/dashboard/blogs/new')}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Create New Blog
+            </button>
+          </div>
         </div>
 
         {blogs.length === 0 ? (

@@ -3,11 +3,12 @@ export interface BlogData {
   title: string
   description: string | null
   slug: string
+  customDomain: string | null
+  theme: string
   isPublic: boolean
-  user: {
-    name: string | null
-    email: string
-  }
+  createdAt: Date
+  updatedAt: Date
+  tenantSlug?: string
   posts?: PostData[]
 }
 
@@ -19,6 +20,10 @@ export interface PostData {
   excerpt: string | null
   publishedAt: Date | null
   isPublished: boolean
+  createdAt: Date
+  updatedAt: Date
+  blogSlug: string
+  tenantSlug?: string
 }
 
 export interface ThemeProps {

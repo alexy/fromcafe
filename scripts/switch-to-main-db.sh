@@ -17,3 +17,4 @@ npx prisma generate
 echo "✅ Back to main database!"
 echo "ℹ️  You are now using the main branch database"
 echo "ℹ️  Safe to deploy to Vercel or switch to main branch"
+echo "ℹ️  To switch to platform: ./scripts/switch-to-platform-db.sh"
