@@ -389,7 +389,7 @@ export class EvernoteService {
         
         try {
           // Detect if we're dealing with wrapped functions (local dev) vs normal functions (production)
-          const getTagFunc = (noteStore as any).getTag
+          const getTagFunc = (noteStore as { getTag: Function }).getTag
           const isWrappedFunction = getTagFunc.length === 0 && 
             getTagFunc.toString().includes('arguments.length')
           
@@ -550,7 +550,7 @@ export class EvernoteService {
     try {
       // Get current user info to identify the Evernote account
       // Detect if we're dealing with wrapped functions (local dev) vs normal functions (production)
-      const getUserFunc = (noteStore as any).getUser
+      const getUserFunc = (noteStore as { getUser: Function }).getUser
       const isWrappedFunction = getUserFunc.length === 0 && 
         getUserFunc.toString().includes('arguments.length')
       
