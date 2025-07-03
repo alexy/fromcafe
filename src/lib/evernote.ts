@@ -136,8 +136,11 @@ export class EvernoteService {
           console.log('Finding "published" tag via API...')
           
           // Detect if we're dealing with wrapped functions (local dev) vs normal functions (production)
-          const isWrappedFunction = freshNoteStore.listTags.length === 0 && 
-            freshNoteStore.listTags.toString().includes('arguments.length')
+          const listTagsLength = freshNoteStore.listTags.length
+          const listTagsSource = freshNoteStore.listTags.toString()
+          const isWrappedFunction = listTagsLength === 0 && listTagsSource.includes('arguments.length')
+          
+          console.log(`listTags detection - length: ${listTagsLength}, isWrapped: ${isWrappedFunction}, source preview: "${listTagsSource.substring(0, 100)}"`)
           
           const tags = isWrappedFunction 
             ? await freshNoteStore.listTags()
@@ -428,8 +431,11 @@ export class EvernoteService {
         ? tokenizedClient.getNoteStore(this.noteStoreUrl)
         : tokenizedClient.getNoteStore()
       // Detect if we're dealing with wrapped functions (local dev) vs normal functions (production)
-      const isWrappedFunction = freshNoteStore.getSyncState.length === 0 && 
-        freshNoteStore.getSyncState.toString().includes('arguments.length')
+      const funcLength = freshNoteStore.getSyncState.length
+      const funcSource = freshNoteStore.getSyncState.toString()
+      const isWrappedFunction = funcLength === 0 && funcSource.includes('arguments.length')
+      
+      console.log(`getSyncState detection - length: ${funcLength}, isWrapped: ${isWrappedFunction}, source preview: "${funcSource.substring(0, 100)}"`)
       
       const syncState = isWrappedFunction 
         ? await freshNoteStore.getSyncState()
