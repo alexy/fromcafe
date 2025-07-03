@@ -142,23 +142,15 @@ export class EvernoteService {
           
           console.log(`listTags detection - length: ${listTagsLength}, isWrapped: ${isWrappedFunction}, source preview: "${listTagsSource.substring(0, 100)}"`)
           
-          // CORRECTED LOGIC: Handle three cases based on diagnostic data
-          const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+          // SIMPLIFIED LOGIC: Only local wrapped functions are different
+          const isLocal = !process.env.VERCEL && !process.env.VERCEL_ENV
+          const isLocalWrappedException = isLocal && isWrappedFunction
           
-          let tags
-          if (isVercel && isWrappedFunction) {
-            // Vercel wrapped: Still needs token (different from local wrapped)
-            console.log('Using Vercel wrapped listTags logic (with token)')
-            tags = await freshNoteStore.listTags(this.accessToken)
-          } else if (!isVercel && isWrappedFunction) {
-            // Local wrapped: No token needed
-            console.log('Using local wrapped listTags logic (no token)')
-            tags = await freshNoteStore.listTags()
-          } else {
-            // Normal functions (local or Vercel): Token needed
-            console.log('Using normal listTags logic (with token)')
-            tags = await freshNoteStore.listTags(this.accessToken)
-          }
+          const tags = isLocalWrappedException
+            ? await freshNoteStore.listTags()                    // Local wrapped: no token
+            : await freshNoteStore.listTags(this.accessToken)    // Everything else: use token
+          
+          console.log(`Using ${isLocalWrappedException ? 'local wrapped (no token)' : 'standard (with token)'} listTags logic`)
           const publishedTag = tags.find((tag: { name: string }) => 
             tag.name.toLowerCase() === 'published'
           )
@@ -216,23 +208,15 @@ export class EvernoteService {
       const isWrappedFunction = freshNoteStore.findNotesMetadata.length === 0 && 
         freshNoteStore.findNotesMetadata.toString().includes('arguments.length')
       
-      // CORRECTED LOGIC: Handle three cases based on diagnostic data
-      const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+      // SIMPLIFIED LOGIC: Only local wrapped functions are different
+      const isLocal = !process.env.VERCEL && !process.env.VERCEL_ENV
+      const isLocalWrappedException = isLocal && isWrappedFunction
       
-      let notesMetadata
-      if (isVercel && isWrappedFunction) {
-        // Vercel wrapped: Still needs token (different from local wrapped)
-        console.log('Using Vercel wrapped findNotesMetadata logic (with token)')
-        notesMetadata = await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, Math.min(maxNotes, 50), spec)
-      } else if (!isVercel && isWrappedFunction) {
-        // Local wrapped: No token needed
-        console.log('Using local wrapped findNotesMetadata logic (no token)')
-        notesMetadata = await freshNoteStore.findNotesMetadata(filter, 0, Math.min(maxNotes, 50), spec)
-      } else {
-        // Normal functions (local or Vercel): Token needed
-        console.log('Using normal findNotesMetadata logic (with token)')
-        notesMetadata = await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, Math.min(maxNotes, 50), spec)
-      }
+      const notesMetadata = isLocalWrappedException
+        ? await freshNoteStore.findNotesMetadata(filter, 0, Math.min(maxNotes, 50), spec)                    // Local wrapped: no token
+        : await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, Math.min(maxNotes, 50), spec)  // Everything else: use token
+      
+      console.log(`Using ${isLocalWrappedException ? 'local wrapped (no token)' : 'standard (with token)'} findNotesMetadata logic`)
       console.log(`Found ${notesMetadata.notes.length} notes to process (${publishedTagGuid ? 'pre-filtered by published tag' : 'will filter during processing'})`)
       
       const notes: EvernoteNote[] = []
@@ -276,23 +260,15 @@ export class EvernoteService {
             const isWrappedFunction = freshNoteStore.getNote.length === 0 && 
               freshNoteStore.getNote.toString().includes('arguments.length')
             
-            // CORRECTED LOGIC: Handle three cases based on diagnostic data
-            const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+            // SIMPLIFIED LOGIC: Only local wrapped functions are different
+            const isLocal = !process.env.VERCEL && !process.env.VERCEL_ENV
+            const isLocalWrappedException = isLocal && isWrappedFunction
             
-            let fullNote
-            if (isVercel && isWrappedFunction) {
-              // Vercel wrapped: Still needs token (different from local wrapped)
-              console.log('Using Vercel wrapped getNote logic (with token)')
-              fullNote = await freshNoteStore.getNote(this.accessToken, metadata.guid, true, false, false, false)
-            } else if (!isVercel && isWrappedFunction) {
-              // Local wrapped: No token needed
-              console.log('Using local wrapped getNote logic (no token)')
-              fullNote = await freshNoteStore.getNote(metadata.guid, true, false, false, false)
-            } else {
-              // Normal functions (local or Vercel): Token needed
-              console.log('Using normal getNote logic (with token)')
-              fullNote = await freshNoteStore.getNote(this.accessToken, metadata.guid, true, false, false, false)
-            }
+            const fullNote = isLocalWrappedException
+              ? await freshNoteStore.getNote(metadata.guid, true, false, false, false)                    // Local wrapped: no token
+              : await freshNoteStore.getNote(this.accessToken, metadata.guid, true, false, false, false)  // Everything else: use token
+            
+            console.log(`Using ${isLocalWrappedException ? 'local wrapped (no token)' : 'standard (with token)'} getNote logic`)
             
             notes.push({
               guid: fullNote.guid,
@@ -385,23 +361,15 @@ export class EvernoteService {
       const isWrappedFunction = freshNoteStore.getNote.length === 0 && 
         freshNoteStore.getNote.toString().includes('arguments.length')
       
-      // CORRECTED LOGIC: Handle three cases based on diagnostic data
-      const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+      // SIMPLIFIED LOGIC: Only local wrapped functions are different
+      const isLocal = !process.env.VERCEL && !process.env.VERCEL_ENV
+      const isLocalWrappedException = isLocal && isWrappedFunction
       
-      let fullNote
-      if (isVercel && isWrappedFunction) {
-        // Vercel wrapped: Still needs token (different from local wrapped)
-        console.log('Using Vercel wrapped getNote logic (with token)')
-        fullNote = await freshNoteStore.getNote(this.accessToken, noteGuid, true, false, false, false)
-      } else if (!isVercel && isWrappedFunction) {
-        // Local wrapped: No token needed
-        console.log('Using local wrapped getNote logic (no token)')
-        fullNote = await freshNoteStore.getNote(noteGuid, true, false, false, false)
-      } else {
-        // Normal functions (local or Vercel): Token needed
-        console.log('Using normal getNote logic (with token)')
-        fullNote = await freshNoteStore.getNote(this.accessToken, noteGuid, true, false, false, false)
-      }
+      const fullNote = isLocalWrappedException
+        ? await freshNoteStore.getNote(noteGuid, true, false, false, false)                    // Local wrapped: no token
+        : await freshNoteStore.getNote(this.accessToken, noteGuid, true, false, false, false)  // Everything else: use token
+      
+      console.log(`Using ${isLocalWrappedException ? 'local wrapped (no token)' : 'standard (with token)'} getNote logic`)
       const tagNames = await this.getTagNamesWithStore(freshNoteStore, fullNote.tagGuids || [])
       
       return {
@@ -452,23 +420,15 @@ export class EvernoteService {
           const isWrappedFunction = getTagFunc.length === 0 && 
             getTagFunc.toString().includes('arguments.length')
           
-          // CORRECTED LOGIC: Handle three cases based on diagnostic data
-          const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+          // SIMPLIFIED LOGIC: Only local wrapped functions are different
+          const isLocal = !process.env.VERCEL && !process.env.VERCEL_ENV
+          const isLocalWrappedException = isLocal && isWrappedFunction
           
-          let tag
-          if (isVercel && isWrappedFunction) {
-            // Vercel wrapped: Still needs token (different from local wrapped)
-            console.log('Using Vercel wrapped getTag logic (with token)')
-            tag = await (noteStore as { getTag: (token: string, guid: string) => Promise<{ name: string }> }).getTag(this.accessToken, guid)
-          } else if (!isVercel && isWrappedFunction) {
-            // Local wrapped: No token needed
-            console.log('Using local wrapped getTag logic (no token)')
-            tag = await (noteStore as { getTag: (guid: string) => Promise<{ name: string }> }).getTag(guid)
-          } else {
-            // Normal functions (local or Vercel): Token needed
-            console.log('Using normal getTag logic (with token)')
-            tag = await (noteStore as { getTag: (token: string, guid: string) => Promise<{ name: string }> }).getTag(this.accessToken, guid)
-          }
+          const tag = isLocalWrappedException
+            ? await (noteStore as { getTag: (guid: string) => Promise<{ name: string }> }).getTag(guid)                                // Local wrapped: no token
+            : await (noteStore as { getTag: (token: string, guid: string) => Promise<{ name: string }> }).getTag(this.accessToken, guid)  // Everything else: use token
+          
+          console.log(`Using ${isLocalWrappedException ? 'local wrapped (no token)' : 'standard (with token)'} getTag logic`)
           this.tagCache.set(guid, tag.name)
           tagNames.push(tag.name)
         } catch (error) {
@@ -507,24 +467,15 @@ export class EvernoteService {
       
       console.log(`getSyncState detection - length: ${funcLength}, isWrapped: ${isWrappedFunction}, source preview: "${funcSource.substring(0, 100)}"`)
       
-      // CORRECTED LOGIC: Handle three cases based on diagnostic data
-      // Vercel logs show wrapped functions still need token parameter
-      const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+      // SIMPLIFIED LOGIC: Only local wrapped functions are different
+      const isLocal = !process.env.VERCEL && !process.env.VERCEL_ENV
+      const isLocalWrappedException = isLocal && isWrappedFunction
       
-      let syncState
-      if (isVercel && isWrappedFunction) {
-        // Vercel wrapped: Still needs token (different from local wrapped)
-        console.log('Using Vercel wrapped function logic (with token)')
-        syncState = await freshNoteStore.getSyncState(this.accessToken)
-      } else if (!isVercel && isWrappedFunction) {
-        // Local wrapped: No token needed
-        console.log('Using local wrapped function logic (no token)')
-        syncState = await freshNoteStore.getSyncState()
-      } else {
-        // Normal functions (local or Vercel): Token needed
-        console.log('Using normal function logic (with token)')
-        syncState = await freshNoteStore.getSyncState(this.accessToken)
-      }
+      const syncState = isLocalWrappedException
+        ? await freshNoteStore.getSyncState()                    // Local wrapped: no token
+        : await freshNoteStore.getSyncState(this.accessToken)    // Everything else: use token
+      
+      console.log(`Using ${isLocalWrappedException ? 'local wrapped (no token)' : 'standard (with token)'} logic`)
       
       return {
         updateCount: syncState.updateCount
@@ -593,23 +544,15 @@ export class EvernoteService {
       const isWrappedFunction = freshNoteStore.findNotesMetadata.length === 0 && 
         freshNoteStore.findNotesMetadata.toString().includes('arguments.length')
       
-      // CORRECTED LOGIC: Handle three cases based on diagnostic data
-      const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+      // SIMPLIFIED LOGIC: Only local wrapped functions are different
+      const isLocal = !process.env.VERCEL && !process.env.VERCEL_ENV
+      const isLocalWrappedException = isLocal && isWrappedFunction
       
-      let notesMetadata
-      if (isVercel && isWrappedFunction) {
-        // Vercel wrapped: Still needs token (different from local wrapped)
-        console.log('Using Vercel wrapped findNotesMetadata logic (with token)')
-        notesMetadata = await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, 250, spec)
-      } else if (!isVercel && isWrappedFunction) {
-        // Local wrapped: No token needed
-        console.log('Using local wrapped findNotesMetadata logic (no token)')
-        notesMetadata = await freshNoteStore.findNotesMetadata(filter, 0, 250, spec)
-      } else {
-        // Normal functions (local or Vercel): Token needed
-        console.log('Using normal findNotesMetadata logic (with token)')
-        notesMetadata = await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, 250, spec)
-      }
+      const notesMetadata = isLocalWrappedException
+        ? await freshNoteStore.findNotesMetadata(filter, 0, 250, spec)                    // Local wrapped: no token
+        : await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, 250, spec)  // Everything else: use token
+      
+      console.log(`Using ${isLocalWrappedException ? 'local wrapped (no token)' : 'standard (with token)'} findNotesMetadata logic`)
       console.log(`Retrieved ${notesMetadata.notes.length} notes metadata for unpublish detection`)
       
       return notesMetadata.notes.map((note: { guid: string; tagGuids?: string[] }) => ({
@@ -659,23 +602,15 @@ export class EvernoteService {
       const isWrappedFunction = getUserFunc.length === 0 && 
         getUserFunc.toString().includes('arguments.length')
       
-      // CORRECTED LOGIC: Handle three cases based on diagnostic data
-      const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+      // SIMPLIFIED LOGIC: Only local wrapped functions are different
+      const isLocal = !process.env.VERCEL && !process.env.VERCEL_ENV
+      const isLocalWrappedException = isLocal && isWrappedFunction
       
-      let user
-      if (isVercel && isWrappedFunction) {
-        // Vercel wrapped: Still needs token (different from local wrapped)
-        console.log('Using Vercel wrapped getUser logic (with token)')
-        user = await (noteStore as { getUser: (token: string) => Promise<{ id: number }> }).getUser(this.accessToken)
-      } else if (!isVercel && isWrappedFunction) {
-        // Local wrapped: No token needed
-        console.log('Using local wrapped getUser logic (no token)')
-        user = await (noteStore as { getUser: () => Promise<{ id: number }> }).getUser()
-      } else {
-        // Normal functions (local or Vercel): Token needed
-        console.log('Using normal getUser logic (with token)')
-        user = await (noteStore as { getUser: (token: string) => Promise<{ id: number }> }).getUser(this.accessToken)
-      }
+      const user = isLocalWrappedException
+        ? await (noteStore as { getUser: () => Promise<{ id: number }> }).getUser()                      // Local wrapped: no token
+        : await (noteStore as { getUser: (token: string) => Promise<{ id: number }> }).getUser(this.accessToken)  // Everything else: use token
+      
+      console.log(`Using ${isLocalWrappedException ? 'local wrapped (no token)' : 'standard (with token)'} getUser logic`)
       return user.id.toString()
     } catch (error) {
       console.warn('Failed to get Evernote account ID:', error)
