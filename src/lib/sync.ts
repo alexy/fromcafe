@@ -170,6 +170,16 @@ export class SyncService {
       if (hasSuccessfulPreviousSync && currentSyncState.updateCount !== -1) {
         if (currentSyncState.updateCount <= blog.lastSyncUpdateCount!) {
           console.log(`No account changes since last SUCCESSFUL sync (current: ${currentSyncState.updateCount}, last successful: ${blog.lastSyncUpdateCount}). Skipping sync.`)
+          
+          // Clear lastSyncAttemptAt since this sync was successful (even though no changes)
+          await prisma.blog.update({
+            where: { id: blogId },
+            data: { 
+              lastSyncAttemptAt: null, // Clear attempt time since sync was successful
+              lastSyncedAt: new Date() // Update sync time to show recent successful check
+            }
+          })
+          
           return {
             ...result,
             posts: [{
