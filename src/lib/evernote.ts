@@ -44,29 +44,6 @@ export class EvernoteService {
     private noteStoreUrl?: string,
     private userId?: string
   ) {
-    // DIAGNOSTIC: Log environment info to understand SDK differences
-    console.log('=== EVERNOTE SDK DIAGNOSTIC ===')
-    console.log('Environment:', {
-      nodeVersion: process.version,
-      platform: process.platform,
-      arch: process.arch,
-      isVercel: !!process.env.VERCEL,
-      nodeEnv: process.env.NODE_ENV,
-      evernoteModulePath: require.resolve('evernote')
-    })
-    
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const EvernoteSDK = require('evernote')
-      console.log('Evernote SDK info:', {
-        version: EvernoteSDK.version || 'unknown',
-        clientConstructor: typeof EvernoteSDK.Client,
-        hasClient: !!EvernoteSDK.Client
-      })
-    } catch (e) {
-      console.log('Error inspecting Evernote SDK:', e)
-    }
-    console.log('=== END DIAGNOSTIC ===')
   }
 
   async getNotebooks(): Promise<EvernoteNotebook[]> {
@@ -158,18 +135,13 @@ export class EvernoteService {
         try {
           console.log('Finding "published" tag via API...')
           
-          // DIAGNOSTIC: Inspect listTags function before calling
-          console.log('=== LISTTAGS DIAGNOSTIC ===')
-          console.log('listTags function info:', {
-            type: typeof freshNoteStore.listTags,
-            length: freshNoteStore.listTags.length,
-            name: freshNoteStore.listTags.name,
-            source: freshNoteStore.listTags.toString().substring(0, 200)
-          })
-          console.log('NoteStore object keys:', Object.getOwnPropertyNames(freshNoteStore).slice(0, 10))
-          console.log('=== END LISTTAGS DIAGNOSTIC ===')
+          // Detect if we're dealing with wrapped functions (local dev) vs normal functions (production)
+          const isWrappedFunction = freshNoteStore.listTags.length === 0 && 
+            freshNoteStore.listTags.toString().includes('arguments.length')
           
-          const tags = await freshNoteStore.listTags(this.accessToken)
+          const tags = isWrappedFunction 
+            ? await freshNoteStore.listTags()
+            : await freshNoteStore.listTags(this.accessToken)
           const publishedTag = tags.find((tag: { name: string }) => 
             tag.name.toLowerCase() === 'published'
           )
@@ -223,24 +195,13 @@ export class EvernoteService {
         includeUpdated: true
       }
       
-      // DIAGNOSTIC: Inspect findNotesMetadata function before calling
-      console.log('=== FINDNOTESMETADATA DIAGNOSTIC ===')
-      console.log('findNotesMetadata function info:', {
-        type: typeof freshNoteStore.findNotesMetadata,
-        length: freshNoteStore.findNotesMetadata.length,
-        name: freshNoteStore.findNotesMetadata.name,
-        source: freshNoteStore.findNotesMetadata.toString().substring(0, 200)
-      })
-      console.log('Parameters being passed:', {
-        token: typeof this.accessToken,
-        filter: typeof filter,
-        offset: 0,
-        maxNotes: Math.min(maxNotes, 50),
-        spec: typeof spec
-      })
-      console.log('=== END FINDNOTESMETADATA DIAGNOSTIC ===')
+      // Detect if we're dealing with wrapped functions (local dev) vs normal functions (production)
+      const isWrappedFunction = freshNoteStore.findNotesMetadata.length === 0 && 
+        freshNoteStore.findNotesMetadata.toString().includes('arguments.length')
       
-      const notesMetadata = await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, Math.min(maxNotes, 50), spec)
+      const notesMetadata = isWrappedFunction 
+        ? await freshNoteStore.findNotesMetadata(filter, 0, Math.min(maxNotes, 50), spec)
+        : await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, Math.min(maxNotes, 50), spec)
       console.log(`Found ${notesMetadata.notes.length} notes to process (${publishedTagGuid ? 'pre-filtered by published tag' : 'will filter during processing'})`)
       
       const notes: EvernoteNote[] = []
@@ -280,7 +241,13 @@ export class EvernoteService {
               await new Promise(resolve => setTimeout(resolve, 2000)) // 2 second delay
             }
             
-            const fullNote = await freshNoteStore.getNote(this.accessToken, metadata.guid, true, false, false, false)
+            // Detect if we're dealing with wrapped functions (local dev) vs normal functions (production)
+            const isWrappedFunction = freshNoteStore.getNote.length === 0 && 
+              freshNoteStore.getNote.toString().includes('arguments.length')
+            
+            const fullNote = isWrappedFunction 
+              ? await freshNoteStore.getNote(metadata.guid, true, false, false, false)
+              : await freshNoteStore.getNote(this.accessToken, metadata.guid, true, false, false, false)
             
             notes.push({
               guid: fullNote.guid,
@@ -369,7 +336,13 @@ export class EvernoteService {
       const freshNoteStore = this.noteStoreUrl 
         ? tokenizedClient.getNoteStore(this.noteStoreUrl)
         : tokenizedClient.getNoteStore()
-      const fullNote = await freshNoteStore.getNote(this.accessToken, noteGuid, true, false, false, false)
+      // Detect if we're dealing with wrapped functions (local dev) vs normal functions (production)
+      const isWrappedFunction = freshNoteStore.getNote.length === 0 && 
+        freshNoteStore.getNote.toString().includes('arguments.length')
+      
+      const fullNote = isWrappedFunction 
+        ? await freshNoteStore.getNote(noteGuid, true, false, false, false)
+        : await freshNoteStore.getNote(this.accessToken, noteGuid, true, false, false, false)
       const tagNames = await this.getTagNamesWithStore(freshNoteStore, fullNote.tagGuids || [])
       
       return {
@@ -415,7 +388,14 @@ export class EvernoteService {
         }
         
         try {
-          const tag = await (noteStore as { getTag: (token: string, guid: string) => Promise<{ name: string }> }).getTag(this.accessToken, guid)
+          // Detect if we're dealing with wrapped functions (local dev) vs normal functions (production)
+          const getTagFunc = (noteStore as any).getTag
+          const isWrappedFunction = getTagFunc.length === 0 && 
+            getTagFunc.toString().includes('arguments.length')
+          
+          const tag = isWrappedFunction 
+            ? await (noteStore as { getTag: (guid: string) => Promise<{ name: string }> }).getTag(guid)
+            : await (noteStore as { getTag: (token: string, guid: string) => Promise<{ name: string }> }).getTag(this.accessToken, guid)
           this.tagCache.set(guid, tag.name)
           tagNames.push(tag.name)
         } catch (error) {
@@ -447,17 +427,13 @@ export class EvernoteService {
       const freshNoteStore = this.noteStoreUrl 
         ? tokenizedClient.getNoteStore(this.noteStoreUrl)
         : tokenizedClient.getNoteStore()
-      // DIAGNOSTIC: Inspect getSyncState function before calling
-      console.log('=== GETSYNCSTATE DIAGNOSTIC ===')
-      console.log('getSyncState function info:', {
-        type: typeof freshNoteStore.getSyncState,
-        length: freshNoteStore.getSyncState.length,
-        name: freshNoteStore.getSyncState.name,
-        source: freshNoteStore.getSyncState.toString().substring(0, 200)
-      })
-      console.log('=== END GETSYNCSTATE DIAGNOSTIC ===')
+      // Detect if we're dealing with wrapped functions (local dev) vs normal functions (production)
+      const isWrappedFunction = freshNoteStore.getSyncState.length === 0 && 
+        freshNoteStore.getSyncState.toString().includes('arguments.length')
       
-      const syncState = await freshNoteStore.getSyncState(this.accessToken)
+      const syncState = isWrappedFunction 
+        ? await freshNoteStore.getSyncState()
+        : await freshNoteStore.getSyncState(this.accessToken)
       
       return {
         updateCount: syncState.updateCount
@@ -522,7 +498,13 @@ export class EvernoteService {
         includeUpdated: false
       }
       
-      const notesMetadata = await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, 250, spec)
+      // Detect if we're dealing with wrapped functions (local dev) vs normal functions (production)
+      const isWrappedFunction = freshNoteStore.findNotesMetadata.length === 0 && 
+        freshNoteStore.findNotesMetadata.toString().includes('arguments.length')
+      
+      const notesMetadata = isWrappedFunction 
+        ? await freshNoteStore.findNotesMetadata(filter, 0, 250, spec)
+        : await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, 250, spec)
       console.log(`Retrieved ${notesMetadata.notes.length} notes metadata for unpublish detection`)
       
       return notesMetadata.notes.map((note: { guid: string; tagGuids?: string[] }) => ({
@@ -567,7 +549,14 @@ export class EvernoteService {
   private async getCurrentEvernoteAccountId(noteStore: unknown): Promise<string | null> {
     try {
       // Get current user info to identify the Evernote account
-      const user = await (noteStore as { getUser: (token: string) => Promise<{ id: number }> }).getUser(this.accessToken)
+      // Detect if we're dealing with wrapped functions (local dev) vs normal functions (production)
+      const getUserFunc = (noteStore as any).getUser
+      const isWrappedFunction = getUserFunc.length === 0 && 
+        getUserFunc.toString().includes('arguments.length')
+      
+      const user = isWrappedFunction 
+        ? await (noteStore as { getUser: () => Promise<{ id: number }> }).getUser()
+        : await (noteStore as { getUser: (token: string) => Promise<{ id: number }> }).getUser(this.accessToken)
       return user.id.toString()
     } catch (error) {
       console.warn('Failed to get Evernote account ID:', error)
