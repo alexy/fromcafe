@@ -29,3 +29,12 @@ WHat I need to learn:
 * the auth solution was bespoke, wonder how it compares to SOTA
 
 * my theme engine is amazing, I've asked for the vintage newspaper theme and Claude conjured it!  See how it actually works.
+
+* learn how Next.js works
+
+* learn how React works here
+
+* learn how Prisma works
+
+I'm using vercel CLI to get logs like `vercel logs`.  Learn more about `vercel pull .env.local` and managing `.env`.
+
