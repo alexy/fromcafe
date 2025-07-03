@@ -34,7 +34,18 @@ yarn-error.log*
 *.log
 
 # env files (can opt-in for committing if needed)
-.env*
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.themes
+.env.main.backup
+.env.original
+
+# Allow template files (no secrets)
+!.env.template
+!.env.*.template
 
 # vercel
 .vercel
