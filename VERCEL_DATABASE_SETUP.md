@@ -43,17 +43,14 @@ These can be used for manual database operations if needed.
 
 **Local `.env`:**
 ```env
-# Main database connection
+# Main database connection (both variables use same value)
+PRISMA_DATABASE_URL="prisma+postgres://localhost:51213/..."
 DATABASE_URL="prisma+postgres://localhost:51213/..."
-
-# Direct connection for migrations
-DIRECT_URL="postgresql://postgres:postgres@localhost:51214/template1?sslmode=disable"
 ```
 
 **Vercel Environment:**
-- `DATABASE_URL` - Provided by Prisma integration
-- `DIRECT_URL` - Provided by Prisma integration  
-- `POSTGRES_URL` - Also provided (alternative format)
+- `PRISMA_DATABASE_URL` - Primary database connection
+- `DATABASE_URL` - Same as PRISMA_DATABASE_URL for compatibility
 
 ## What Happens on Deployment
 

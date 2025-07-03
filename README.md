@@ -44,18 +44,19 @@ npm install
 
 3. Set up environment variables:
 ```bash
-cp .env.example .env
+cp .env.template .env
 ```
 
 Fill in the required environment variables:
-- `DATABASE_URL`: PostgreSQL connection string
+- `PRISMA_DATABASE_URL`: PostgreSQL connection string  
+- `DATABASE_URL`: Same as PRISMA_DATABASE_URL for compatibility
 - `NEXTAUTH_SECRET`: Random secret for NextAuth.js
 - `GOOGLE_CLIENT_ID` & `GOOGLE_CLIENT_SECRET`: Google OAuth credentials
 - `EVERNOTE_CONSUMER_KEY` & `EVERNOTE_CONSUMER_SECRET`: Evernote API credentials
 
 4. Set up the database:
 ```bash
-npx prisma migrate dev
+npx prisma db push
 npx prisma generate
 ```
 
@@ -71,9 +72,10 @@ npm run dev
 3. Deploy the application
 
 The application includes:
-- Automatic database migrations
+- Automatic database table creation
 - Cron job for syncing (every 15 minutes)
 - Custom domain support via middleware
+- Multi-theme support for blogs
 
 ## How It Works
 
