@@ -103,7 +103,7 @@ export default function VintageBlogLayout({ blog, posts }: BlogThemeProps) {
           </div>
         ) : (
           <div className="grid md:grid-cols-2 gap-8">
-            {posts.map((post, index) => (
+            {posts.map((post) => (
               <article key={post.id} className="break-inside-avoid mb-8">
                 {/* Article Container with Vintage Border */}
                 <div className="border-2 border-amber-800 bg-gradient-to-b from-yellow-50 to-amber-50 shadow-lg relative">
