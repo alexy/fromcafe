@@ -44,6 +44,28 @@ export class EvernoteService {
     private noteStoreUrl?: string,
     private userId?: string
   ) {
+    // DIAGNOSTIC: Log environment info to understand SDK differences
+    console.log('=== EVERNOTE SDK DIAGNOSTIC ===')
+    console.log('Environment:', {
+      nodeVersion: process.version,
+      platform: process.platform,
+      arch: process.arch,
+      isVercel: !!process.env.VERCEL,
+      nodeEnv: process.env.NODE_ENV,
+      evernoteModulePath: require.resolve('evernote')
+    })
+    
+    try {
+      const EvernoteSDK = require('evernote')
+      console.log('Evernote SDK info:', {
+        version: EvernoteSDK.version || 'unknown',
+        clientConstructor: typeof EvernoteSDK.Client,
+        hasClient: !!EvernoteSDK.Client
+      })
+    } catch (e) {
+      console.log('Error inspecting Evernote SDK:', e)
+    }
+    console.log('=== END DIAGNOSTIC ===')
   }
 
   async getNotebooks(): Promise<EvernoteNotebook[]> {
@@ -134,6 +156,18 @@ export class EvernoteService {
       if (!publishedTagGuid) {
         try {
           console.log('Finding "published" tag via API...')
+          
+          // DIAGNOSTIC: Inspect listTags function before calling
+          console.log('=== LISTTAGS DIAGNOSTIC ===')
+          console.log('listTags function info:', {
+            type: typeof freshNoteStore.listTags,
+            length: freshNoteStore.listTags.length,
+            name: freshNoteStore.listTags.name,
+            source: freshNoteStore.listTags.toString().substring(0, 200)
+          })
+          console.log('NoteStore object keys:', Object.getOwnPropertyNames(freshNoteStore).slice(0, 10))
+          console.log('=== END LISTTAGS DIAGNOSTIC ===')
+          
           const tags = await freshNoteStore.listTags(this.accessToken)
           const publishedTag = tags.find((tag: { name: string }) => 
             tag.name.toLowerCase() === 'published'
@@ -187,6 +221,23 @@ export class EvernoteService {
         includeCreated: true,
         includeUpdated: true
       }
+      
+      // DIAGNOSTIC: Inspect findNotesMetadata function before calling
+      console.log('=== FINDNOTESMETADATA DIAGNOSTIC ===')
+      console.log('findNotesMetadata function info:', {
+        type: typeof freshNoteStore.findNotesMetadata,
+        length: freshNoteStore.findNotesMetadata.length,
+        name: freshNoteStore.findNotesMetadata.name,
+        source: freshNoteStore.findNotesMetadata.toString().substring(0, 200)
+      })
+      console.log('Parameters being passed:', {
+        token: typeof this.accessToken,
+        filter: typeof filter,
+        offset: 0,
+        maxNotes: Math.min(maxNotes, 50),
+        spec: typeof spec
+      })
+      console.log('=== END FINDNOTESMETADATA DIAGNOSTIC ===')
       
       const notesMetadata = await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, Math.min(maxNotes, 50), spec)
       console.log(`Found ${notesMetadata.notes.length} notes to process (${publishedTagGuid ? 'pre-filtered by published tag' : 'will filter during processing'})`)
@@ -395,6 +446,16 @@ export class EvernoteService {
       const freshNoteStore = this.noteStoreUrl 
         ? tokenizedClient.getNoteStore(this.noteStoreUrl)
         : tokenizedClient.getNoteStore()
+      // DIAGNOSTIC: Inspect getSyncState function before calling
+      console.log('=== GETSYNCSTATE DIAGNOSTIC ===')
+      console.log('getSyncState function info:', {
+        type: typeof freshNoteStore.getSyncState,
+        length: freshNoteStore.getSyncState.length,
+        name: freshNoteStore.getSyncState.name,
+        source: freshNoteStore.getSyncState.toString().substring(0, 200)
+      })
+      console.log('=== END GETSYNCSTATE DIAGNOSTIC ===')
+      
       const syncState = await freshNoteStore.getSyncState(this.accessToken)
       
       return {
