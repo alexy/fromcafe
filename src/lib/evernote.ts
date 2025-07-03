@@ -142,9 +142,13 @@ export class EvernoteService {
           
           console.log(`listTags detection - length: ${listTagsLength}, isWrapped: ${isWrappedFunction}, source preview: "${listTagsSource.substring(0, 100)}"`)
           
-          const tags = isWrappedFunction 
-            ? await freshNoteStore.listTags()
-            : await freshNoteStore.listTags(this.accessToken)
+          // EMERGENCY FIX: Force Vercel to use token parameter
+          const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+          const tags = isVercel
+            ? await freshNoteStore.listTags(this.accessToken)  // Force token on Vercel
+            : (isWrappedFunction 
+               ? await freshNoteStore.listTags()               // Local wrapped: no token
+               : await freshNoteStore.listTags(this.accessToken))  // Local normal: token
           const publishedTag = tags.find((tag: { name: string }) => 
             tag.name.toLowerCase() === 'published'
           )
@@ -202,9 +206,13 @@ export class EvernoteService {
       const isWrappedFunction = freshNoteStore.findNotesMetadata.length === 0 && 
         freshNoteStore.findNotesMetadata.toString().includes('arguments.length')
       
-      const notesMetadata = isWrappedFunction 
-        ? await freshNoteStore.findNotesMetadata(filter, 0, Math.min(maxNotes, 50), spec)
-        : await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, Math.min(maxNotes, 50), spec)
+      // EMERGENCY FIX: Force Vercel to use token parameter
+      const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+      const notesMetadata = isVercel
+        ? await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, Math.min(maxNotes, 50), spec)  // Force token on Vercel
+        : (isWrappedFunction 
+           ? await freshNoteStore.findNotesMetadata(filter, 0, Math.min(maxNotes, 50), spec)               // Local wrapped: no token
+           : await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, Math.min(maxNotes, 50), spec))  // Local normal: token
       console.log(`Found ${notesMetadata.notes.length} notes to process (${publishedTagGuid ? 'pre-filtered by published tag' : 'will filter during processing'})`)
       
       const notes: EvernoteNote[] = []
@@ -248,9 +256,13 @@ export class EvernoteService {
             const isWrappedFunction = freshNoteStore.getNote.length === 0 && 
               freshNoteStore.getNote.toString().includes('arguments.length')
             
-            const fullNote = isWrappedFunction 
-              ? await freshNoteStore.getNote(metadata.guid, true, false, false, false)
-              : await freshNoteStore.getNote(this.accessToken, metadata.guid, true, false, false, false)
+            // EMERGENCY FIX: Force Vercel to use token parameter
+            const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+            const fullNote = isVercel
+              ? await freshNoteStore.getNote(this.accessToken, metadata.guid, true, false, false, false)  // Force token on Vercel
+              : (isWrappedFunction 
+                 ? await freshNoteStore.getNote(metadata.guid, true, false, false, false)               // Local wrapped: no token
+                 : await freshNoteStore.getNote(this.accessToken, metadata.guid, true, false, false, false))  // Local normal: token
             
             notes.push({
               guid: fullNote.guid,
@@ -343,9 +355,13 @@ export class EvernoteService {
       const isWrappedFunction = freshNoteStore.getNote.length === 0 && 
         freshNoteStore.getNote.toString().includes('arguments.length')
       
-      const fullNote = isWrappedFunction 
-        ? await freshNoteStore.getNote(noteGuid, true, false, false, false)
-        : await freshNoteStore.getNote(this.accessToken, noteGuid, true, false, false, false)
+      // EMERGENCY FIX: Force Vercel to use token parameter
+      const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+      const fullNote = isVercel
+        ? await freshNoteStore.getNote(this.accessToken, noteGuid, true, false, false, false)  // Force token on Vercel
+        : (isWrappedFunction 
+           ? await freshNoteStore.getNote(noteGuid, true, false, false, false)               // Local wrapped: no token
+           : await freshNoteStore.getNote(this.accessToken, noteGuid, true, false, false, false))  // Local normal: token
       const tagNames = await this.getTagNamesWithStore(freshNoteStore, fullNote.tagGuids || [])
       
       return {
@@ -396,9 +412,13 @@ export class EvernoteService {
           const isWrappedFunction = getTagFunc.length === 0 && 
             getTagFunc.toString().includes('arguments.length')
           
-          const tag = isWrappedFunction 
-            ? await (noteStore as { getTag: (guid: string) => Promise<{ name: string }> }).getTag(guid)
-            : await (noteStore as { getTag: (token: string, guid: string) => Promise<{ name: string }> }).getTag(this.accessToken, guid)
+          // EMERGENCY FIX: Force Vercel to use token parameter
+          const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+          const tag = isVercel
+            ? await (noteStore as { getTag: (token: string, guid: string) => Promise<{ name: string }> }).getTag(this.accessToken, guid)  // Force token on Vercel
+            : (isWrappedFunction 
+               ? await (noteStore as { getTag: (guid: string) => Promise<{ name: string }> }).getTag(guid)               // Local wrapped: no token
+               : await (noteStore as { getTag: (token: string, guid: string) => Promise<{ name: string }> }).getTag(this.accessToken, guid))  // Local normal: token
           this.tagCache.set(guid, tag.name)
           tagNames.push(tag.name)
         } catch (error) {
@@ -437,9 +457,15 @@ export class EvernoteService {
       
       console.log(`getSyncState detection - length: ${funcLength}, isWrapped: ${isWrappedFunction}, source preview: "${funcSource.substring(0, 100)}"`)
       
-      const syncState = isWrappedFunction 
-        ? await freshNoteStore.getSyncState()
-        : await freshNoteStore.getSyncState(this.accessToken)
+      // EMERGENCY FIX: Force Vercel to use token parameter regardless of detection
+      // Will analyze detection results in logs and fix properly later
+      const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+      
+      const syncState = isVercel
+        ? await freshNoteStore.getSyncState(this.accessToken)  // Force token on Vercel
+        : (isWrappedFunction 
+           ? await freshNoteStore.getSyncState()               // Local wrapped: no token
+           : await freshNoteStore.getSyncState(this.accessToken))  // Local normal: token
       
       return {
         updateCount: syncState.updateCount
@@ -508,9 +534,13 @@ export class EvernoteService {
       const isWrappedFunction = freshNoteStore.findNotesMetadata.length === 0 && 
         freshNoteStore.findNotesMetadata.toString().includes('arguments.length')
       
-      const notesMetadata = isWrappedFunction 
-        ? await freshNoteStore.findNotesMetadata(filter, 0, 250, spec)
-        : await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, 250, spec)
+      // EMERGENCY FIX: Force Vercel to use token parameter
+      const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+      const notesMetadata = isVercel
+        ? await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, 250, spec)  // Force token on Vercel
+        : (isWrappedFunction 
+           ? await freshNoteStore.findNotesMetadata(filter, 0, 250, spec)               // Local wrapped: no token
+           : await freshNoteStore.findNotesMetadata(this.accessToken, filter, 0, 250, spec))  // Local normal: token
       console.log(`Retrieved ${notesMetadata.notes.length} notes metadata for unpublish detection`)
       
       return notesMetadata.notes.map((note: { guid: string; tagGuids?: string[] }) => ({
@@ -560,9 +590,13 @@ export class EvernoteService {
       const isWrappedFunction = getUserFunc.length === 0 && 
         getUserFunc.toString().includes('arguments.length')
       
-      const user = isWrappedFunction 
-        ? await (noteStore as { getUser: () => Promise<{ id: number }> }).getUser()
-        : await (noteStore as { getUser: (token: string) => Promise<{ id: number }> }).getUser(this.accessToken)
+      // EMERGENCY FIX: Force Vercel to use token parameter
+      const isVercel = process.env.VERCEL || process.env.VERCEL_ENV
+      const user = isVercel
+        ? await (noteStore as { getUser: (token: string) => Promise<{ id: number }> }).getUser(this.accessToken)  // Force token on Vercel
+        : (isWrappedFunction 
+           ? await (noteStore as { getUser: () => Promise<{ id: number }> }).getUser()               // Local wrapped: no token
+           : await (noteStore as { getUser: (token: string) => Promise<{ id: number }> }).getUser(this.accessToken))  // Local normal: token
       return user.id.toString()
     } catch (error) {
       console.warn('Failed to get Evernote account ID:', error)
