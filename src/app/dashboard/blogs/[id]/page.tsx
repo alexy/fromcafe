@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { getAvailableThemes } from '@/lib/themes/registry'
 
 interface Blog {
   id: string
@@ -11,6 +12,7 @@ interface Blog {
   description: string
   customDomain?: string
   evernoteNotebook?: string
+  theme: string
   isPublic: boolean
   lastSyncedAt?: string
   lastSyncAttemptAt?: string
@@ -33,11 +35,13 @@ export default function BlogSettings() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [isPublic, setIsPublic] = useState(true)
+  const [theme, setTheme] = useState('default')
   
   // Track original values for change detection
   const [originalTitle, setOriginalTitle] = useState('')
   const [originalDescription, setOriginalDescription] = useState('')
   const [originalIsPublic, setOriginalIsPublic] = useState(true)
+  const [originalTheme, setOriginalTheme] = useState('default')
   const [notebooks, setNotebooks] = useState<Array<{guid: string, name: string}>>([])
   const [showNotebooks, setShowNotebooks] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -56,11 +60,13 @@ export default function BlogSettings() {
         setTitle(data.blog.title)
         setDescription(data.blog.description || '')
         setIsPublic(data.blog.isPublic)
+        setTheme(data.blog.theme || 'default')
         
         // Set original values for change detection
         setOriginalTitle(data.blog.title)
         setOriginalDescription(data.blog.description || '')
         setOriginalIsPublic(data.blog.isPublic)
+        setOriginalTheme(data.blog.theme || 'default')
         
         // If notebook is connected, fetch the notebook name
         if (data.blog.evernoteNotebook) {
@@ -304,7 +310,7 @@ export default function BlogSettings() {
 
   const handleSave = async () => {
     // Build object with only changed fields
-    const changes: { title?: string; description?: string; isPublic?: boolean } = {}
+    const changes: { title?: string; description?: string; isPublic?: boolean; theme?: string } = {}
     
     if (title !== originalTitle) {
       changes.title = title
@@ -314,6 +320,9 @@ export default function BlogSettings() {
     }
     if (isPublic !== originalIsPublic) {
       changes.isPublic = isPublic
+    }
+    if (theme !== originalTheme) {
+      changes.theme = theme
     }
 
     // Check if any changes were made
@@ -340,6 +349,7 @@ export default function BlogSettings() {
         setOriginalTitle(title)
         setOriginalDescription(description)
         setOriginalIsPublic(isPublic)
+        setOriginalTheme(theme)
         
         alert('Blog updated successfully!')
       } else {
@@ -467,6 +477,34 @@ export default function BlogSettings() {
                 <label htmlFor="isPublic" className="ml-2 block text-sm text-black">
                   Make this blog public
                 </label>
+              </div>
+
+              <div>
+                <label htmlFor="theme" className="block text-sm font-medium text-black mb-2">
+                  Theme
+                </label>
+                <select
+                  id="theme"
+                  value={theme}
+                  onChange={(e) => setTheme(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                >
+                  {getAvailableThemes().map((availableTheme) => (
+                    <option key={availableTheme.id} value={availableTheme.id}>
+                      {availableTheme.name} - {availableTheme.description}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-2 flex items-center space-x-2">
+                  <a
+                    href={`/blog/${blog?.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    Preview current theme →
+                  </a>
+                </div>
               </div>
 
               <div className="space-y-3">
