@@ -114,29 +114,19 @@ export default function VintageBlogLayout({ blog, posts }: BlogThemeProps) {
                   <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-amber-800"></div>
 
                   <div className="p-6">
-                    {/* Article Number Badge */}
+                    {/* Date Badge in top position */}
                     <div className="absolute -top-3 left-6 bg-amber-800 text-yellow-50 px-3 py-1 text-xs font-bold" style={{
                       fontFamily: 'Georgia, "Times New Roman", serif',
                       letterSpacing: '0.1em'
                     }}>
-                      ARTICLE {String(index + 1).padStart(2, '0')}
+                      {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      }).toUpperCase() : 'UNPUBLISHED'}
                     </div>
 
                     <header className="mb-4 pt-2">
-                      {/* Date Banner */}
-                      <div className="mb-3">
-                        <time className="bg-amber-800 text-yellow-50 px-2 py-1 text-xs font-semibold tracking-widest" style={{
-                          fontFamily: 'Georgia, "Times New Roman", serif',
-                          letterSpacing: '0.15em'
-                        }}>
-                          {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          }).toUpperCase() : ''}
-                        </time>
-                      </div>
                       
                       <h2 className="text-2xl font-bold text-amber-900 leading-tight mb-3" style={{
                         fontFamily: 'Georgia, "Times New Roman", serif',
