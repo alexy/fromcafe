@@ -56,6 +56,7 @@ export class EvernoteService {
     })
     
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const EvernoteSDK = require('evernote')
       console.log('Evernote SDK info:', {
         version: EvernoteSDK.version || 'unknown',
