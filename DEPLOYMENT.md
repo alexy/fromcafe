@@ -2,41 +2,52 @@
 
 ## Database Setup
 
-Your deployment environment is configured to use Prisma Data Platform for connection pooling. You need to set two environment variables:
+The application uses Prisma with PostgreSQL for data storage. The database configuration has been simplified to use a single connection URL.
 
 ### Environment Variables Required:
 
-1. **DATABASE_URL** - The Prisma connection pool URL:
+1. **PRISMA_DATABASE_URL** - The primary database connection URL:
    ```
-   DATABASE_URL="prisma://accelerate.prisma-data.net/?api_key=YOUR_API_KEY"
-   ```
-
-2. **DIRECT_URL** - The direct PostgreSQL connection for migrations:
-   ```
-   DIRECT_URL="postgresql://username:password@host:port/database"
+   PRISMA_DATABASE_URL="prisma+postgres://localhost:51213/?api_key=YOUR_API_KEY"
    ```
 
-### For Local Development:
+2. **DATABASE_URL** - Secondary database URL (same as PRISMA_DATABASE_URL for compatibility):
+   ```
+   DATABASE_URL="prisma+postgres://localhost:51213/?api_key=YOUR_API_KEY"
+   ```
 
-If you want to use a standard PostgreSQL connection locally, you can set:
-```
-DATABASE_URL="postgresql://username:password@localhost:5432/evernote_blog"
-DIRECT_URL="postgresql://username:password@localhost:5432/evernote_blog"
-```
+### Database Configuration Options:
 
-### Troubleshooting:
-
-If you get the error "the URL must start with the protocol `prisma://`", it means:
-- Your `DATABASE_URL` is set to use Prisma Data Platform
-- You need to provide a `DIRECT_URL` for direct database operations
-- Or you need to change `DATABASE_URL` to a standard PostgreSQL URL
-
-## Alternative: Use Standard PostgreSQL
-
-If you prefer not to use Prisma Data Platform, set your environment to use a standard PostgreSQL URL:
-
+#### Option 1: Prisma Data Platform (Recommended for Production)
 ```env
-DATABASE_URL="postgresql://username:password@host:port/database"
+PRISMA_DATABASE_URL="prisma+postgres://your-host:port/?api_key=your_api_key"
+DATABASE_URL="prisma+postgres://your-host:port/?api_key=your_api_key"
 ```
 
-And remove the `directUrl` line from `prisma/schema.prisma`.
+#### Option 2: Standard PostgreSQL (Local Development)
+```env
+PRISMA_DATABASE_URL="postgresql://username:password@localhost:5432/evernote_blog"
+DATABASE_URL="postgresql://username:password@localhost:5432/evernote_blog"
+```
+
+### Branch-Specific Database Configuration
+
+The application supports branch-specific database isolation:
+
+- **Main Branch**: Uses main production database
+- **Development Branch**: Can use separate development database
+
+Use the provided `.env.template` file as a starting point for your environment configuration.
+
+### Prisma Schema Configuration
+
+The current schema uses a simplified database configuration:
+
+```prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("PRISMA_DATABASE_URL")
+}
+```
+
+No `directUrl` configuration is needed - the application uses a single connection URL for all database operations.
