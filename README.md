@@ -110,6 +110,18 @@ The application includes:
 4. Add tests if applicable
 5. Submit a pull request
 
+## Documentation
+
+Additional technical documentation and guides are available in the `/HOWTO` directory:
+
+- [Deployment Configuration](HOWTO/DEPLOYMENT.md) - Database setup and deployment guide
+- [Evernote SDK Environment Issues](HOWTO/EVERNOTE_SDK_ENVIRONMENT_DISCREPANCY.md) - SDK behavior differences between environments
+- [Vercel Database Setup](HOWTO/VERCEL_DATABASE_SETUP.md) - Vercel deployment database configuration
+- [Theme System](HOWTO/THEMES_BRANCH_README.md) - Multi-theme support documentation
+- [OAuth Architecture](HOWTO/OAUTH_ARCHITECTURE.md) - Authentication system design
+- [Sync Optimization](HOWTO/SYNC_OPTIMIZATION.md) - Performance improvements for Evernote syncing
+- [Rate Limiting](HOWTO/RATE_LIMITING.md) - API rate limiting implementation
+
 ## License
 
 MIT License
