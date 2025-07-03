@@ -7,6 +7,8 @@ import MinimalBlogLayout from './minimal/BlogLayout'
 import MinimalPostLayout from './minimal/PostLayout'
 import ModernBlogLayout from './modern/BlogLayout'
 import ModernPostLayout from './modern/PostLayout'
+import VintageBlogLayout from './vintage/BlogLayout'
+import VintagePostLayout from './vintage/PostLayout'
 
 export const themes: ThemeRegistry = {
   default: {
@@ -60,6 +62,24 @@ export const themes: ThemeRegistry = {
         secondary: '#8b5cf6',
         background: '#f8fafc',
         text: '#1e293b',
+      },
+    },
+  },
+  vintage: {
+    id: 'vintage',
+    name: 'Vintage Newspaper',
+    description: 'Old-fashioned newspaper style with two columns, ornate borders, and classic typography',
+    preview: '/themes/vintage-preview.jpg',
+    components: {
+      BlogLayout: VintageBlogLayout,
+      PostLayout: VintagePostLayout,
+    },
+    config: {
+      colors: {
+        primary: '#92400e', // amber-800
+        secondary: '#d97706', // amber-600
+        background: '#fffbeb', // amber-50
+        text: '#92400e', // amber-800
       },
     },
   },
