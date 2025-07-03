@@ -420,12 +420,12 @@ export class SyncService {
       })
       result.totalPublishedPosts = finalPublishedCount
 
-      // Update the blog's last synced time, attempt time, and sync state
+      // Update the blog's last synced time, clear attempt time (since sync succeeded), and sync state
       await prisma.blog.update({
         where: { id: blogId },
         data: { 
           lastSyncedAt: new Date(),
-          lastSyncAttemptAt: new Date(),
+          lastSyncAttemptAt: null, // Clear attempt time since sync was successful
           lastSyncUpdateCount: currentSyncState.updateCount !== -1 ? currentSyncState.updateCount : undefined
         }
       })
