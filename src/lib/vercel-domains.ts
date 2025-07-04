@@ -64,6 +64,7 @@ export async function addDomainToVercel(domain: string): Promise<VercelDomainRes
       body: JSON.stringify({
         name: domain
         // Don't specify gitBranch for production domains
+        // Custom domains should work independently, not redirect
       })
     })
 
@@ -214,6 +215,35 @@ export async function getDomainConfig(domain: string): Promise<{
         { type: 'CNAME', name: 'www', value: 'cname.vercel-dns.com' }
       ]
     }
+  }
+}
+
+export async function setPrimaryDomain(domain: string): Promise<void> {
+  if (!VERCEL_PROJECT_ID) {
+    throw new VercelDomainError('VERCEL_PROJECT_ID environment variable not set')
+  }
+
+  try {
+    const response = await vercelRequest(`/v10/projects/${VERCEL_PROJECT_ID}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        primaryDomain: domain
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new VercelDomainError(
+        error.error?.message || `Failed to set primary domain: ${response.status}`,
+        response.status,
+        error.error?.code
+      )
+    }
+  } catch (error) {
+    if (error instanceof VercelDomainError) {
+      throw error
+    }
+    throw new VercelDomainError(`Failed to set primary domain: ${error}`)
   }
 }
 
