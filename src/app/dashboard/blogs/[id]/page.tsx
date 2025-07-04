@@ -925,7 +925,7 @@ export default function BlogSettings() {
                       )}
                       
                       {/* Detailed Verification Report */}
-                      {verificationReport && showVerificationReport && (
+                      {verificationReport && typeof verificationReport === 'object' && showVerificationReport && (
                         <div className="mt-4 border border-gray-200 rounded-lg">
                           <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
                             <h4 className="font-semibold text-gray-900">Domain Verification Report</h4>
