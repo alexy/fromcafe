@@ -3,8 +3,6 @@ import { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { fetchBlogData, generateBlogMetadata, BlogRenderer } from '@/lib/blog/renderer'
 
-// This page would be used for custom domain routing
-// e.g., when someone visits myblog.com directly
 export async function generateMetadata(): Promise<Metadata> {
   const headersList = await headers()
   const hostname = headersList.get('host') || ''
@@ -24,13 +22,22 @@ export default async function CustomDomainBlogPage() {
   const headersList = await headers()
   const hostname = headersList.get('host') || ''
   
+  console.log('🌍 Custom domain blog page loading for:', hostname)
+  
   const blog = await fetchBlogData({
     customDomain: hostname
   })
 
   if (!blog) {
+    console.log('❌ No blog found for custom domain:', hostname)
     notFound()
   }
+
+  console.log('✅ Blog found for custom domain:', {
+    hostname,
+    blogTitle: blog.title,
+    blogSlug: blog.slug
+  })
 
   return <BlogRenderer blog={blog} hostname={hostname} />
 }

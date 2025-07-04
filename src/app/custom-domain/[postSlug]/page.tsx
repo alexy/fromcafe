@@ -29,14 +29,24 @@ export default async function CustomDomainPostPage({ params }: CustomDomainPostP
   const headersList = await headers()
   const hostname = headersList.get('host') || ''
   
+  console.log('🌍 Custom domain post page loading for:', { hostname, postSlug })
+  
   const post = await fetchPostData({
     customDomain: hostname,
     postSlug: postSlug
   })
 
   if (!post) {
+    console.log('❌ No post found for custom domain:', { hostname, postSlug })
     notFound()
   }
+
+  console.log('✅ Post found for custom domain:', {
+    hostname,
+    postSlug,
+    postTitle: post.title,
+    blogTitle: post.blog.title
+  })
 
   return <PostRenderer post={post} hostname={hostname} />
 }

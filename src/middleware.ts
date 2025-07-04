@@ -25,6 +25,25 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
   
+  // Check if this is a custom domain (not from.cafe or its subdomains)
+  const isCustomDomain = !hostname.includes('from.cafe') && !hostname.includes('localhost') && !hostname.includes('vercel.app')
+  
+  if (isCustomDomain) {
+    console.log('🌍 Custom domain detected:', hostname, 'for path:', pathname)
+    
+    // Route custom domain to custom domain handler
+    const url = request.nextUrl.clone()
+    if (pathname === '/') {
+      // Custom domain root - show blog
+      url.pathname = `/custom-domain`
+    } else {
+      // Custom domain with path - probably a post
+      url.pathname = `/custom-domain${pathname}`
+    }
+    console.log('🔄 Rewriting custom domain:', pathname, '→', url.pathname)
+    return NextResponse.rewrite(url)
+  }
+  
   // Extract subdomain from hostname
   const subdomain = getSubdomain(hostname)
   
