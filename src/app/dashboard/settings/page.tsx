@@ -215,9 +215,38 @@ export default function UserSettings() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
                 placeholder="yourdomain.com"
               />
-              <p className="text-sm text-gray-500 mt-1">
-                Point your domain&apos;s DNS to our servers for custom domain support.
-              </p>
+              <div className="mt-2 space-y-2">
+                <p className="text-sm text-gray-500">
+                  Point your domain&apos;s DNS to our servers for custom domain support.
+                </p>
+                <div className="flex items-center space-x-4">
+                  <a
+                    href="/site/domains"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    📖 View detailed setup instructions
+                  </a>
+                  {domain && (
+                    <div className="flex items-center space-x-3 text-sm">
+                      <div>
+                        <span className="text-gray-500">Status: </span>
+                        <span className="text-yellow-600">⏳ Pending verification</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          // Simple verification placeholder
+                          alert('Domain verification would be implemented here. For now, contact support to verify your domain.')
+                        }}
+                        className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
+                      >
+                        Verify Now
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="border-t pt-6">

@@ -55,9 +55,15 @@ export default function Home() {
         </div>
 
         <footer className="text-center mt-16 pt-8 border-t border-gray-200">
-          <p className="text-gray-500">
-            Built with Next.js, TypeScript, and PostgreSQL
-          </p>
+          <div className="space-y-2">
+            <p className="text-gray-500">
+              <Link href="/site/domains" className="text-blue-600 hover:underline">
+                Custom Domain Setup
+              </Link>
+              {' • '}
+              Built with Next.js, TypeScript, and PostgreSQL
+            </p>
+          </div>
         </footer>
       </div>
     </div>

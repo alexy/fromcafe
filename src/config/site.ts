@@ -105,6 +105,7 @@ export const siteConfig = {
     'organization',
     'org',
     'company',
+    'site',
   ],
   
   // Reserved slugs that cannot be used for blog slugs (within user spaces)
