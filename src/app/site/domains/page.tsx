@@ -35,7 +35,7 @@ export default function DomainInstructionsPage() {
               <div className="border-l-4 border-blue-500 pl-6">
                 <h3 className="text-xl font-semibold mb-3 text-gray-900">Step 1: Configure DNS Settings</h3>
                 <p className="text-gray-700 mb-4">
-                  In your domain registrar's DNS settings (GoDaddy, Namecheap, Cloudflare, etc.), add the following records:
+                  In your domain registrar&apos;s DNS settings (GoDaddy, Namecheap, Cloudflare, etc.), add the following records:
                 </p>
                 
                 <div className="bg-gray-50 p-4 rounded-lg mb-4">
@@ -103,7 +103,7 @@ export default function DomainInstructionsPage() {
                 <div className="mt-4 p-4 bg-green-50 rounded-lg">
                   <h4 className="font-semibold text-green-900 mb-2">✅ Verification</h4>
                   <p className="text-green-800 text-sm">
-                    We'll automatically verify your domain and issue an SSL certificate. This process usually takes 5-10 minutes.
+                    We&apos;ll automatically verify your domain and issue an SSL certificate. This process usually takes 5-10 minutes.
                   </p>
                 </div>
               </div>
@@ -134,7 +134,7 @@ export default function DomainInstructionsPage() {
                     <li>Select your domain</li>
                     <li>Go to DNS tab</li>
                     <li>Add the records above</li>
-                    <li>Ensure proxy status is "DNS only" (gray cloud)</li>
+                    <li>Ensure proxy status is &quot;DNS only&quot; (gray cloud)</li>
                   </ol>
                 </div>
                 
@@ -183,7 +183,7 @@ export default function DomainInstructionsPage() {
                     <li>Double-check your DNS records match exactly</li>
                     <li>Verify TTL is set to 300 or lower</li>
                     <li>Try using a DNS checker tool online</li>
-                    <li>Contact your domain registrar's support</li>
+                    <li>Contact your domain registrar&apos;s support</li>
                   </ul>
                 </div>
                 
@@ -202,7 +202,7 @@ export default function DomainInstructionsPage() {
             <div className="mt-8 p-6 bg-blue-50 rounded-lg">
               <h3 className="text-xl font-semibold mb-4 text-blue-900">Need Help?</h3>
               <p className="text-blue-800 mb-4">
-                Having trouble setting up your custom domain? We're here to help!
+                Having trouble setting up your custom domain? We&apos;re here to help!
               </p>
               <div className="space-y-2">
                 <p className="text-blue-800">

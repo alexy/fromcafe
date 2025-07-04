@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
           : 'Domain verification failed. Please check your DNS settings.',
       })
       
-    } catch (error) {
+    } catch {
       return NextResponse.json({
         verified: false,
         message: 'Domain verification failed. Please check your DNS settings and try again.',
