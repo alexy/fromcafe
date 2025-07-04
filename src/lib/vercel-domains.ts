@@ -20,6 +20,8 @@ interface VercelDomainResponse {
   verified: boolean
   createdAt: number
   updatedAt: number
+  redirect?: string
+  redirectStatusCode?: number
 }
 
 
@@ -245,6 +247,42 @@ export async function setPrimaryDomain(domain: string): Promise<void> {
       throw error
     }
     throw new VercelDomainError(`Failed to set primary domain: ${error}`)
+  }
+}
+
+export async function ensurePrimaryDomain(): Promise<void> {
+  try {
+    console.log('🔒 Ensuring from.cafe is the primary domain...')
+    await setPrimaryDomain('from.cafe')
+    console.log('✅ Primary domain set to from.cafe')
+  } catch (error) {
+    console.error('❌ Failed to ensure primary domain:', error)
+    // Don't throw - this is a protection mechanism, not critical
+  }
+}
+
+export async function validateDomainRedirect(domain: string): Promise<boolean> {
+  try {
+    const domainStatus = await getDomainStatus(domain)
+    
+    if (!domainStatus) {
+      console.log(`⚠️ Domain ${domain} not found in Vercel project`)
+      return false
+    }
+
+    // Check if domain has redirect configuration
+    const hasRedirect = domainStatus.redirect && domainStatus.redirect.includes('from.cafe')
+    
+    if (!hasRedirect) {
+      console.log(`⚠️ Domain ${domain} is not configured as redirect to from.cafe`)
+      return false
+    }
+
+    console.log(`✅ Domain ${domain} properly configured as redirect to from.cafe`)
+    return true
+  } catch (error) {
+    console.error(`❌ Failed to validate redirect for ${domain}:`, error)
+    return false
   }
 }
 

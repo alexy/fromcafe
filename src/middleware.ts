@@ -43,8 +43,21 @@ export async function middleware(request: NextRequest) {
       // Custom domain root - show blog
       url.pathname = `/custom-domain`
     } else {
-      // Custom domain with path - probably a post
-      url.pathname = `/custom-domain${pathname}`
+      // Custom domain with path - extract clean slug
+      // Handle both clean URLs (/post-slug) and complex URLs (/user/blog/post-slug)
+      const pathSegments = pathname.split('/').filter(Boolean)
+      
+      if (pathSegments.length === 1) {
+        // Already clean: /post-slug
+        url.pathname = `/custom-domain/${pathSegments[0]}`
+      } else if (pathSegments.length >= 3) {
+        // Complex path: /user/blog/post-slug -> extract post-slug
+        const postSlug = pathSegments[pathSegments.length - 1]
+        url.pathname = `/custom-domain/${postSlug}`
+      } else {
+        // Fallback: preserve path as-is
+        url.pathname = `/custom-domain${pathname}`
+      }
     }
     console.log('🔄 Rewriting custom domain:', pathname, '→', url.pathname)
     return NextResponse.rewrite(url)
