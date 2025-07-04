@@ -18,7 +18,7 @@ export default function ModernBlogLayout({ blog, posts, hostname }: BlogThemePro
                 {blog.title.charAt(0).toUpperCase()}
               </div>
               <p className="text-gray-700 ml-3 font-medium">
-                {blog.title}
+                {blog.author || blog.title}
               </p>
             </div>
           </div>

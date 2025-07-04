@@ -105,7 +105,7 @@ export default function VintagePostLayout({ blog, post, hostname }: PostThemePro
                     BY
                   </p>
                   <p className="text-lg font-bold" style={{fontFamily: 'Georgia, "Times New Roman", serif'}}>
-                    {blog.title}
+                    {blog.author || blog.title}
                   </p>
                 </div>
                 
@@ -254,12 +254,16 @@ export default function VintagePostLayout({ blog, post, hostname }: PostThemePro
               <div className="w-16 h-0.5 bg-amber-800"></div>
             </div>
           </div>
-          <p className="text-amber-700 text-sm" style={{
-            fontFamily: 'Georgia, "Times New Roman", serif',
-            letterSpacing: '0.1em'
-          }}>
+          <a
+            href={getBlogUrl(blog.userSlug, blog.slug, hostname)}
+            className="text-amber-700 hover:text-amber-600 text-sm transition-colors border-b border-amber-700 hover:border-amber-600"
+            style={{
+              fontFamily: 'Georgia, "Times New Roman", serif',
+              letterSpacing: '0.1em'
+            }}
+          >
             ~ Return to Publication Index ~
-          </p>
+          </a>
         </div>
       </footer>
     </div>

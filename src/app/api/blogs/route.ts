@@ -60,6 +60,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Title and slug are required' }, { status: 400 })
     }
 
+    // Get user information for default author
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, displayName: true }
+    })
+
     // Validate blog slug format and reserved words
     const slugValidation = validateBlogSlug(slug)
     if (!slugValidation.valid) {
@@ -101,6 +107,7 @@ export async function POST(request: NextRequest) {
         title,
         description,
         slug,
+        author: user?.displayName || user?.name || 'Anonymous',
         evernoteNotebook,
         isPublic: isPublic !== undefined ? isPublic : true,
       },

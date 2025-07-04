@@ -51,12 +51,13 @@ export async function PUT(
   try {
     const resolvedParams = await params
     const body = await request.json()
-    const { title, description, isPublic, evernoteNotebook, theme } = body
+    const { title, description, author, isPublic, evernoteNotebook, theme } = body
     
     // Build update object with only provided fields
     const updateData: { 
       title?: string; 
       description?: string; 
+      author?: string;
       isPublic?: boolean; 
       evernoteNotebook?: string | null;
       evernoteWebhookId?: string | null;
@@ -65,6 +66,7 @@ export async function PUT(
     
     if (title !== undefined) updateData.title = title
     if (description !== undefined) updateData.description = description
+    if (author !== undefined) updateData.author = author
     if (isPublic !== undefined) updateData.isPublic = isPublic
     if (evernoteNotebook !== undefined) updateData.evernoteNotebook = evernoteNotebook
     if (theme !== undefined) updateData.theme = theme

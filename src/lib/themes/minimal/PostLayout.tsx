@@ -29,7 +29,7 @@ export default function MinimalPostLayout({ blog, post, hostname }: PostThemePro
           </h1>
           
           <p className="text-sm text-gray-500 mt-6">
-            By {blog.title}
+            By {blog.author || blog.title}
           </p>
         </header>
 

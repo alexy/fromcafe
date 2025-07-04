@@ -11,7 +11,7 @@ export default function DefaultBlogLayout({ blog, posts, hostname }: BlogThemePr
             <p className="text-xl text-white">{blog.description}</p>
           )}
           <p className="text-sm text-gray-200 mt-4">
-            From the {blog.title} blog
+            From the {blog.title} blog by {blog.author || 'Unknown Author'}
           </p>
         </div>
       </header>

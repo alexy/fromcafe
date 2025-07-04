@@ -89,6 +89,7 @@ model Blog {
   title               String
   description         String?
   slug                String    
+  author              String?   // Author name for byline, defaults to user name
   customDomain        String?   @unique
   evernoteNotebook    String?
   evernoteWebhookId   String?

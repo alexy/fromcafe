@@ -74,7 +74,7 @@ export default function VintageBlogLayout({ blog, posts, hostname }: BlogThemePr
                 fontFamily: 'Georgia, "Times New Roman", serif',
                 letterSpacing: '0.1em'
               }}>
-                Published by {blog.title}
+                Published by {blog.author || blog.title}
               </p>
             </div>
 

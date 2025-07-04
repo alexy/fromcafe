@@ -3,6 +3,7 @@ export interface BlogData {
   title: string
   description: string | null | undefined
   slug: string
+  author?: string
   customDomain: string | null | undefined
   theme: string
   isPublic: boolean

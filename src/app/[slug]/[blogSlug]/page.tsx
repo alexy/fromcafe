@@ -62,6 +62,7 @@ export default async function UserBlogPage({ params }: UserBlogPageProps) {
     title: blog.title,
     description: blog.description ?? undefined,
     slug: blog.slug,
+    author: blog.author ?? undefined,
     customDomain: blog.customDomain ?? undefined,
     theme: blog.theme,
     isPublic: blog.isPublic,

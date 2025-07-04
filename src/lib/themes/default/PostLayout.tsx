@@ -17,7 +17,7 @@ export default function DefaultPostLayout({ blog, post, hostname }: PostThemePro
           </nav>
           <h1 className="text-4xl font-bold mb-2">{post.title}</h1>
           <div className="text-gray-300">
-            <p>By {blog.title}</p>
+            <p>By {blog.author || blog.title}</p>
             <time className="text-sm">
               {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString() : ''}
             </time>

@@ -11,6 +11,7 @@ interface Blog {
   title: string
   slug: string
   description: string
+  author?: string
   customDomain?: string
   evernoteNotebook?: string
   theme: string
@@ -43,12 +44,14 @@ export default function BlogSettings() {
   
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [author, setAuthor] = useState('')
   const [isPublic, setIsPublic] = useState(true)
   const [theme, setTheme] = useState('default')
   
   // Track original values for change detection
   const [originalTitle, setOriginalTitle] = useState('')
   const [originalDescription, setOriginalDescription] = useState('')
+  const [originalAuthor, setOriginalAuthor] = useState('')
   const [originalIsPublic, setOriginalIsPublic] = useState(true)
   const [originalTheme, setOriginalTheme] = useState('default')
   const [notebooks, setNotebooks] = useState<Array<{guid: string, name: string}>>([])
@@ -69,12 +72,14 @@ export default function BlogSettings() {
         setBlog(data.blog)
         setTitle(data.blog.title)
         setDescription(data.blog.description || '')
+        setAuthor(data.blog.author || '')
         setIsPublic(data.blog.isPublic)
         setTheme(data.blog.theme || 'default')
         
         // Set original values for change detection
         setOriginalTitle(data.blog.title)
         setOriginalDescription(data.blog.description || '')
+        setOriginalAuthor(data.blog.author || '')
         setOriginalIsPublic(data.blog.isPublic)
         setOriginalTheme(data.blog.theme || 'default')
         
@@ -335,13 +340,16 @@ export default function BlogSettings() {
 
   const handleSave = async () => {
     // Build object with only changed fields
-    const changes: { title?: string; description?: string; isPublic?: boolean; theme?: string } = {}
+    const changes: { title?: string; description?: string; author?: string; isPublic?: boolean; theme?: string } = {}
     
     if (title !== originalTitle) {
       changes.title = title
     }
     if (description !== originalDescription) {
       changes.description = description
+    }
+    if (author !== originalAuthor) {
+      changes.author = author
     }
     if (isPublic !== originalIsPublic) {
       changes.isPublic = isPublic
@@ -373,6 +381,7 @@ export default function BlogSettings() {
         // Update original values after successful save
         setOriginalTitle(title)
         setOriginalDescription(description)
+        setOriginalAuthor(author)
         setOriginalIsPublic(isPublic)
         setOriginalTheme(theme)
         
@@ -491,7 +500,7 @@ export default function BlogSettings() {
 
               <div>
                 <label htmlFor="description" className="block text-sm font-medium text-black mb-2">
-                  Description
+                  Subtitle
                 </label>
                 <textarea
                   id="description"
@@ -499,6 +508,21 @@ export default function BlogSettings() {
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                  placeholder="Optional subtitle displayed under the blog name"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="author" className="block text-sm font-medium text-black mb-2">
+                  Author
+                </label>
+                <input
+                  type="text"
+                  id="author"
+                  value={author}
+                  onChange={(e) => setAuthor(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                  placeholder="Author name for byline"
                 />
               </div>
 
