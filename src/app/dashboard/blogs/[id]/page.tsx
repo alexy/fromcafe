@@ -719,53 +719,27 @@ export default function BlogSettings() {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-black mb-1">Blog URLs</label>
+                <label className="block text-sm font-medium text-black mb-1">Current Blog URL</label>
                 {userBlogSpace ? (
                   <div className="space-y-2">
                     <div className="text-sm">
                       <div className="flex items-center space-x-2">
-                        {userBlogSpace.useSubdomain ? (
-                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        ) : (
-                          <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                        )}
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                         <span className="font-medium text-black">
-                          {userBlogSpace.useSubdomain ? 'Subdomain URL (Active)' : 'Path URL (Active)'}
+                          Active URL ({blog.urlFormat || 'path'} format)
                         </span>
                       </div>
                       <div className="ml-4 text-black font-mono text-xs bg-gray-100 px-2 py-1 rounded mt-1">
-                        {getBlogUrl(userBlogSpace, blog.slug)}
-                      </div>
-                    </div>
-                    
-                    <div className="text-sm">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
-                        <span className="text-gray-600">
-                          {userBlogSpace.useSubdomain ? 'Path URL (Alternative)' : 'Subdomain URL (Alternative)'}
-                        </span>
-                      </div>
-                      <div className="ml-4 text-gray-600 font-mono text-xs bg-gray-50 px-2 py-1 rounded mt-1">
-                        {userBlogSpace.useSubdomain 
-                          ? `https://from.cafe/${userBlogSpace.slug}/${blog.slug}`
-                          : userBlogSpace.subdomain 
-                            ? `https://${userBlogSpace.subdomain}.from.cafe/${blog.slug}`
-                            : `https://${userBlogSpace.slug}.from.cafe/${blog.slug}`
-                        }
+                        {getBlogUrl(blog, userBlogSpace.slug)}
                       </div>
                     </div>
                     
                     <div className="text-xs text-gray-500 mt-2">
-                      <Link 
-                        href="/dashboard/settings" 
-                        className="text-blue-600 hover:text-blue-800 underline"
-                      >
-                        Change URL format in Settings →
-                      </Link>
+                      URL format can be changed in the settings below
                     </div>
                   </div>
                 ) : (
-                  <p className="text-black">/blog/{blog.slug}</p>
+                  <p className="text-black">Loading...</p>
                 )}
               </div>
 
