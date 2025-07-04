@@ -20,6 +20,8 @@ export async function GET() {
         slug: true,
         description: true,
         customDomain: true,
+        subdomain: true,
+        urlFormat: true,
         evernoteNotebook: true,
         evernoteWebhookId: true,
         isPublic: true,

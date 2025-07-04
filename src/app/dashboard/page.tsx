@@ -625,7 +625,7 @@ export default function Dashboard() {
                         View Blog
                       </a>
                       <span className="text-xs text-gray-400">
-                        ({userBlogSpace.useSubdomain ? 'subdomain' : 'path'})
+                        ({blog.urlFormat || 'path'})
                       </span>
                     </div>
                   ) : (
