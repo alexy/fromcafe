@@ -2,12 +2,8 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const hostname = request.headers.get('host') || ''
   const pathname = request.nextUrl.pathname
-  
-  // Debug logging for admin routes
-  if (pathname.startsWith('/admin')) {
-    console.log('🛡️ Middleware handling admin route:', pathname)
-  }
   
   // Skip middleware for API routes, static files, and special Next.js routes
   if (
@@ -20,34 +16,78 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
   
-  // Skip middleware for auth routes
-  if (pathname.startsWith('/auth/')) {
+  // Extract subdomain from hostname
+  const subdomain = getSubdomain(hostname)
+  
+  // Skip subdomain routing for main domain paths
+  if (!subdomain) {
+    // Main domain - allow normal routing for auth, admin, dashboard
+    if (
+      pathname.startsWith('/auth/') ||
+      pathname.startsWith('/admin') ||
+      pathname.startsWith('/dashboard') ||
+      pathname.startsWith('/onboarding') ||
+      pathname === '/'
+    ) {
+      return NextResponse.next()
+    }
+    
+    // Legacy blog routes for backwards compatibility
+    if (pathname.startsWith('/blog/')) {
+      return NextResponse.next()
+    }
+    
+    // Path-based user routing (/{userSlug}/{blogSlug})
     return NextResponse.next()
   }
   
-  // Skip middleware for admin routes
-  if (pathname.startsWith('/admin')) {
-    return NextResponse.next()
+  // Subdomain detected - rewrite to user blog space
+  console.log('🌐 Subdomain detected:', subdomain, 'for path:', pathname)
+  
+  // For subdomain, rewrite to the user's blog space
+  const url = request.nextUrl.clone()
+  
+  // If accessing root of subdomain, show user's blog list page
+  if (pathname === '/') {
+    url.pathname = `/${subdomain}`
+    console.log('🔄 Rewriting subdomain root to user page:', url.pathname)
+    return NextResponse.rewrite(url)
   }
   
-  // Skip middleware for dashboard routes (keep existing behavior)
-  if (pathname.startsWith('/dashboard/')) {
-    return NextResponse.next()
+  // If accessing specific path on subdomain, treat as blog/post
+  // tales.from.cafe/my-blog -> /tales/my-blog
+  url.pathname = `/${subdomain}${pathname}`
+  console.log('🔄 Rewriting subdomain path:', pathname, 'to:', url.pathname)
+  return NextResponse.rewrite(url)
+}
+
+// Helper function to extract subdomain from hostname
+function getSubdomain(hostname: string): string | null {
+  // Remove port if present
+  const host = hostname.split(':')[0]
+  
+  // Check for subdomain patterns
+  if (host.includes('.from.cafe')) {
+    const subdomain = host.replace('.from.cafe', '')
+    // Skip www and root domain
+    if (subdomain && subdomain !== 'www' && subdomain !== 'from') {
+      return subdomain
+    }
   }
   
-  // Skip middleware for legacy blog routes (keep existing behavior)
-  if (pathname.startsWith('/blog/')) {
-    return NextResponse.next()
+  // For Vercel preview deployments (optional)
+  if (host.includes('.vercel.app')) {
+    const parts = host.split('.')
+    if (parts.length > 3) {
+      // Extract subdomain from vercel preview URLs like tales-app.vercel.app
+      const subdomain = parts[0].split('-')[0]
+      if (subdomain && subdomain !== 'www') {
+        return subdomain
+      }
+    }
   }
   
-  // Skip middleware for tenant routes (already path-based)
-  if (pathname.startsWith('/tenant/')) {
-    return NextResponse.next()
-  }
-  
-  // For now, just pass through - we'll implement subdomain handling later
-  // when we deploy to Vercel and test actual subdomain routing
-  return NextResponse.next()
+  return null
 }
 
 export const config = {

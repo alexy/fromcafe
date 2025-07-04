@@ -22,7 +22,12 @@ const nextConfig: NextConfig = {
       }
     }
     return config
-  }
+  },
+  // Enable experimental features for better subdomain support
+  experimental: {
+    // Enable middleware runtime for better performance
+    middlewareSource: true,
+  },
 };
 
 export default nextConfig;
