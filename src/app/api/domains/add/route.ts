@@ -15,14 +15,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { domain, blogId } = body
 
+    console.log('Adding domain:', { domain, blogId, userId: session.user.id })
+
     if (!domain || !blogId) {
       return NextResponse.json({ error: 'Domain and blogId are required' }, { status: 400 })
     }
 
-    // Validate domain format
-    const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])*$/
-    if (!domainRegex.test(domain)) {
-      return NextResponse.json({ error: 'Invalid domain format' }, { status: 400 })
+    // Validate domain format - simple but effective validation
+    const domainRegex = /^[a-zA-Z0-9-]+\.[a-zA-Z]{2,}$/
+    if (!domainRegex.test(domain) || domain.length > 253 || domain.includes('..') || domain.startsWith('-') || domain.endsWith('-')) {
+      return NextResponse.json({ 
+        error: 'Invalid domain format. Please enter a valid domain like example.com',
+        provided: domain,
+        debug: 'Domain validation failed'
+      }, { status: 400 })
     }
 
     // Check if user owns the blog
