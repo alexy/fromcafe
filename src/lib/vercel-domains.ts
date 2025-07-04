@@ -3,6 +3,8 @@
  * Based on: https://vercel.com/docs/multi-tenant/domain-management#adding-a-domain-programmatically
  */
 
+import { getPrimaryDomain, getRedirectStatusCode } from '@/config/domains'
+
 const VERCEL_API_TOKEN = process.env.VERCEL_API_TOKEN
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID
 const VERCEL_PROJECT_ID = process.env.VERCEL_PROJECT_ID
@@ -65,8 +67,8 @@ export async function addDomainToVercel(domain: string): Promise<VercelDomainRes
       method: 'POST',
       body: JSON.stringify({
         name: domain,
-        redirect: 'from.cafe',
-        redirectStatusCode: 307
+        redirect: getPrimaryDomain(),
+        redirectStatusCode: getRedirectStatusCode()
         // Redirect custom domains to primary domain for proper routing
       })
     })
@@ -252,9 +254,10 @@ export async function setPrimaryDomain(domain: string): Promise<void> {
 
 export async function ensurePrimaryDomain(): Promise<void> {
   try {
-    console.log('🔒 Ensuring from.cafe is the primary domain...')
-    await setPrimaryDomain('from.cafe')
-    console.log('✅ Primary domain set to from.cafe')
+    const primaryDomain = getPrimaryDomain()
+    console.log(`🔒 Ensuring ${primaryDomain} is the primary domain...`)
+    await setPrimaryDomain(primaryDomain)
+    console.log(`✅ Primary domain set to ${primaryDomain}`)
   } catch (error) {
     console.error('❌ Failed to ensure primary domain:', error)
     // Don't throw - this is a protection mechanism, not critical
@@ -271,14 +274,15 @@ export async function validateDomainRedirect(domain: string): Promise<boolean> {
     }
 
     // Check if domain has redirect configuration
-    const hasRedirect = domainStatus.redirect && domainStatus.redirect.includes('from.cafe')
+    const primaryDomain = getPrimaryDomain()
+    const hasRedirect = domainStatus.redirect && domainStatus.redirect.includes(primaryDomain)
     
     if (!hasRedirect) {
-      console.log(`⚠️ Domain ${domain} is not configured as redirect to from.cafe`)
+      console.log(`⚠️ Domain ${domain} is not configured as redirect to ${primaryDomain}`)
       return false
     }
 
-    console.log(`✅ Domain ${domain} properly configured as redirect to from.cafe`)
+    console.log(`✅ Domain ${domain} properly configured as redirect to ${primaryDomain}`)
     return true
   } catch (error) {
     console.error(`❌ Failed to validate redirect for ${domain}:`, error)

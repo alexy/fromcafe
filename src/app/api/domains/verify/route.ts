@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getDomainStatus, verifyDomain } from '@/lib/vercel-domains'
 import { promises as dns } from 'dns'
+import { getPrimaryDomain } from '@/config/domains'
 
 interface VerificationReport {
   success: boolean
@@ -189,25 +190,27 @@ async function performDomainVerification(domain: string): Promise<VerificationRe
       })
       
       if (response.status === 307 || response.status === 308) {
-        // Check if redirect goes to from.cafe
+        // Check if redirect goes to primary domain
+        const primaryDomain = getPrimaryDomain()
         const location = response.headers.get('location')
-        if (location && location.includes('from.cafe')) {
+        if (location && location.includes(primaryDomain)) {
           report.checks.domainRouting = {
             status: 'pass',
-            message: `Domain correctly redirects to from.cafe (${response.status} → ${location})`
+            message: `Domain correctly redirects to ${primaryDomain} (${response.status} → ${location})`
           }
         } else {
           report.checks.domainRouting = {
             status: 'warn',
-            message: `Domain redirects but not to from.cafe (${response.status} → ${location || 'unknown'})`
+            message: `Domain redirects but not to ${primaryDomain} (${response.status} → ${location || 'unknown'})`
           }
         }
       } else if (response.status >= 200 && response.status < 300) {
+        const primaryDomain = getPrimaryDomain()
         report.checks.domainRouting = {
           status: 'warn',
-          message: 'Domain serves content directly (no redirect to from.cafe). This may cause routing issues.'
+          message: `Domain serves content directly (no redirect to ${primaryDomain}). This may cause routing issues.`
         }
-        report.recommendations.push('Configure domain to redirect to from.cafe for proper routing')
+        report.recommendations.push(`Configure domain to redirect to ${primaryDomain} for proper routing`)
       } else if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get('location')
         report.checks.domainRouting = {

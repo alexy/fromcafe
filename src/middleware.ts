@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { isCustomDomain, getPrimaryDomain } from '@/config/domains'
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || ''
@@ -25,16 +26,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
   
-  // Check if this is a custom domain (not from.cafe or its subdomains)
-  const isCustomDomain = !hostname.includes('from.cafe') && !hostname.includes('localhost') && !hostname.includes('vercel.app')
+  // Check if this is a custom domain using configuration
+  const isCustomDomainHost = isCustomDomain(hostname)
   
-  if (isCustomDomain) {
+  if (isCustomDomainHost) {
     console.log('🌍 Custom domain detected:', hostname, 'for path:', pathname)
     
     // Prevent dashboard access on custom domains
     if (pathname.startsWith('/dashboard') || pathname.startsWith('/admin') || pathname.startsWith('/auth')) {
       console.log('🚫 Blocking admin path on custom domain:', pathname)
-      return NextResponse.redirect('https://from.cafe' + pathname)
+      return NextResponse.redirect(`https://${getPrimaryDomain()}${pathname}`)
     }
     
     // Route custom domain to custom domain handler
