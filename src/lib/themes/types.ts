@@ -35,11 +35,13 @@ export interface ThemeProps {
 export interface BlogThemeProps {
   blog: Omit<BlogData, 'posts'>
   posts: PostData[]
+  hostname?: string
 }
 
 export interface PostThemeProps {
   blog: Omit<BlogData, 'posts'>
   post: PostData
+  hostname?: string
 }
 
 export interface Theme {

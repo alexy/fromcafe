@@ -1,6 +1,7 @@
 import { BlogThemeProps } from '../types'
+import { getPostUrl } from '../../utils/urls'
 
-export default function DefaultBlogLayout({ blog, posts }: BlogThemeProps) {
+export default function DefaultBlogLayout({ blog, posts, hostname }: BlogThemeProps) {
   return (
     <div className="min-h-screen bg-white">
       <header className="bg-gray-900 text-white py-12">
@@ -27,7 +28,7 @@ export default function DefaultBlogLayout({ blog, posts }: BlogThemeProps) {
                 <header className="mb-4">
                   <h2 className="text-2xl font-bold mb-2">
                     <a
-                      href={`/${blog.userSlug}/${blog.slug}/${post.slug}`}
+                      href={getPostUrl(blog.userSlug, blog.slug, post.slug, hostname)}
                       className="text-black hover:text-blue-600 transition-colors"
                     >
                       {post.title}
@@ -42,7 +43,7 @@ export default function DefaultBlogLayout({ blog, posts }: BlogThemeProps) {
                 </div>
                 <footer className="mt-4">
                   <a
-                    href={`/${blog.userSlug}/${blog.slug}/${post.slug}`}
+                    href={getPostUrl(blog.userSlug, blog.slug, post.slug, hostname)}
                     className="text-blue-600 hover:text-blue-800 font-medium"
                   >
                     Read more →

@@ -1,6 +1,7 @@
 import { PostThemeProps } from '../types'
+import { getBlogUrl } from '../../utils/urls'
 
-export default function DefaultPostLayout({ blog, post }: PostThemeProps) {
+export default function DefaultPostLayout({ blog, post, hostname }: PostThemeProps) {
 
   return (
     <div className="min-h-screen bg-white">
@@ -8,7 +9,7 @@ export default function DefaultPostLayout({ blog, post }: PostThemeProps) {
         <div className="container mx-auto px-4">
           <nav className="mb-4">
             <a
-              href={`/${blog.userSlug}/${blog.slug}`}
+              href={getBlogUrl(blog.userSlug, blog.slug, hostname)}
               className="text-blue-400 hover:text-blue-300 transition-colors"
             >
               ← Back to {blog.title}

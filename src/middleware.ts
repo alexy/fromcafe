@@ -10,8 +10,17 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/favicon.ico') ||
+    pathname.startsWith('/apple-touch-icon') ||
     pathname === '/sitemap.xml' ||
-    pathname === '/robots.txt'
+    pathname === '/robots.txt' ||
+    pathname.endsWith('.png') ||
+    pathname.endsWith('.jpg') ||
+    pathname.endsWith('.jpeg') ||
+    pathname.endsWith('.gif') ||
+    pathname.endsWith('.svg') ||
+    pathname.endsWith('.ico') ||
+    pathname.endsWith('.xml') ||
+    pathname.endsWith('.txt')
   ) {
     return NextResponse.next()
   }
@@ -43,6 +52,12 @@ export async function middleware(request: NextRequest) {
   
   // Subdomain detected - rewrite to user blog space
   console.log('🌐 Subdomain detected:', subdomain, 'for path:', pathname)
+  
+  // Check if the path already includes the subdomain (to avoid double-rewriting)
+  if (pathname.startsWith(`/${subdomain}/`) || pathname === `/${subdomain}`) {
+    console.log('🔄 Path already includes subdomain, passing through:', pathname)
+    return NextResponse.next()
+  }
   
   // For subdomain, rewrite to the user's blog space
   const url = request.nextUrl.clone()

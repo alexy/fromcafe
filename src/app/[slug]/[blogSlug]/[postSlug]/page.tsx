@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { themes } from '@/lib/themes/registry'
 
 interface UserPostPageProps {
@@ -38,6 +39,9 @@ export async function generateMetadata({ params }: UserPostPageProps): Promise<M
 
 export default async function UserPostPage({ params }: UserPostPageProps) {
   const { slug, blogSlug, postSlug } = await params
+  const headersList = await headers()
+  const hostname = headersList.get('host') || ''
+  
   const post = await prisma.post.findFirst({
     where: { 
       slug: postSlug,
@@ -94,6 +98,7 @@ export default async function UserPostPage({ params }: UserPostPageProps) {
     <ThemeComponent
       post={postProps}
       blog={blogProps}
+      hostname={hostname}
     />
   )
 }
