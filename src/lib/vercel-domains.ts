@@ -62,8 +62,8 @@ export async function addDomainToVercel(domain: string): Promise<VercelDomainRes
     const response = await vercelRequest(`/v10/projects/${VERCEL_PROJECT_ID}/domains`, {
       method: 'POST',
       body: JSON.stringify({
-        name: domain,
-        gitBranch: 'main' // Use main branch for production
+        name: domain
+        // Don't specify gitBranch for production domains
       })
     })
 

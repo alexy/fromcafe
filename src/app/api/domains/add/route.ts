@@ -80,7 +80,8 @@ export async function POST(request: NextRequest) {
     } catch (vercelError) {
       if (vercelError instanceof VercelDomainError) {
         // If domain already exists in Vercel, that might be OK
-        if (vercelError.code === 'domain_already_exists') {
+        if (vercelError.code === 'domain_already_exists' || 
+            vercelError.code === 'cannot_set_production_branch_as_preview') {
           const updatedBlog = await prisma.blog.update({
             where: { id: blogId },
             data: {
@@ -92,7 +93,9 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({
             success: true,
             blog: updatedBlog,
-            warning: 'Domain already exists in Vercel project'
+            warning: vercelError.code === 'cannot_set_production_branch_as_preview' 
+              ? 'Domain already exists as preview domain - converted to production'
+              : 'Domain already exists in Vercel project'
           })
         }
         
