@@ -1,0 +1,216 @@
+import { notFound } from 'next/navigation'
+import { prisma } from '@/lib/prisma'
+import { Metadata } from 'next'
+import { themes } from '@/lib/themes/registry'
+
+// Shared blog query types
+export interface BlogQuery {
+  // For path-based blogs
+  userSlug?: string
+  blogSlug?: string
+  // For subdomain blogs
+  subdomain?: string
+  // For custom domain blogs
+  customDomain?: string
+}
+
+export interface PostQuery extends BlogQuery {
+  postSlug: string
+}
+
+// Shared blog data fetching
+export async function fetchBlogData(query: BlogQuery) {
+  let whereClause: any = {
+    isPublic: true
+  }
+
+  if (query.subdomain) {
+    // Subdomain blog
+    whereClause.subdomain = query.subdomain
+    whereClause.urlFormat = 'subdomain'
+  } else if (query.customDomain) {
+    // Custom domain blog
+    whereClause.customDomain = query.customDomain
+    whereClause.urlFormat = 'custom'
+  } else if (query.userSlug && query.blogSlug) {
+    // Path-based blog
+    whereClause.slug = query.blogSlug
+    whereClause.user = { slug: query.userSlug }
+  } else {
+    return null
+  }
+
+  const blog = await prisma.blog.findFirst({
+    where: whereClause,
+    include: {
+      user: true,
+      posts: {
+        where: { isPublished: true },
+        orderBy: { publishedAt: 'desc' }
+      }
+    }
+  })
+
+  if (!blog || !blog.user.isActive) {
+    return null
+  }
+
+  return blog
+}
+
+export async function fetchPostData(query: PostQuery) {
+  let whereClause: any = {
+    slug: query.postSlug,
+    isPublished: true
+  }
+
+  if (query.subdomain) {
+    // Subdomain blog
+    whereClause.blog = {
+      subdomain: query.subdomain,
+      urlFormat: 'subdomain',
+      isPublic: true
+    }
+  } else if (query.customDomain) {
+    // Custom domain blog
+    whereClause.blog = {
+      customDomain: query.customDomain,
+      urlFormat: 'custom',
+      isPublic: true
+    }
+  } else if (query.userSlug && query.blogSlug) {
+    // Path-based blog
+    whereClause.blog = {
+      slug: query.blogSlug,
+      user: { slug: query.userSlug },
+      isPublic: true
+    }
+  } else {
+    return null
+  }
+
+  const post = await prisma.post.findFirst({
+    where: whereClause,
+    include: { 
+      blog: { 
+        include: { user: true } 
+      } 
+    }
+  })
+
+  if (!post || !post.blog.user.isActive) {
+    return null
+  }
+
+  return post
+}
+
+// Shared metadata generation
+export function generateBlogMetadata(blog: any): Metadata {
+  return {
+    title: `${blog.title} - ${blog.user.displayName || 'FromCafe'}`,
+    description: blog.description || `${blog.title} blog`
+  }
+}
+
+export function generatePostMetadata(post: any): Metadata {
+  return {
+    title: `${post.title} - ${post.blog.title}`,
+    description: post.excerpt || `${post.title} from ${post.blog.title}`
+  }
+}
+
+// Shared rendering components
+interface BlogRendererProps {
+  blog: any
+  hostname: string
+}
+
+interface PostRendererProps {
+  post: any
+  hostname: string
+}
+
+export function BlogRenderer({ blog, hostname }: BlogRendererProps) {
+  // Get theme component
+  const ThemeComponent = themes[blog.theme as keyof typeof themes]?.components.BlogLayout || themes.default.components.BlogLayout
+
+  // Type-safe props with null to undefined conversion
+  const blogProps = {
+    id: blog.id,
+    title: blog.title,
+    description: blog.description ?? undefined,
+    slug: blog.slug,
+    author: blog.author ?? undefined,
+    customDomain: blog.customDomain ?? undefined,
+    theme: blog.theme,
+    isPublic: blog.isPublic,
+    createdAt: blog.createdAt,
+    updatedAt: blog.updatedAt,
+    userSlug: blog.user.slug ?? undefined
+  }
+
+  const postsProps = blog.posts.map((post: any) => ({
+    id: post.id,
+    title: post.title,
+    content: post.content,
+    excerpt: post.excerpt ?? undefined,
+    slug: post.slug,
+    isPublished: post.isPublished,
+    publishedAt: post.publishedAt,
+    createdAt: post.createdAt,
+    updatedAt: post.updatedAt,
+    blogSlug: blog.slug,
+    userSlug: blog.user.slug ?? undefined
+  }))
+
+  return (
+    <ThemeComponent
+      blog={blogProps}
+      posts={postsProps}
+      hostname={hostname}
+    />
+  )
+}
+
+export function PostRenderer({ post, hostname }: PostRendererProps) {
+  // Get theme component
+  const ThemeComponent = themes[post.blog.theme as keyof typeof themes]?.components.PostLayout || themes.default.components.PostLayout
+
+  // Type-safe props with null to undefined conversion
+  const postProps = {
+    id: post.id,
+    title: post.title,
+    content: post.content,
+    excerpt: post.excerpt ?? undefined,
+    slug: post.slug,
+    isPublished: post.isPublished,
+    publishedAt: post.publishedAt,
+    createdAt: post.createdAt,
+    updatedAt: post.updatedAt,
+    blogSlug: post.blog.slug,
+    userSlug: post.blog.user.slug ?? undefined
+  }
+
+  const blogProps = {
+    id: post.blog.id,
+    title: post.blog.title,
+    description: post.blog.description ?? undefined,
+    slug: post.blog.slug,
+    author: post.blog.author ?? undefined,
+    customDomain: post.blog.customDomain ?? undefined,
+    theme: post.blog.theme,
+    isPublic: post.blog.isPublic,
+    createdAt: post.blog.createdAt,
+    updatedAt: post.blog.updatedAt,
+    userSlug: post.blog.user.slug ?? undefined
+  }
+
+  return (
+    <ThemeComponent
+      post={postProps}
+      blog={blogProps}
+      hostname={hostname}
+    />
+  )
+}

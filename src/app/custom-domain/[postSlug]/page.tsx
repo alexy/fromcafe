@@ -3,14 +3,17 @@ import { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { fetchPostData, generatePostMetadata, PostRenderer } from '@/lib/blog/renderer'
 
-interface SubdomainPostPageProps {
-  params: Promise<{ subdomain: string; postSlug: string }>
+interface CustomDomainPostPageProps {
+  params: Promise<{ postSlug: string }>
 }
 
-export async function generateMetadata({ params }: SubdomainPostPageProps): Promise<Metadata> {
-  const { subdomain, postSlug } = await params
+export async function generateMetadata({ params }: CustomDomainPostPageProps): Promise<Metadata> {
+  const { postSlug } = await params
+  const headersList = await headers()
+  const hostname = headersList.get('host') || ''
+  
   const post = await fetchPostData({
-    subdomain: subdomain,
+    customDomain: hostname,
     postSlug: postSlug
   })
 
@@ -21,13 +24,13 @@ export async function generateMetadata({ params }: SubdomainPostPageProps): Prom
   return generatePostMetadata(post)
 }
 
-export default async function SubdomainPostPage({ params }: SubdomainPostPageProps) {
-  const { subdomain, postSlug } = await params
+export default async function CustomDomainPostPage({ params }: CustomDomainPostPageProps) {
+  const { postSlug } = await params
   const headersList = await headers()
   const hostname = headersList.get('host') || ''
   
   const post = await fetchPostData({
-    subdomain: subdomain,
+    customDomain: hostname,
     postSlug: postSlug
   })
 

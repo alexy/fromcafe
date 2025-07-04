@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
 import { Metadata } from 'next'
 import { headers } from 'next/headers'
-import { themes } from '@/lib/themes/registry'
+import { fetchBlogData, generateBlogMetadata, BlogRenderer } from '@/lib/blog/renderer'
 
 interface UserBlogPageProps {
   params: Promise<{ slug: string; blogSlug: string }>
@@ -10,23 +9,16 @@ interface UserBlogPageProps {
 
 export async function generateMetadata({ params }: UserBlogPageProps): Promise<Metadata> {
   const { slug, blogSlug } = await params
-  const blog = await prisma.blog.findFirst({
-    where: { 
-      slug: blogSlug,
-      user: { slug },
-      isPublic: true
-    },
-    include: { user: true }
+  const blog = await fetchBlogData({
+    userSlug: slug,
+    blogSlug: blogSlug
   })
 
   if (!blog) {
     return { title: 'Blog Not Found' }
   }
 
-  return {
-    title: `${blog.title} - ${blog.user.displayName || 'FromCafe'}`,
-    description: blog.description || `${blog.title} blog`
-  }
+  return generateBlogMetadata(blog)
 }
 
 export default async function UserBlogPage({ params }: UserBlogPageProps) {
@@ -34,62 +26,14 @@ export default async function UserBlogPage({ params }: UserBlogPageProps) {
   const headersList = await headers()
   const hostname = headersList.get('host') || ''
   
-  const blog = await prisma.blog.findFirst({
-    where: { 
-      slug: blogSlug,
-      user: { slug },
-      isPublic: true
-    },
-    include: {
-      user: true,
-      posts: {
-        where: { isPublished: true },
-        orderBy: { publishedAt: 'desc' }
-      }
-    }
+  const blog = await fetchBlogData({
+    userSlug: slug,
+    blogSlug: blogSlug
   })
 
-  if (!blog || !blog.user.isActive) {
+  if (!blog) {
     notFound()
   }
 
-  // Get theme component
-  const ThemeComponent = themes[blog.theme as keyof typeof themes]?.components.BlogLayout || themes.default.components.BlogLayout
-
-  // Type-safe props with null to undefined conversion
-  const blogProps = {
-    id: blog.id,
-    title: blog.title,
-    description: blog.description ?? undefined,
-    slug: blog.slug,
-    author: blog.author ?? undefined,
-    customDomain: blog.customDomain ?? undefined,
-    theme: blog.theme,
-    isPublic: blog.isPublic,
-    createdAt: blog.createdAt,
-    updatedAt: blog.updatedAt,
-    userSlug: blog.user.slug ?? undefined
-  }
-
-  const postsProps = blog.posts.map(post => ({
-    id: post.id,
-    title: post.title,
-    content: post.content,
-    excerpt: post.excerpt ?? undefined,
-    slug: post.slug,
-    isPublished: post.isPublished,
-    publishedAt: post.publishedAt,
-    createdAt: post.createdAt,
-    updatedAt: post.updatedAt,
-    blogSlug: blog.slug,
-    userSlug: blog.user.slug ?? undefined
-  }))
-
-  return (
-    <ThemeComponent
-      blog={blogProps}
-      posts={postsProps}
-      hostname={hostname}
-    />
-  )
+  return <BlogRenderer blog={blog} hostname={hostname} />
 }

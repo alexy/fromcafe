@@ -3,14 +3,14 @@ import { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { fetchBlogData, generateBlogMetadata, BlogRenderer } from '@/lib/blog/renderer'
 
-interface SubdomainBlogPageProps {
-  params: Promise<{ subdomain: string }>
-}
-
-export async function generateMetadata({ params }: SubdomainBlogPageProps): Promise<Metadata> {
-  const { subdomain } = await params
+// This page would be used for custom domain routing
+// e.g., when someone visits myblog.com directly
+export async function generateMetadata(): Promise<Metadata> {
+  const headersList = await headers()
+  const hostname = headersList.get('host') || ''
+  
   const blog = await fetchBlogData({
-    subdomain: subdomain
+    customDomain: hostname
   })
 
   if (!blog) {
@@ -20,13 +20,12 @@ export async function generateMetadata({ params }: SubdomainBlogPageProps): Prom
   return generateBlogMetadata(blog)
 }
 
-export default async function SubdomainBlogPage({ params }: SubdomainBlogPageProps) {
-  const { subdomain } = await params
+export default async function CustomDomainBlogPage() {
   const headersList = await headers()
   const hostname = headersList.get('host') || ''
   
   const blog = await fetchBlogData({
-    subdomain: subdomain
+    customDomain: hostname
   })
 
   if (!blog) {
