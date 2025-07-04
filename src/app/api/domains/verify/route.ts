@@ -12,7 +12,7 @@ interface VerificationReport {
   timestamp: string
   checks: {
     domainExists: { status: 'pass' | 'fail' | 'warn', message: string }
-    dnsRecords: { status: 'pass' | 'fail' | 'warn', message: string, records?: dns.AnyRecord[] }
+    dnsRecords: { status: 'pass' | 'fail' | 'warn', message: string, records?: string[] }
     vercelConfig: { status: 'pass' | 'fail' | 'warn', message: string }
     sslCertificate: { status: 'pass' | 'fail' | 'warn', message: string }
     domainRouting: { status: 'pass' | 'fail' | 'warn', message: string }
