@@ -26,6 +26,7 @@ model User {
   subdomain              String?   @unique  // Subdomain like user.from.cafe
   domain                 String?   @unique  // Custom domain
   displayName            String?             // Public display name for blog space
+  useSubdomain           Boolean   @default(false) // Whether to use subdomain URLs for View Blog links
   isActive               Boolean   @default(true)
   
   // Admin role

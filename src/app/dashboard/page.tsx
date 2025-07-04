@@ -19,6 +19,14 @@ interface Blog {
   }
 }
 
+// Helper function to determine the correct blog URL based on user preferences
+function getBlogUrl(userBlogSpace: {slug: string; subdomain?: string; useSubdomain?: boolean}, blogSlug: string): string {
+  if (userBlogSpace.useSubdomain && userBlogSpace.subdomain) {
+    return `https://${userBlogSpace.subdomain}.from.cafe/${blogSlug}`
+  }
+  return `https://from.cafe/${userBlogSpace.slug}/${blogSlug}`
+}
+
 export default function Dashboard() {
   console.log('📊 Dashboard component loaded!')
   const { data: session, status } = useSession()
@@ -33,7 +41,7 @@ export default function Dashboard() {
   const [syncingBlog, setSyncingBlog] = useState<string | null>(null)
   const [resettingSync, setResettingSync] = useState(false)
   const [postEvernoteAuth, setPostEvernoteAuth] = useState(false)
-  const [userBlogSpace, setUserBlogSpace] = useState<{slug: string; role?: string} | null>(null)
+  const [userBlogSpace, setUserBlogSpace] = useState<{slug: string; subdomain?: string; useSubdomain?: boolean; role?: string} | null>(null)
 
   useEffect(() => {
     // Check if user needs onboarding (no blog space)
@@ -416,6 +424,12 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
+              <button
+                onClick={() => router.push('/dashboard/settings')}
+                className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+              >
+                Settings
+              </button>
               {userBlogSpace?.role === 'ADMIN' && (
                 <button
                   onClick={() => router.push('/admin')}
@@ -584,7 +598,7 @@ export default function Dashboard() {
                 <div className="flex justify-between mt-4">
                   {userBlogSpace ? (
                     <a
-                      href={`https://${userBlogSpace.slug}.from.cafe/${blog.slug}`}
+                      href={getBlogUrl(userBlogSpace, blog.slug)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:text-blue-800"
@@ -592,7 +606,8 @@ export default function Dashboard() {
                         console.log('🔗 Clicking View Blog link:', {
                           userSlug: userBlogSpace.slug,
                           blogSlug: blog.slug,
-                          subdomainUrl: `https://${userBlogSpace.slug}.from.cafe/${blog.slug}`,
+                          useSubdomain: userBlogSpace.useSubdomain,
+                          url: getBlogUrl(userBlogSpace, blog.slug),
                           blogTitle: blog.title,
                           isPublic: blog.isPublic
                         })

@@ -22,6 +22,14 @@ interface Blog {
   }
 }
 
+// Helper function to determine the correct blog URL based on user preferences
+function getBlogUrl(userBlogSpace: {slug: string; subdomain?: string; useSubdomain?: boolean}, blogSlug: string): string {
+  if (userBlogSpace.useSubdomain && userBlogSpace.subdomain) {
+    return `https://${userBlogSpace.subdomain}.from.cafe/${blogSlug}`
+  }
+  return `https://from.cafe/${userBlogSpace.slug}/${blogSlug}`
+}
+
 export default function BlogSettings() {
   const { status } = useSession()
   const router = useRouter()
@@ -50,7 +58,7 @@ export default function BlogSettings() {
   const [showSyncResults, setShowSyncResults] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [resettingSync, setResettingSync] = useState(false)
-  const [userBlogSpace, setUserBlogSpace] = useState<{slug: string} | null>(null)
+  const [userBlogSpace, setUserBlogSpace] = useState<{slug: string; subdomain?: string; useSubdomain?: boolean} | null>(null)
 
   const fetchBlog = useCallback(async () => {
     try {
@@ -432,7 +440,7 @@ export default function BlogSettings() {
             <div className="flex items-center space-x-4">
               {userBlogSpace ? (
                 <a
-                  href={`https://${userBlogSpace.slug}.from.cafe/${blog.slug}`}
+                  href={getBlogUrl(userBlogSpace, blog.slug)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"

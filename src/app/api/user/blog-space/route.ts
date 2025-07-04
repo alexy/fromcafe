@@ -25,6 +25,7 @@ export async function GET() {
       slug: user.slug,
       subdomain: user.subdomain,
       domain: user.domain,
+      useSubdomain: user.useSubdomain,
       isActive: user.isActive,
       role: user.role
     })
@@ -36,6 +37,7 @@ export async function GET() {
         slug: user.slug,
         subdomain: user.subdomain,
         domain: user.domain,
+        useSubdomain: user.useSubdomain,
         isActive: user.isActive,
         role: user.role
       }
@@ -55,7 +57,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { name, subdomain, domain } = body
+    const { name, subdomain, domain, useSubdomain } = body
 
     // Get user
     const user = await prisma.user.findUnique({
@@ -66,11 +68,17 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'No blog space found for user' }, { status: 404 })
     }
 
+    // If user wants to use subdomain but hasn't set one, use their slug
+    let finalSubdomain = subdomain
+    if (useSubdomain && !subdomain) {
+      finalSubdomain = user.slug
+    }
+
     // Check if subdomain is already taken by another user
-    if (subdomain && subdomain !== user.subdomain) {
+    if (finalSubdomain && finalSubdomain !== user.subdomain) {
       const existingSubdomain = await prisma.user.findFirst({
         where: { 
-          subdomain,
+          subdomain: finalSubdomain,
           id: { not: user.id }
         }
       })
@@ -99,8 +107,9 @@ export async function PUT(request: NextRequest) {
       where: { id: user.id },
       data: {
         displayName: name,
-        subdomain,
-        domain
+        subdomain: finalSubdomain,
+        domain,
+        useSubdomain
       }
     })
 
@@ -111,6 +120,7 @@ export async function PUT(request: NextRequest) {
         slug: updatedUser.slug,
         subdomain: updatedUser.subdomain,
         domain: updatedUser.domain,
+        useSubdomain: updatedUser.useSubdomain,
         isActive: updatedUser.isActive,
         role: updatedUser.role
       }
