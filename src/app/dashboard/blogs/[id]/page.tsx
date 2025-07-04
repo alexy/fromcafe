@@ -896,7 +896,7 @@ export default function BlogSettings() {
                       </div>
                       
                       {/* Domain Status */}
-                      {urlFormat === 'custom' && domainStatus && domainStatus.verified !== undefined && (
+                      {urlFormat === 'custom' && domainStatus && domainStatus.verified !== undefined ? (
                         <div className={`mt-2 p-2 rounded text-sm ${
                           domainStatus.verified 
                             ? 'bg-green-50 text-green-800 border border-green-200'
@@ -922,7 +922,7 @@ export default function BlogSettings() {
                             </span>
                           </div>
                         </div>
-                      )}
+                      ) : null}
                       
                       {/* Detailed Verification Report */}
                       {verificationReport && typeof verificationReport === 'object' && showVerificationReport && (
