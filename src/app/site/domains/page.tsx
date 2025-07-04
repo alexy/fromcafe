@@ -51,7 +51,7 @@ export default function DomainInstructionsPage() {
                       <div className="grid grid-cols-4 gap-4">
                         <span className="font-semibold">A</span>
                         <span>@</span>
-                        <span className="text-blue-600">76.76.19.61</span>
+                        <span className="text-blue-600">216.198.79.1</span>
                         <span>300</span>
                       </div>
                     </div>

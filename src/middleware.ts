@@ -31,6 +31,12 @@ export async function middleware(request: NextRequest) {
   if (isCustomDomain) {
     console.log('🌍 Custom domain detected:', hostname, 'for path:', pathname)
     
+    // Prevent dashboard access on custom domains
+    if (pathname.startsWith('/dashboard') || pathname.startsWith('/admin') || pathname.startsWith('/auth')) {
+      console.log('🚫 Blocking admin path on custom domain:', pathname)
+      return NextResponse.redirect('https://from.cafe' + pathname)
+    }
+    
     // Route custom domain to custom domain handler
     const url = request.nextUrl.clone()
     if (pathname === '/') {
