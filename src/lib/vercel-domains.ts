@@ -22,13 +22,6 @@ interface VercelDomainResponse {
   updatedAt: number
 }
 
-interface VercelDomainConfig {
-  method: 'add' | 'remove'
-  name: string
-  projectId: string
-  redirect?: string
-  gitBranch?: string
-}
 
 class VercelDomainError extends Error {
   constructor(message: string, public status?: number, public code?: string) {
