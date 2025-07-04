@@ -239,7 +239,7 @@ export function BlogRenderer({ blog, hostname }: BlogRendererProps) {
     userSlug: blog.user.slug ?? undefined
   }
 
-  const postsProps = blog.posts.map((post: any) => ({
+  const postsProps = blog.posts.map((post) => ({
     id: post.id,
     title: post.title,
     content: post.content,
