@@ -5,8 +5,16 @@ import GoogleProvider from 'next-auth/providers/google'
 import { prisma } from '@/lib/prisma'
 
 
-// Let NextAuth handle URL detection automatically on Vercel
-// Don't override NEXTAUTH_URL - let Vercel's automatic detection work
+// Function to get the correct base URL
+function getBaseUrl() {
+  // In production, always use the custom domain
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.NEXTAUTH_URL || 'https://from.cafe'
+  }
+  
+  // In development, use localhost
+  return process.env.NEXTAUTH_URL || 'http://localhost:3000'
+}
 
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
@@ -18,6 +26,7 @@ export const authOptions = {
   ],
   debug: process.env.NODE_ENV === 'development',
   // Explicitly set base URL to prevent auto-detection issues
+  url: getBaseUrl(),
   ...(process.env.VERCEL && {
     trustHost: true,
     useSecureCookies: true,
@@ -58,31 +67,32 @@ export const authOptions = {
       return token
     },
     redirect: async ({ url, baseUrl }: { url: string; baseUrl: string }) => {
-      // Temporarily disabled to reduce log noise
-      // console.log('🔍 NextAuth redirect called:', { url, baseUrl })
+      // Use our custom base URL instead of auto-detected one
+      const customBaseUrl = getBaseUrl()
+      console.log('🔍 NextAuth redirect called:', { url, baseUrl, customBaseUrl })
       
-      // For relative URLs, use the baseUrl
+      // For relative URLs, use the custom baseUrl
       if (url.startsWith('/')) {
-        return `${baseUrl}${url}`
+        return `${customBaseUrl}${url}`
       }
       
-      // For absolute URLs that match our domain, allow them
-      if (url.startsWith(baseUrl)) {
+      // For absolute URLs that match our custom domain, allow them
+      if (url.startsWith(customBaseUrl)) {
         return url
       }
       
-      // If the URL contains admin, allow it
+      // If the URL contains admin, redirect to custom domain
       if (url.includes('/admin')) {
-        return url
+        return `${customBaseUrl}/admin`
       }
       
       // Don't redirect to dashboard if we're already on dashboard
-      if (url === `${baseUrl}/dashboard` || url.endsWith('/dashboard')) {
-        return url
+      if (url === `${customBaseUrl}/dashboard` || url.endsWith('/dashboard')) {
+        return `${customBaseUrl}/dashboard`
       }
       
       // For sign-in success without specific destination, go to dashboard
-      return `${baseUrl}/dashboard`
+      return `${customBaseUrl}/dashboard`
     },
   },
   session: {
