@@ -39,6 +39,17 @@ function getBlogUrl(blog: Blog, userSlug: string): string {
   return `https://from.cafe/${userSlug}/${blog.slug}`
 }
 
+// Helper function to generate URL preview based on current form state
+function getPreviewUrl(format: string, subdomain: string, customDomain: string, blogSlug: string, userSlug: string): string {
+  if (format === 'custom' && customDomain.trim()) {
+    return `https://${customDomain.trim()}`
+  }
+  if (format === 'subdomain' && subdomain.trim()) {
+    return `https://${subdomain.trim()}.from.cafe`
+  }
+  return `https://from.cafe/${userSlug}/${blogSlug}`
+}
+
 export default function BlogSettings() {
   const { status } = useSession()
   const router = useRouter()
@@ -389,6 +400,17 @@ export default function BlogSettings() {
       changes.customDomain = blogCustomDomain
     }
 
+    // Validate URL format requirements
+    if (urlFormat === 'subdomain' && !blogSubdomain.trim()) {
+      alert('Please enter a subdomain name for subdomain URLs.')
+      return
+    }
+    
+    if (urlFormat === 'custom' && !blogCustomDomain.trim()) {
+      alert('Please enter a custom domain for custom domain URLs.')
+      return
+    }
+
     // Check if any changes were made
     if (Object.keys(changes).length === 0) {
       alert('No changes made.')
@@ -723,13 +745,22 @@ export default function BlogSettings() {
                   <div className="space-y-2">
                     <div className="text-sm">
                       <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        {((urlFormat === 'subdomain' && !blogSubdomain.trim()) || 
+                          (urlFormat === 'custom' && !blogCustomDomain.trim())) ? (
+                          <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                        ) : (
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        )}
                         <span className="font-medium text-black">
-                          Active URL ({blog.urlFormat || 'path'} format)
+                          Active URL ({urlFormat} format)
+                          {((urlFormat === 'subdomain' && !blogSubdomain.trim()) || 
+                            (urlFormat === 'custom' && !blogCustomDomain.trim())) && (
+                            <span className="text-yellow-600 ml-1">- Incomplete</span>
+                          )}
                         </span>
                       </div>
                       <div className="ml-4 text-black font-mono text-xs bg-gray-100 px-2 py-1 rounded mt-1">
-                        {getBlogUrl(blog, userBlogSpace.slug)}
+                        {getPreviewUrl(urlFormat, blogSubdomain, blogCustomDomain, blog.slug, userBlogSpace.slug)}
                       </div>
                     </div>
                     

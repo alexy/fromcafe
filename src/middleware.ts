@@ -50,7 +50,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
   
-  // Subdomain detected - rewrite to user blog space
+  // Subdomain detected - could be user subdomain or blog subdomain
   console.log('🌐 Subdomain detected:', subdomain, 'for path:', pathname, 'from hostname:', hostname)
   
   // Check if the path already includes the subdomain (to avoid double-rewriting)
@@ -59,20 +59,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
   
-  // For subdomain, rewrite to the user's blog space
   const url = request.nextUrl.clone()
   
-  // If accessing root of subdomain, show user's blog list page
-  if (pathname === '/') {
-    url.pathname = `/${subdomain}`
-    console.log('🔄 Rewriting subdomain root:', pathname, '→', url.pathname)
-    return NextResponse.rewrite(url)
-  }
+  // For blog subdomains (like anthropology.from.cafe), we need to check if it's a blog
+  // and route directly to the blog content without user slug
   
-  // If accessing specific path on subdomain, treat as blog/post
-  // tales.from.cafe/anthropology/post → /tales/anthropology/post
-  url.pathname = `/${subdomain}${pathname}`
-  console.log('🔄 Rewriting subdomain path:', pathname, '→', url.pathname)
+  // First, try blog subdomain routing: subdomain.from.cafe → blog content
+  // We'll use a special route that can handle blog subdomains
+  url.pathname = `/blog-subdomain/${subdomain}${pathname}`
+  console.log('🔄 Rewriting blog subdomain:', pathname, '→', url.pathname)
   return NextResponse.rewrite(url)
 }
 
