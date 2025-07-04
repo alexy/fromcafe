@@ -1,4 +1,3 @@
-import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { Metadata } from 'next'
 import { themes } from '@/lib/themes/registry'
@@ -20,7 +19,14 @@ export interface PostQuery extends BlogQuery {
 
 // Shared blog data fetching
 export async function fetchBlogData(query: BlogQuery) {
-  let whereClause: any = {
+  const whereClause: {
+    isPublic: boolean
+    subdomain?: string
+    urlFormat?: string
+    customDomain?: string
+    slug?: string
+    user?: { slug: string }
+  } = {
     isPublic: true
   }
 
@@ -59,7 +65,18 @@ export async function fetchBlogData(query: BlogQuery) {
 }
 
 export async function fetchPostData(query: PostQuery) {
-  let whereClause: any = {
+  const whereClause: {
+    slug: string
+    isPublished: boolean
+    blog?: {
+      subdomain?: string
+      urlFormat?: string
+      isPublic?: boolean
+      customDomain?: string
+      slug?: string
+      user?: { slug: string }
+    }
+  } = {
     slug: query.postSlug,
     isPublished: true
   }
@@ -105,29 +122,101 @@ export async function fetchPostData(query: PostQuery) {
   return post
 }
 
+// Type definitions for blog and post data
+interface BlogData {
+  title: string
+  description?: string | null
+  user: {
+    displayName?: string | null
+  }
+}
+
+interface PostData {
+  title: string
+  excerpt?: string | null
+  blog: {
+    title: string
+  }
+}
+
 // Shared metadata generation
-export function generateBlogMetadata(blog: any): Metadata {
+export function generateBlogMetadata(blog: BlogData): Metadata {
   return {
     title: `${blog.title} - ${blog.user.displayName || 'FromCafe'}`,
     description: blog.description || `${blog.title} blog`
   }
 }
 
-export function generatePostMetadata(post: any): Metadata {
+export function generatePostMetadata(post: PostData): Metadata {
   return {
     title: `${post.title} - ${post.blog.title}`,
     description: post.excerpt || `${post.title} from ${post.blog.title}`
   }
 }
 
+// Type definitions for rendering components
+interface BlogWithPosts {
+  id: string
+  title: string
+  description?: string | null
+  slug: string
+  author?: string | null
+  customDomain?: string | null
+  theme: string
+  isPublic: boolean
+  createdAt: Date
+  updatedAt: Date
+  user: {
+    slug?: string | null
+  }
+  posts: Array<{
+    id: string
+    title: string
+    content: string
+    excerpt?: string | null
+    slug: string
+    isPublished: boolean
+    publishedAt: Date | null
+    createdAt: Date
+    updatedAt: Date
+  }>
+}
+
+interface PostWithBlog {
+  id: string
+  title: string
+  content: string
+  excerpt?: string | null
+  slug: string
+  isPublished: boolean
+  publishedAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+  blog: {
+    id: string
+    title: string
+    description?: string | null
+    slug: string
+    author?: string | null
+    customDomain?: string | null
+    theme: string
+    isPublic: boolean
+    createdAt: Date
+    updatedAt: Date
+    user: {
+      slug?: string | null
+    }
+  }
+}
+
 // Shared rendering components
 interface BlogRendererProps {
-  blog: any
+  blog: BlogWithPosts
   hostname: string
 }
 
 interface PostRendererProps {
-  post: any
+  post: PostWithBlog
   hostname: string
 }
 
