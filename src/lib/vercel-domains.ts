@@ -62,9 +62,10 @@ export async function addDomainToVercel(domain: string): Promise<VercelDomainRes
     const response = await vercelRequest(`/v10/projects/${VERCEL_PROJECT_ID}/domains`, {
       method: 'POST',
       body: JSON.stringify({
-        name: domain
-        // Don't specify gitBranch for production domains
-        // Custom domains should work independently, not redirect
+        name: domain,
+        redirect: 'from.cafe',
+        redirectStatusCode: 307
+        // Redirect custom domains to primary domain for proper routing
       })
     })
 
