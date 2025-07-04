@@ -53,7 +53,7 @@ export async function GET() {
 
       if (!testResponse.ok) {
         const errorData = await testResponse.json().catch(() => ({ error: 'Failed to parse error response' }))
-        apiTest.error = errorData
+        apiTest = { ...apiTest, error: errorData }
       }
     } catch (error) {
       apiTest = {
