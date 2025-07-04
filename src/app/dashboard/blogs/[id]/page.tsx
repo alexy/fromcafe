@@ -432,7 +432,7 @@ export default function BlogSettings() {
             <div className="flex items-center space-x-4">
               {userBlogSpace ? (
                 <a
-                  href={`/${userBlogSpace.slug}/${blog.slug}`}
+                  href={`https://${userBlogSpace.slug}.from.cafe/${blog.slug}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"

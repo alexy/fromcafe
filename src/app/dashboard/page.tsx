@@ -584,7 +584,7 @@ export default function Dashboard() {
                 <div className="flex justify-between mt-4">
                   {userBlogSpace ? (
                     <a
-                      href={`/${userBlogSpace.slug}/${blog.slug}`}
+                      href={`https://${userBlogSpace.slug}.from.cafe/${blog.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:text-blue-800"
@@ -592,7 +592,7 @@ export default function Dashboard() {
                         console.log('🔗 Clicking View Blog link:', {
                           userSlug: userBlogSpace.slug,
                           blogSlug: blog.slug,
-                          fullUrl: `/${userBlogSpace.slug}/${blog.slug}`,
+                          subdomainUrl: `https://${userBlogSpace.slug}.from.cafe/${blog.slug}`,
                           blogTitle: blog.title,
                           isPublic: blog.isPublic
                         })
