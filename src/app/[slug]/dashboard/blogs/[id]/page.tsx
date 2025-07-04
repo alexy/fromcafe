@@ -50,7 +50,6 @@ export default function BlogSettings() {
   const [showSyncResults, setShowSyncResults] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [resettingSync, setResettingSync] = useState(false)
-  const [userBlogSpace, setUserBlogSpace] = useState<{slug: string} | null>(null)
 
   const fetchBlog = useCallback(async () => {
     try {
@@ -88,20 +87,6 @@ export default function BlogSettings() {
       setLoading(false)
     }
   }, [blogId, router])
-
-  const fetchUserBlogSpace = useCallback(async () => {
-    try {
-      const response = await fetch('/api/user/blog-space')
-      if (response.ok) {
-        const data = await response.json()
-        if (data.user) {
-          setUserBlogSpace(data.user)
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching user blog space:', error)
-    }
-  }, [])
 
   useEffect(() => {
     // Check URL parameters for Evernote bypass mode (same as dashboard)
@@ -142,9 +127,8 @@ export default function BlogSettings() {
       router.push('/auth/signin')
     } else if ((isForceAuth || status === 'authenticated') && blogId) {
       fetchBlog()
-      fetchUserBlogSpace()
     }
-  }, [status, router, blogId, fetchBlog, fetchUserBlogSpace])
+  }, [status, router, blogId, fetchBlog])
 
   const fetchNotebooks = async () => {
     try {
@@ -430,20 +414,14 @@ export default function BlogSettings() {
               <p className="text-black font-semibold mt-1" style={{color: '#000000'}}>{blog.title}</p>
             </div>
             <div className="flex items-center space-x-4">
-              {userBlogSpace ? (
-                <a
-                  href={`/${userBlogSpace.slug}/${blog.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                >
-                  View Blog
-                </a>
-              ) : (
-                <span className="bg-gray-400 text-white px-4 py-2 rounded cursor-not-allowed">
-                  Loading...
-                </span>
-              )}
+              <a
+                href={`/blog/${blog.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+              >
+                View Blog
+              </a>
               <button
                 onClick={() => router.push('/dashboard')}
                 className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"

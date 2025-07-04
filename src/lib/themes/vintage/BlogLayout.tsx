@@ -73,7 +73,7 @@ export default function VintageBlogLayout({ blog, posts }: BlogThemeProps) {
                 fontFamily: 'Georgia, "Times New Roman", serif',
                 letterSpacing: '0.1em'
               }}>
-                Published by {blog.user.name || blog.user.email}
+                Published by {blog.title}
               </p>
             </div>
 
@@ -133,7 +133,7 @@ export default function VintageBlogLayout({ blog, posts }: BlogThemeProps) {
                         textShadow: '1px 1px 2px rgba(139, 69, 19, 0.1)'
                       }}>
                         <a
-                          href={`/blog/${blog.slug}/${post.slug}`}
+                          href={`/${blog.userSlug}/${blog.slug}/${post.slug}`}
                           className="hover:text-amber-700 transition-colors decoration-2 underline-offset-4 hover:underline"
                         >
                           {post.title}
@@ -162,7 +162,7 @@ export default function VintageBlogLayout({ blog, posts }: BlogThemeProps) {
 
                     <footer className="pt-4 border-t border-amber-300 border-dotted">
                       <a
-                        href={`/blog/${blog.slug}/${post.slug}`}
+                        href={`/${blog.userSlug}/${blog.slug}/${post.slug}`}
                         className="inline-flex items-center text-amber-800 hover:text-amber-600 font-semibold text-sm transition-colors group"
                         style={{fontFamily: 'Georgia, "Times New Roman", serif'}}
                       >

@@ -18,8 +18,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Slug parameter is required' }, { status: 400 })
     }
 
-    const existingBlog = await prisma.blog.findUnique({
-      where: { slug },
+    const existingBlog = await prisma.blog.findFirst({
+      where: { 
+        slug,
+        userId: session.user.id
+      },
     })
 
     return NextResponse.json({ exists: !!existingBlog })

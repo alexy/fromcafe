@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { validateBlogSlug, siteConfig } from '@/config/site'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -54,14 +55,43 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { title, description, slug, evernoteNotebook, isPublic } = body
 
-    // Check if slug already exists
+    // Validate required fields
+    if (!title || !slug) {
+      return NextResponse.json({ error: 'Title and slug are required' }, { status: 400 })
+    }
+
+    // Validate blog slug format and reserved words
+    const slugValidation = validateBlogSlug(slug)
+    if (!slugValidation.valid) {
+      return NextResponse.json({ error: slugValidation.error }, { status: 400 })
+    }
+
+    // Check user's blog limit
+    if (siteConfig.user.maxBlogs > 0) {
+      const userBlogCount = await prisma.blog.count({
+        where: { userId: session.user.id }
+      })
+      
+      if (userBlogCount >= siteConfig.user.maxBlogs) {
+        return NextResponse.json({ 
+          error: `You have reached the maximum limit of ${siteConfig.user.maxBlogs} blogs` 
+        }, { status: 400 })
+      }
+    }
+
+    // Check if slug already exists for this user
     const existingBlog = await prisma.blog.findUnique({
-      where: { slug },
+      where: { 
+        userId_slug: {
+          userId: session.user.id,
+          slug
+        }
+      },
     })
 
     if (existingBlog) {
       return NextResponse.json({ 
-        error: `A blog with the URL slug "${slug}" already exists. Please choose a different slug.` 
+        error: `You already have a blog with the URL slug "${slug}". Please choose a different slug.` 
       }, { status: 400 })
     }
 

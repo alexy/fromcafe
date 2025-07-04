@@ -20,6 +20,7 @@ interface Blog {
 }
 
 export default function Dashboard() {
+  console.log('📊 Dashboard component loaded!')
   const { data: session, status } = useSession()
   const router = useRouter()
   const [blogs, setBlogs] = useState<Blog[]>([])
@@ -32,8 +33,30 @@ export default function Dashboard() {
   const [syncingBlog, setSyncingBlog] = useState<string | null>(null)
   const [resettingSync, setResettingSync] = useState(false)
   const [postEvernoteAuth, setPostEvernoteAuth] = useState(false)
+  const [userBlogSpace, setUserBlogSpace] = useState<{slug: string; role?: string} | null>(null)
 
   useEffect(() => {
+    // Check if user needs onboarding (no blog space)
+    const checkBlogSpaceStatus = async () => {
+      if (status === 'authenticated') {
+        try {
+          const response = await fetch('/api/user/blog-space')
+          if (response.ok) {
+            const data = await response.json()
+            if (!data.user) {
+              router.push('/onboarding')
+              return
+            } else {
+              console.log('📍 Blog space data received:', data.user)
+              setUserBlogSpace(data.user)
+            }
+          }
+        } catch (error) {
+          console.error('Error checking blog space status:', error)
+        }
+      }
+    }
+
     // Check URL parameters for Evernote bypass mode
     const urlParams = new URLSearchParams(window.location.search)
     const evernoteBypass = urlParams.get('evernote_bypass') === 'true'
@@ -80,7 +103,9 @@ export default function Dashboard() {
       window.history.replaceState({}, document.title, '/dashboard')
       return
     }
-  }, [])
+
+    checkBlogSpaceStatus()
+  }, [status, router])
 
   useEffect(() => {
     // Skip NextAuth checks if in post-OAuth state
@@ -381,9 +406,24 @@ export default function Dashboard() {
           <div className="flex justify-between items-center py-6">
             <h1 className="text-3xl font-bold text-black">Dashboard</h1>
             <div className="flex items-center space-x-4">
-              <span className="text-black">
-                Welcome, {session?.user?.name || session?.user?.email}
-              </span>
+              <div className="text-right">
+                <div className="text-black">
+                  Welcome, {session?.user?.name || session?.user?.email}
+                </div>
+                {session?.user?.name && session?.user?.email && (
+                  <div className="text-sm text-gray-600">
+                    {session.user.email}
+                  </div>
+                )}
+              </div>
+              {userBlogSpace?.role === 'ADMIN' && (
+                <button
+                  onClick={() => router.push('/admin')}
+                  className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+                >
+                  Admin
+                </button>
+              )}
               <button
                 onClick={() => router.push('/api/auth/signout')}
                 className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
@@ -478,12 +518,6 @@ export default function Dashboard() {
           <h2 className="text-2xl font-bold text-black">Your Blogs</h2>
           <div className="flex gap-4">
             <button
-              onClick={() => router.push('/dashboard/tenants')}
-              className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
-            >
-              Manage Tenants
-            </button>
-            <button
               onClick={() => router.push('/dashboard/blogs/new')}
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
             >
@@ -548,14 +582,27 @@ export default function Dashboard() {
                 )}
                 
                 <div className="flex justify-between mt-4">
-                  <a
-                    href={`/blog/${blog.slug}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    View Blog
-                  </a>
+                  {userBlogSpace ? (
+                    <a
+                      href={`/${userBlogSpace.slug}/${blog.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800"
+                      onClick={() => {
+                        console.log('🔗 Clicking View Blog link:', {
+                          userSlug: userBlogSpace.slug,
+                          blogSlug: blog.slug,
+                          fullUrl: `/${userBlogSpace.slug}/${blog.slug}`,
+                          blogTitle: blog.title,
+                          isPublic: blog.isPublic
+                        })
+                      }}
+                    >
+                      View Blog
+                    </a>
+                  ) : (
+                    <span className="text-gray-400">Loading...</span>
+                  )}
                   <button
                     onClick={() => {
                       const editUrl = postEvernoteAuth 

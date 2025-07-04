@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  const hostname = request.headers.get('host')
   const pathname = request.nextUrl.pathname
+  
+  // Debug logging for admin routes
+  if (pathname.startsWith('/admin')) {
+    console.log('🛡️ Middleware handling admin route:', pathname)
+  }
   
   // Skip middleware for API routes, static files, and special Next.js routes
   if (
@@ -18,6 +22,11 @@ export async function middleware(request: NextRequest) {
   
   // Skip middleware for auth routes
   if (pathname.startsWith('/auth/')) {
+    return NextResponse.next()
+  }
+  
+  // Skip middleware for admin routes
+  if (pathname.startsWith('/admin')) {
     return NextResponse.next()
   }
   

@@ -10,7 +10,7 @@ export default function MinimalBlogLayout({ blog, posts }: BlogThemeProps) {
             <p className="text-lg text-gray-600 font-light">{blog.description}</p>
           )}
           <p className="text-sm text-gray-500 mt-6">
-            {blog.user.name || blog.user.email}
+            {blog.title}
           </p>
         </header>
 
@@ -33,7 +33,7 @@ export default function MinimalBlogLayout({ blog, posts }: BlogThemeProps) {
                     </time>
                     <h2 className="text-2xl font-light text-gray-900 mt-2 leading-tight">
                       <a
-                        href={`/blog/${blog.slug}/${post.slug}`}
+                        href={`/${blog.userSlug}/${blog.slug}/${post.slug}`}
                         className="hover:text-gray-600 transition-colors"
                       >
                         {post.title}
@@ -47,7 +47,7 @@ export default function MinimalBlogLayout({ blog, posts }: BlogThemeProps) {
                   )}
                   <footer>
                     <a
-                      href={`/blog/${blog.slug}/${post.slug}`}
+                      href={`/${blog.userSlug}/${blog.slug}/${post.slug}`}
                       className="text-sm text-gray-500 hover:text-gray-700 font-medium transition-colors"
                     >
                       Continue reading →

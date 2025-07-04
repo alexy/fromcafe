@@ -1,66 +1,17 @@
 import 'server-only'
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
 import { Metadata } from 'next'
-import { getTheme, getDefaultTheme } from '@/lib/themes/registry'
 
-interface PostPageProps {
-  params: Promise<{
-    slug: string
-    postSlug: string
-  }>
-}
-
-export async function generateMetadata({ params }: PostPageProps): Promise<Metadata> {
-  const resolvedParams = await params
-  const post = await prisma.post.findFirst({
-    where: {
-      slug: resolvedParams.postSlug,
-      blog: { slug: resolvedParams.slug },
-      isPublished: true,
-    },
-    include: { blog: true },
-  })
-
-  if (!post) {
-    return {
-      title: 'Post Not Found',
-    }
-  }
-
+export async function generateMetadata(): Promise<Metadata> {
+  // Legacy route no longer supported
   return {
-    title: `${post.title} | ${post.blog.title}`,
-    description: post.excerpt,
+    title: 'Post Not Found',
+    description: 'This post route is no longer supported. Please use tenant-based URLs.'
   }
 }
 
-export default async function PostPage({ params }: PostPageProps) {
-  const resolvedParams = await params
-  const post = await prisma.post.findFirst({
-    where: {
-      slug: resolvedParams.postSlug,
-      blog: { slug: resolvedParams.slug },
-      isPublished: true,
-    },
-    include: {
-      blog: {
-        include: { user: true },
-      },
-    },
-  })
-
-  if (!post || !post.blog.isPublic) {
-    notFound()
-  }
-
-  // Get the theme for this blog
-  const theme = getTheme(post.blog.theme) || getDefaultTheme()
-  const { PostLayout } = theme.components
-
-  return (
-    <PostLayout
-      blog={post.blog}
-      post={post}
-    />
-  )
+export default async function PostPage() {
+  // Legacy route - redirect to tenant-based routing
+  // Since blog slug is no longer globally unique, we can't resolve posts this way
+  notFound()
 }

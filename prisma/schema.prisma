@@ -20,12 +20,28 @@ model User {
   evernoteNoteStoreUrl   String?
   evernotePublishedTagGuid String?  // Cached GUID for "published" tag
   evernoteAccountId      String?   // Track which Evernote account the cache is for
+  
+  // Tenant properties merged into User
+  slug                   String?   @unique  // URL slug for user's blog space
+  subdomain              String?   @unique  // Subdomain like user.from.cafe
+  domain                 String?   @unique  // Custom domain
+  displayName            String?             // Public display name for blog space
+  isActive               Boolean   @default(true)
+  
+  // Admin role
+  role                   UserRole  @default(USER)
+  
   accounts               Account[]
   blogs                  Blog[]
   sessions               Session[]
-  tenantUsers            TenantUser[]
+  domains                Domain[]
 
   @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
 }
 
 model Account {
@@ -69,7 +85,6 @@ model VerificationToken {
 model Blog {
   id                  String    @id @default(cuid())
   userId              String
-  tenantId            String?
   title               String
   description         String?
   slug                String    
@@ -84,11 +99,9 @@ model Blog {
   lastSyncAttemptAt   DateTime?
   lastSyncUpdateCount Int?
   user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant              Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   domain              Domain?
   posts               Post[]
 
-  @@unique([tenantId, slug])
   @@unique([userId, slug])
   @@map("blogs")
 }
@@ -115,13 +128,13 @@ model Domain {
   id         String     @id @default(cuid())
   domain     String     @unique
   blogId     String?    @unique
-  tenantId   String?
+  userId     String?    
   type       DomainType @default(CUSTOM)
   isVerified Boolean    @default(false)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
   blog       Blog?      @relation(fields: [blogId], references: [id], onDelete: Cascade)
-  tenant     Tenant?    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("domains")
 }
@@ -129,38 +142,4 @@ model Domain {
 enum DomainType {
   CUSTOM
   SUBDOMAIN
-}
-
-model Tenant {
-  id          String       @id @default(cuid())
-  name        String
-  slug        String       @unique
-  subdomain   String?      @unique
-  domain      String?      @unique
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  tenantUsers TenantUser[]
-  blogs       Blog[]
-  domains     Domain[]
-
-  @@map("tenants")
-}
-
-model TenantUser {
-  id       String     @id @default(cuid())
-  userId   String
-  tenantId String
-  role     TenantRole @default(MEMBER)
-  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, tenantId])
-  @@map("tenant_users")
-}
-
-enum TenantRole {
-  OWNER
-  ADMIN
-  MEMBER
 }

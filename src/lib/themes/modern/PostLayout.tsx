@@ -7,7 +7,7 @@ export default function ModernPostLayout({ blog, post }: PostThemeProps) {
       <div className="max-w-4xl mx-auto px-4 py-12">
         <nav className="mb-8">
           <a
-            href={`/blog/${blog.slug}`}
+            href={`/${blog.userSlug}/${blog.slug}`}
             className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium transition-colors"
           >
             <svg className="mr-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -33,11 +33,11 @@ export default function ModernPostLayout({ blog, post }: PostThemeProps) {
             
             <div className="flex items-center mt-6">
               <div className="h-10 w-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                {(blog.user.name || blog.user.email).charAt(0).toUpperCase()}
+                {blog.title.charAt(0).toUpperCase()}
               </div>
               <div className="ml-3">
                 <p className="text-gray-700 font-medium">
-                  {blog.user.name || blog.user.email}
+                  {blog.title}
                 </p>
               </div>
             </div>

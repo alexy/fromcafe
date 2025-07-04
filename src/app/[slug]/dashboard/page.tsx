@@ -4,26 +4,24 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 
-interface TenantDashboardProps {
-  params: { slug: string }
+interface UserDashboardProps {
+  params: Promise<{ slug: string }>
 }
 
-export default async function TenantDashboard({ params }: TenantDashboardProps) {
+export default async function UserDashboard({ params }: UserDashboardProps) {
   const session = await getServerSession(authOptions)
   
   if (!session?.user?.id) {
     redirect('/auth/signin')
   }
 
-  const tenant = await prisma.tenant.findUnique({
-    where: { slug: params.slug },
-    include: {
-      tenantUsers: {
-        where: { userId: session.user.id },
-        select: { role: true }
-      },
+  const { slug } = await params
+
+  // Check if user owns this blog space
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    include: { 
       blogs: {
-        where: { userId: session.user.id },
         include: {
           _count: {
             select: { posts: true }
@@ -33,23 +31,39 @@ export default async function TenantDashboard({ params }: TenantDashboardProps) 
     }
   })
 
-  if (!tenant || tenant.tenantUsers.length === 0) {
+  if (!user?.slug || user.slug !== slug) {
     notFound()
   }
-
-  const userRole = tenant.tenantUsers[0].role
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">{tenant.name} Dashboard</h1>
-        <p className="text-gray-600">
-          Manage your blogs and content for {tenant.name}
-        </p>
-        <div className="mt-2">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-            {userRole}
-          </span>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">{user.displayName} Dashboard</h1>
+            <p className="text-gray-600">
+              Manage your blogs and content for {user.displayName}
+            </p>
+            <div className="mt-2">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                OWNER
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center space-x-4">
+            <Link
+              href="/dashboard"
+              className="text-gray-600 hover:text-gray-800 font-medium"
+            >
+              Main Dashboard
+            </Link>
+            <Link
+              href="/api/auth/signout"
+              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
+            >
+              Sign Out
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -59,19 +73,19 @@ export default async function TenantDashboard({ params }: TenantDashboardProps) 
           <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
           <div className="flex flex-wrap gap-4">
             <Link
-              href={`/tenant/${tenant.slug}/dashboard/blogs/new`}
+              href={`/${user.slug}/dashboard/blogs/new`}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
             >
               Create New Blog
             </Link>
             <Link
-              href={`/tenant/${tenant.slug}/dashboard/settings`}
+              href={`/${user.slug}/dashboard/settings`}
               className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
             >
-              Tenant Settings
+              Blog Settings
             </Link>
             <Link
-              href={`/tenant/${tenant.slug}`}
+              href={`/${user.slug}`}
               className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
             >
               View Public Page
@@ -84,18 +98,18 @@ export default async function TenantDashboard({ params }: TenantDashboardProps) 
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Your Blogs</h2>
             <Link
-              href={`/tenant/${tenant.slug}/dashboard/blogs/new`}
+              href={`/${user.slug}/dashboard/blogs/new`}
               className="text-blue-600 hover:text-blue-800 font-medium"
             >
               + New Blog
             </Link>
           </div>
           
-          {tenant.blogs.length === 0 ? (
+          {user.blogs.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">No blogs created yet</p>
               <Link
-                href={`/tenant/${tenant.slug}/dashboard/blogs/new`}
+                href={`/${user.slug}/dashboard/blogs/new`}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Create Your First Blog
@@ -103,7 +117,7 @@ export default async function TenantDashboard({ params }: TenantDashboardProps) 
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {tenant.blogs.map((blog) => (
+              {user.blogs.map((blog) => (
                 <div key={blog.id} className="border rounded-lg p-4">
                   <h3 className="font-semibold mb-2">{blog.title}</h3>
                   {blog.description && (
@@ -117,13 +131,13 @@ export default async function TenantDashboard({ params }: TenantDashboardProps) 
                   </div>
                   <div className="flex gap-2">
                     <Link
-                      href={`/tenant/${tenant.slug}/blog/${blog.slug}`}
+                      href={`/${user.slug}/${blog.slug}`}
                       className="text-blue-600 hover:text-blue-800 text-sm"
                     >
                       View
                     </Link>
                     <Link
-                      href={`/tenant/${tenant.slug}/dashboard/blogs/${blog.id}`}
+                      href={`/${user.slug}/dashboard/blogs/${blog.id}`}
                       className="text-gray-600 hover:text-gray-800 text-sm"
                     >
                       Edit

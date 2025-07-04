@@ -26,23 +26,40 @@ export const authOptions = {
     session: async ({ session, token }: { session: any; token: any }) => {
       if (session?.user) {
         session.user.id = token.sub!
+        session.user.role = token.role || 'USER'
+        session.user.isActive = token.isActive !== false
       }
       return session
     },
-    jwt: async ({ user, token }: { user: any; token: any }) => {
+    jwt: async ({ user, token, trigger }: { user: any; token: any; trigger?: string }) => {
       if (user) {
         token.uid = user.id
+        // Store initial role when user logs in
+        token.role = user.role || 'USER'
+        token.isActive = user.isActive !== false
       }
+      
+      // Refresh user data when token is updated (e.g., after role change)
+      if (trigger === 'update' && token.sub) {
+        try {
+          const updatedUser = await prisma.user.findUnique({
+            where: { id: token.sub },
+            select: { role: true, isActive: true }
+          })
+          if (updatedUser) {
+            token.role = updatedUser.role
+            token.isActive = updatedUser.isActive
+          }
+        } catch (error) {
+          console.error('Error updating token with latest user data:', error)
+        }
+      }
+      
       return token
     },
     redirect: async ({ url, baseUrl }: { url: string; baseUrl: string }) => {
-      console.log('NextAuth redirect:', { 
-        url, 
-        baseUrl,
-        NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-        VERCEL_URL: process.env.VERCEL_URL,
-        VERCEL_ENV: process.env.VERCEL_ENV 
-      })
+      // Temporarily disabled to reduce log noise
+      // console.log('🔍 NextAuth redirect called:', { url, baseUrl })
       
       // For relative URLs, use the baseUrl
       if (url.startsWith('/')) {
@@ -54,7 +71,17 @@ export const authOptions = {
         return url
       }
       
-      // Default to dashboard for any other case
+      // If the URL contains admin, allow it
+      if (url.includes('/admin')) {
+        return url
+      }
+      
+      // Don't redirect to dashboard if we're already on dashboard
+      if (url === `${baseUrl}/dashboard` || url.endsWith('/dashboard')) {
+        return url
+      }
+      
+      // For sign-in success without specific destination, go to dashboard
       return `${baseUrl}/dashboard`
     },
   },

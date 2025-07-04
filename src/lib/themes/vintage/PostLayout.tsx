@@ -19,7 +19,7 @@ export default function VintagePostLayout({ blog, post }: PostThemeProps) {
         <div className="max-w-4xl mx-auto px-6">
           <nav className="mb-4">
             <a
-              href={`/blog/${blog.slug}`}
+              href={`/${blog.userSlug}/${blog.slug}`}
               className="inline-flex items-center text-amber-800 hover:text-amber-600 font-semibold transition-colors group"
               style={{fontFamily: 'Georgia, "Times New Roman", serif'}}
             >
@@ -104,7 +104,7 @@ export default function VintagePostLayout({ blog, post }: PostThemeProps) {
                     BY
                   </p>
                   <p className="text-lg font-bold" style={{fontFamily: 'Georgia, "Times New Roman", serif'}}>
-                    {blog.user.name || blog.user.email}
+                    {blog.title}
                   </p>
                 </div>
                 

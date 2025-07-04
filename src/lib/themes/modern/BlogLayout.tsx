@@ -14,10 +14,10 @@ export default function ModernBlogLayout({ blog, posts }: BlogThemeProps) {
             )}
             <div className="flex items-center justify-center mt-6">
               <div className="h-10 w-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                {(blog.user.name || blog.user.email).charAt(0).toUpperCase()}
+                {blog.title.charAt(0).toUpperCase()}
               </div>
               <p className="text-gray-700 ml-3 font-medium">
-                {blog.user.name || blog.user.email}
+                {blog.title}
               </p>
             </div>
           </div>
@@ -46,7 +46,7 @@ export default function ModernBlogLayout({ blog, posts }: BlogThemeProps) {
                     </div>
                     <h2 className="text-xl font-bold text-gray-900 mb-2">
                       <a
-                        href={`/blog/${blog.slug}/${post.slug}`}
+                        href={`/${blog.userSlug}/${blog.slug}/${post.slug}`}
                         className="hover:text-blue-600 transition-colors"
                       >
                         {post.title}
@@ -60,7 +60,7 @@ export default function ModernBlogLayout({ blog, posts }: BlogThemeProps) {
                   )}
                   <footer>
                     <a
-                      href={`/blog/${blog.slug}/${post.slug}`}
+                      href={`/${blog.userSlug}/${blog.slug}/${post.slug}`}
                       className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
                     >
                       Read full post

@@ -10,7 +10,7 @@ export default function DefaultBlogLayout({ blog, posts }: BlogThemeProps) {
             <p className="text-xl text-white">{blog.description}</p>
           )}
           <p className="text-sm text-gray-200 mt-4">
-            By {blog.user.name || blog.user.email}
+            From the {blog.title} blog
           </p>
         </div>
       </header>
@@ -27,7 +27,7 @@ export default function DefaultBlogLayout({ blog, posts }: BlogThemeProps) {
                 <header className="mb-4">
                   <h2 className="text-2xl font-bold mb-2">
                     <a
-                      href={`/blog/${blog.slug}/${post.slug}`}
+                      href={`/${blog.userSlug}/${blog.slug}/${post.slug}`}
                       className="text-black hover:text-blue-600 transition-colors"
                     >
                       {post.title}
@@ -42,7 +42,7 @@ export default function DefaultBlogLayout({ blog, posts }: BlogThemeProps) {
                 </div>
                 <footer className="mt-4">
                   <a
-                    href={`/blog/${blog.slug}/${post.slug}`}
+                    href={`/${blog.userSlug}/${blog.slug}/${post.slug}`}
                     className="text-blue-600 hover:text-blue-800 font-medium"
                   >
                     Read more →

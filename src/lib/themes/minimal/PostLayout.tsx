@@ -8,7 +8,7 @@ export default function MinimalPostLayout({ blog, post }: PostThemeProps) {
         <header className="mb-12">
           <nav className="mb-8">
             <a
-              href={`/blog/${blog.slug}`}
+              href={`/${blog.userSlug}/${blog.slug}`}
               className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
             >
               ← {blog.title}
@@ -28,7 +28,7 @@ export default function MinimalPostLayout({ blog, post }: PostThemeProps) {
           </h1>
           
           <p className="text-sm text-gray-500 mt-6">
-            By {blog.user.name || blog.user.email}
+            By {blog.title}
           </p>
         </header>
 

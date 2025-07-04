@@ -8,7 +8,7 @@ export default function DefaultPostLayout({ blog, post }: PostThemeProps) {
         <div className="container mx-auto px-4">
           <nav className="mb-4">
             <a
-              href={`/blog/${blog.slug}`}
+              href={`/${blog.userSlug}/${blog.slug}`}
               className="text-blue-400 hover:text-blue-300 transition-colors"
             >
               ← Back to {blog.title}
@@ -16,7 +16,7 @@ export default function DefaultPostLayout({ blog, post }: PostThemeProps) {
           </nav>
           <h1 className="text-4xl font-bold mb-2">{post.title}</h1>
           <div className="text-gray-300">
-            <p>By {blog.user.name || blog.user.email}</p>
+            <p>By {blog.title}</p>
             <time className="text-sm">
               {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString() : ''}
             </time>

@@ -3,29 +3,31 @@ import { prisma } from '@/lib/prisma'
 import { Metadata } from 'next'
 import Link from 'next/link'
 
-interface TenantPageProps {
-  params: { slug: string }
+interface UserPageProps {
+  params: Promise<{ slug: string }>
 }
 
-export async function generateMetadata({ params }: TenantPageProps): Promise<Metadata> {
-  const tenant = await prisma.tenant.findUnique({
-    where: { slug: params.slug },
+export async function generateMetadata({ params }: UserPageProps): Promise<Metadata> {
+  const { slug } = await params
+  const user = await prisma.user.findUnique({
+    where: { slug },
     include: { blogs: true }
   })
 
-  if (!tenant) {
-    return { title: 'Tenant Not Found' }
+  if (!user) {
+    return { title: 'User Not Found' }
   }
 
   return {
-    title: `${tenant.name} - FromCafe`,
-    description: `${tenant.name} blogs on FromCafe platform`
+    title: `${user.displayName} - FromCafe`,
+    description: `${user.displayName} blogs on FromCafe platform`
   }
 }
 
-export default async function TenantPage({ params }: TenantPageProps) {
-  const tenant = await prisma.tenant.findUnique({
-    where: { slug: params.slug },
+export default async function UserPage({ params }: UserPageProps) {
+  const { slug } = await params
+  const user = await prisma.user.findUnique({
+    where: { slug },
     include: {
       blogs: {
         where: { isPublic: true },
@@ -40,25 +42,25 @@ export default async function TenantPage({ params }: TenantPageProps) {
     }
   })
 
-  if (!tenant || !tenant.isActive) {
+  if (!user || !user.isActive) {
     notFound()
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-4">{tenant.name}</h1>
+        <h1 className="text-4xl font-bold mb-4">{user.displayName}</h1>
         <p className="text-gray-600">
-          Welcome to {tenant.name}'s collection of blogs on FromCafe
+          Welcome to {user.displayName}&apos;s collection of blogs on FromCafe
         </p>
       </div>
 
       <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-        {tenant.blogs.map((blog) => (
+        {user.blogs.map((blog) => (
           <div key={blog.id} className="border rounded-lg p-6 hover:shadow-md transition-shadow">
             <h2 className="text-xl font-semibold mb-2">
               <Link 
-                href={`/tenant/${tenant.slug}/blog/${blog.slug}`}
+                href={`/${user.slug}/${blog.slug}`}
                 className="hover:text-blue-600"
               >
                 {blog.title}
@@ -75,7 +77,7 @@ export default async function TenantPage({ params }: TenantPageProps) {
                   {blog.posts.map((post) => (
                     <li key={post.id}>
                       <Link 
-                        href={`/tenant/${tenant.slug}/blog/${blog.slug}/${post.slug}`}
+                        href={`/${user.slug}/${blog.slug}/${post.slug}`}
                         className="text-sm text-blue-600 hover:underline"
                       >
                         {post.title}
@@ -89,9 +91,9 @@ export default async function TenantPage({ params }: TenantPageProps) {
         ))}
       </div>
 
-      {tenant.blogs.length === 0 && (
+      {user.blogs.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-gray-500">No public blogs available for this tenant.</p>
+          <p className="text-gray-500">No public blogs available for this user.</p>
         </div>
       )}
     </div>

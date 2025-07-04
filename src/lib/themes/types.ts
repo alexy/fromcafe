@@ -1,14 +1,14 @@
 export interface BlogData {
   id: string
   title: string
-  description: string | null
+  description: string | null | undefined
   slug: string
-  customDomain: string | null
+  customDomain: string | null | undefined
   theme: string
   isPublic: boolean
   createdAt: Date
   updatedAt: Date
-  tenantSlug?: string
+  userSlug?: string
   posts?: PostData[]
 }
 
@@ -17,13 +17,13 @@ export interface PostData {
   title: string
   slug: string
   content: string
-  excerpt: string | null
+  excerpt: string | null | undefined
   publishedAt: Date | null
   isPublished: boolean
   createdAt: Date
   updatedAt: Date
   blogSlug: string
-  tenantSlug?: string
+  userSlug?: string
 }
 
 export interface ThemeProps {
