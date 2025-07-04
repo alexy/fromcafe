@@ -51,7 +51,7 @@ export async function middleware(request: NextRequest) {
   }
   
   // Subdomain detected - rewrite to user blog space
-  console.log('🌐 Subdomain detected:', subdomain, 'for path:', pathname)
+  console.log('🌐 Subdomain detected:', subdomain, 'for path:', pathname, 'from hostname:', hostname)
   
   // Check if the path already includes the subdomain (to avoid double-rewriting)
   if (pathname.startsWith(`/${subdomain}/`) || pathname === `/${subdomain}`) {
@@ -65,14 +65,14 @@ export async function middleware(request: NextRequest) {
   // If accessing root of subdomain, show user's blog list page
   if (pathname === '/') {
     url.pathname = `/${subdomain}`
-    console.log('🔄 Rewriting subdomain root to user page:', url.pathname)
+    console.log('🔄 Rewriting subdomain root:', pathname, '→', url.pathname)
     return NextResponse.rewrite(url)
   }
   
   // If accessing specific path on subdomain, treat as blog/post
-  // tales.from.cafe/my-blog -> /tales/my-blog
+  // tales.from.cafe/anthropology/post → /tales/anthropology/post
   url.pathname = `/${subdomain}${pathname}`
-  console.log('🔄 Rewriting subdomain path:', pathname, 'to:', url.pathname)
+  console.log('🔄 Rewriting subdomain path:', pathname, '→', url.pathname)
   return NextResponse.rewrite(url)
 }
 
