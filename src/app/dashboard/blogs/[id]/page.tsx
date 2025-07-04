@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import Link from 'next/link'
 import { getAvailableThemes } from '@/lib/themes/registry'
 
 interface Blog {
@@ -605,12 +606,12 @@ export default function BlogSettings() {
                     </div>
                     
                     <div className="text-xs text-gray-500 mt-2">
-                      <a 
+                      <Link 
                         href="/dashboard/settings" 
                         className="text-blue-600 hover:text-blue-800 underline"
                       >
                         Change URL format in Settings →
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 ) : (
