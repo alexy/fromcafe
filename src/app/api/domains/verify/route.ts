@@ -179,8 +179,8 @@ async function performDomainVerification(domain: string): Promise<VerificationRe
       report.recommendations.push('Wait for SSL certificate to be issued (can take 5-15 minutes)')
     }
 
-    // 5. Check domain routing
-    console.log(`🔍 Checking domain routing for ${domain}...`)
+    // 5. Check domain routing and redirect configuration
+    console.log(`🔍 Checking domain routing and redirects for ${domain}...`)
     try {
       const response = await fetch(`https://${domain}`, {
         method: 'HEAD',
@@ -188,15 +188,31 @@ async function performDomainVerification(domain: string): Promise<VerificationRe
         redirect: 'manual'
       })
       
-      if (response.status >= 200 && response.status < 400) {
-        report.checks.domainRouting = {
-          status: 'pass',
-          message: 'Domain routing is working correctly'
+      if (response.status === 307 || response.status === 308) {
+        // Check if redirect goes to from.cafe
+        const location = response.headers.get('location')
+        if (location && location.includes('from.cafe')) {
+          report.checks.domainRouting = {
+            status: 'pass',
+            message: `Domain correctly redirects to from.cafe (${response.status} → ${location})`
+          }
+        } else {
+          report.checks.domainRouting = {
+            status: 'warn',
+            message: `Domain redirects but not to from.cafe (${response.status} → ${location || 'unknown'})`
+          }
         }
-      } else if (response.status >= 300 && response.status < 400) {
+      } else if (response.status >= 200 && response.status < 300) {
         report.checks.domainRouting = {
           status: 'warn',
-          message: `Domain redirects (${response.status}). Check if this is expected.`
+          message: 'Domain serves content directly (no redirect to from.cafe). This may cause routing issues.'
+        }
+        report.recommendations.push('Configure domain to redirect to from.cafe for proper routing')
+      } else if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('location')
+        report.checks.domainRouting = {
+          status: 'warn',
+          message: `Domain redirects with status ${response.status} to ${location || 'unknown location'}`
         }
       } else {
         report.checks.domainRouting = {
