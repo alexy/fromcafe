@@ -1,81 +1,105 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
 import { notFound } from 'next/navigation'
+import { prisma } from '@/lib/prisma'
+import { Metadata } from 'next'
+import { headers } from 'next/headers'
+import { themes } from '@/lib/themes/registry'
 
-interface Blog {
-  id: string
-  title: string
-  slug: string
-  subdomain?: string
-  user: {
-    slug: string
+interface SubdomainPostPageProps {
+  params: Promise<{ subdomain: string; postSlug: string }>
+}
+
+export async function generateMetadata({ params }: SubdomainPostPageProps): Promise<Metadata> {
+  const { subdomain, postSlug } = await params
+  const post = await prisma.post.findFirst({
+    where: { 
+      slug: postSlug,
+      blog: { 
+        subdomain: subdomain,
+        urlFormat: 'subdomain',
+        isPublic: true
+      },
+      isPublished: true
+    },
+    include: { 
+      blog: { 
+        include: { user: true } 
+      } 
+    }
+  })
+
+  if (!post) {
+    return { title: 'Post Not Found' }
+  }
+
+  return {
+    title: `${post.title} - ${post.blog.title}`,
+    description: post.excerpt || `${post.title} from ${post.blog.title}`
   }
 }
 
-export default function BlogSubdomainPostPage() {
-  const params = useParams()
-  const subdomain = params.subdomain as string
-  const postSlug = params.postSlug as string
-  const [blog, setBlog] = useState<Blog | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    async function fetchBlogBySubdomain() {
-      try {
-        const response = await fetch(`/api/blogs/by-subdomain/${subdomain}`)
-        
-        if (response.status === 404) {
-          notFound()
-          return
-        }
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch blog')
-        }
-        
-        const data = await response.json()
-        setBlog(data.blog)
-      } catch (err) {
-        console.error('Error fetching blog:', err)
-        notFound()
-      } finally {
-        setLoading(false)
-      }
+export default async function SubdomainPostPage({ params }: SubdomainPostPageProps) {
+  const { subdomain, postSlug } = await params
+  const headersList = await headers()
+  const hostname = headersList.get('host') || ''
+  
+  const post = await prisma.post.findFirst({
+    where: { 
+      slug: postSlug,
+      blog: { 
+        subdomain: subdomain,
+        urlFormat: 'subdomain',
+        isPublic: true
+      },
+      isPublished: true
+    },
+    include: { 
+      blog: { 
+        include: { user: true } 
+      } 
     }
+  })
 
-    if (subdomain) {
-      fetchBlogBySubdomain()
-    }
-  }, [subdomain])
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!blog) {
+  if (!post || !post.blog.user.isActive) {
     notFound()
-    return null
   }
 
-  // Redirect to the actual post page using the user slug, blog slug, and post slug
-  if (typeof window !== 'undefined') {
-    window.location.href = `/${blog.user.slug}/${blog.slug}/${postSlug}`
+  // Get theme component
+  const ThemeComponent = themes[post.blog.theme as keyof typeof themes]?.components.PostLayout || themes.default.components.PostLayout
+
+  // Type-safe props with null to undefined conversion
+  const postProps = {
+    id: post.id,
+    title: post.title,
+    content: post.content,
+    excerpt: post.excerpt ?? undefined,
+    slug: post.slug,
+    isPublished: post.isPublished,
+    publishedAt: post.publishedAt,
+    createdAt: post.createdAt,
+    updatedAt: post.updatedAt,
+    blogSlug: post.blog.slug,
+    userSlug: post.blog.user.slug ?? undefined
+  }
+
+  const blogProps = {
+    id: post.blog.id,
+    title: post.blog.title,
+    description: post.blog.description ?? undefined,
+    slug: post.blog.slug,
+    author: post.blog.author ?? undefined,
+    customDomain: post.blog.customDomain ?? undefined,
+    theme: post.blog.theme,
+    isPublic: post.blog.isPublic,
+    createdAt: post.blog.createdAt,
+    updatedAt: post.blog.updatedAt,
+    userSlug: post.blog.user.slug ?? undefined
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <p className="text-gray-600">Redirecting to post...</p>
-      </div>
-    </div>
+    <ThemeComponent
+      post={postProps}
+      blog={blogProps}
+      hostname={hostname}
+    />
   )
 }

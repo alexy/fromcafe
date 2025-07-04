@@ -12,9 +12,9 @@ export function isSubdomain(hostname?: string): boolean {
 export function getPostUrl(userSlug: string | undefined, blogSlug: string, postSlug: string, hostname?: string): string {
   if (!userSlug) return `/${blogSlug}/${postSlug}`
   
-  // If we're on a subdomain, use clean relative URLs (just /blogSlug/postSlug)
+  // If we're on a subdomain, use clean relative URLs (just /postSlug)
   if (hostname && isSubdomain(hostname)) {
-    return `/${blogSlug}/${postSlug}`
+    return `/${postSlug}`
   }
   
   // If we're on main domain, use full path (/userSlug/blogSlug/postSlug)  
@@ -24,9 +24,9 @@ export function getPostUrl(userSlug: string | undefined, blogSlug: string, postS
 export function getBlogUrl(userSlug: string | undefined, blogSlug: string, hostname?: string): string {
   if (!userSlug) return `/${blogSlug}`
   
-  // If we're on a subdomain, use clean relative URLs (just /blogSlug)
+  // If we're on a subdomain, use clean relative URLs (just /)
   if (hostname && isSubdomain(hostname)) {
-    return `/${blogSlug}`
+    return `/`
   }
   
   // If we're on main domain, use full path (/userSlug/blogSlug)
