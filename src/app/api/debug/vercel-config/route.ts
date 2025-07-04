@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
+// Debug endpoint for Vercel configuration
+
 export async function GET() {
   const session = await getServerSession(authOptions)
   
