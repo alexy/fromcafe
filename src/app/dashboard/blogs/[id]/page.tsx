@@ -90,6 +90,8 @@ export default function BlogSettings() {
   const [domainStatus, setDomainStatus] = useState<{verified: boolean; checking: boolean; error?: string} | null>(null)
   const [addingDomain, setAddingDomain] = useState(false)
   const [removingDomain, setRemovingDomain] = useState(false)
+  const [verificationReport, setVerificationReport] = useState<any>(null)
+  const [showVerificationReport, setShowVerificationReport] = useState(false)
 
   const fetchBlog = useCallback(async () => {
     try {
@@ -488,6 +490,8 @@ export default function BlogSettings() {
 
   const verifyDomain = async () => {
     setDomainStatus(prev => prev ? { ...prev, checking: true } : { verified: false, checking: true })
+    setVerificationReport(null)
+    
     try {
       const response = await fetch('/api/domains/verify', {
         method: 'POST',
@@ -497,25 +501,28 @@ export default function BlogSettings() {
 
       const data = await response.json()
 
-      if (response.ok && data.success) {
-        setDomainStatus({
-          verified: data.verified,
-          checking: false,
-          error: data.verified ? undefined : 'Domain verification failed - please check DNS settings'
-        })
+      if (response.ok) {
+        // Store the detailed verification report
+        setVerificationReport(data)
+        setShowVerificationReport(true)
         
-        if (data.verified) {
-          alert('Domain verified successfully!')
-        } else {
-          alert('Domain not yet verified. Please check your DNS settings and try again.')
-        }
+        setDomainStatus({
+          verified: data.verified || false,
+          checking: false,
+          error: data.verified ? undefined : 'Domain verification pending - see report for details'
+        })
       } else {
         setDomainStatus({
           verified: false,
           checking: false,
           error: data.error || 'Verification failed'
         })
-        alert(data.error || 'Domain verification failed')
+        
+        // Even for errors, show the report if available
+        if (data.checks || data.recommendations) {
+          setVerificationReport(data)
+          setShowVerificationReport(true)
+        }
       }
     } catch (error) {
       console.error('Error verifying domain:', error)
@@ -524,7 +531,6 @@ export default function BlogSettings() {
         checking: false,
         error: 'Failed to verify domain'
       })
-      alert('Failed to verify domain. Please try again.')
     }
   }
 
@@ -914,6 +920,108 @@ export default function BlogSettings() {
                                 : domainStatus.error || 'Domain not verified'
                               }
                             </span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Detailed Verification Report */}
+                      {verificationReport && showVerificationReport && (
+                        <div className="mt-4 border border-gray-200 rounded-lg">
+                          <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
+                            <h4 className="font-semibold text-gray-900">Domain Verification Report</h4>
+                            <button
+                              onClick={() => setShowVerificationReport(false)}
+                              className="text-gray-500 hover:text-gray-700 text-sm"
+                            >
+                              ✕ Close
+                            </button>
+                          </div>
+                          
+                          <div className="p-4 space-y-4">
+                            <div className="text-sm text-gray-600">
+                              <strong>Domain:</strong> {verificationReport.domain} 
+                              <span className="ml-2 text-xs text-gray-500">
+                                Checked at {new Date(verificationReport.timestamp).toLocaleString()}
+                              </span>
+                            </div>
+                            
+                            {/* Verification Checks */}
+                            <div className="space-y-3">
+                              <h5 className="font-medium text-gray-900">Verification Checks:</h5>
+                              
+                              {verificationReport.checks && Object.entries(verificationReport.checks).map(([checkName, check]: [string, any]) => (
+                                <div key={checkName} className="flex items-start space-x-3">
+                                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                                    check.status === 'pass' ? 'bg-green-100 text-green-800' :
+                                    check.status === 'warn' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-red-100 text-red-800'
+                                  }`}>
+                                    {check.status === 'pass' ? '✓' : check.status === 'warn' ? '⚠' : '✗'}
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="font-medium text-sm capitalize text-gray-900">
+                                      {checkName.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                                    </div>
+                                    <div className="text-sm text-gray-600 mt-1">
+                                      {check.message}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            
+                            {/* Recommendations */}
+                            {verificationReport.recommendations && verificationReport.recommendations.length > 0 && (
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                <h5 className="font-medium text-blue-900 mb-2">💡 Recommendations:</h5>
+                                <ul className="text-sm text-blue-800 space-y-1">
+                                  {verificationReport.recommendations.map((rec: string, idx: number) => (
+                                    <li key={idx} className="flex items-start space-x-2">
+                                      <span className="text-blue-500 mt-0.5">•</span>
+                                      <span>{rec}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            
+                            {/* Overall Status */}
+                            <div className={`p-3 rounded-lg border ${
+                              verificationReport.success && verificationReport.verified 
+                                ? 'bg-green-50 border-green-200' 
+                                : verificationReport.success 
+                                ? 'bg-yellow-50 border-yellow-200'
+                                : 'bg-red-50 border-red-200'
+                            }`}>
+                              <div className={`font-medium ${
+                                verificationReport.success && verificationReport.verified 
+                                  ? 'text-green-800' 
+                                  : verificationReport.success 
+                                  ? 'text-yellow-800'
+                                  : 'text-red-800'
+                              }`}>
+                                {verificationReport.success && verificationReport.verified 
+                                  ? '🎉 Domain is fully verified and working!'
+                                  : verificationReport.success 
+                                  ? '⏳ Domain configuration looks good, verification pending'
+                                  : '❌ Domain verification failed - please check configuration'
+                                }
+                              </div>
+                            </div>
+                            
+                            <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                              <button
+                                onClick={verifyDomain}
+                                disabled={domainStatus?.checking}
+                                className="bg-blue-600 text-white px-4 py-2 text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+                              >
+                                {domainStatus?.checking ? 'Re-checking...' : 'Re-run Verification'}
+                              </button>
+                              
+                              <div className="text-xs text-gray-500">
+                                Next verification will check all settings again
+                              </div>
+                            </div>
                           </div>
                         </div>
                       )}
