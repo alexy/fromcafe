@@ -597,24 +597,29 @@ export default function Dashboard() {
                 
                 <div className="flex justify-between mt-4">
                   {userBlogSpace ? (
-                    <a
-                      href={getBlogUrl(userBlogSpace, blog.slug)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800"
-                      onClick={() => {
-                        console.log('🔗 Clicking View Blog link:', {
-                          userSlug: userBlogSpace.slug,
-                          blogSlug: blog.slug,
-                          useSubdomain: userBlogSpace.useSubdomain,
-                          url: getBlogUrl(userBlogSpace, blog.slug),
-                          blogTitle: blog.title,
-                          isPublic: blog.isPublic
-                        })
-                      }}
-                    >
-                      View Blog
-                    </a>
+                    <div className="flex items-center space-x-1">
+                      <a
+                        href={getBlogUrl(userBlogSpace, blog.slug)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800"
+                        onClick={() => {
+                          console.log('🔗 Clicking View Blog link:', {
+                            userSlug: userBlogSpace.slug,
+                            blogSlug: blog.slug,
+                            useSubdomain: userBlogSpace.useSubdomain,
+                            url: getBlogUrl(userBlogSpace, blog.slug),
+                            blogTitle: blog.title,
+                            isPublic: blog.isPublic
+                          })
+                        }}
+                      >
+                        View Blog
+                      </a>
+                      <span className="text-xs text-gray-400">
+                        ({userBlogSpace.useSubdomain ? 'subdomain' : 'path'})
+                      </span>
+                    </div>
                   ) : (
                     <span className="text-gray-400">Loading...</span>
                   )}

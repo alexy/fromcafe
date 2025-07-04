@@ -439,14 +439,19 @@ export default function BlogSettings() {
             </div>
             <div className="flex items-center space-x-4">
               {userBlogSpace ? (
-                <a
-                  href={getBlogUrl(userBlogSpace, blog.slug)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                >
-                  View Blog
-                </a>
+                <div className="flex items-center space-x-2">
+                  <a
+                    href={getBlogUrl(userBlogSpace, blog.slug)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                  >
+                    View Blog
+                  </a>
+                  <span className="text-xs text-gray-500">
+                    ({userBlogSpace.useSubdomain ? 'subdomain' : 'path'})
+                  </span>
+                </div>
               ) : (
                 <span className="bg-gray-400 text-white px-4 py-2 rounded cursor-not-allowed">
                   Loading...
@@ -563,8 +568,54 @@ export default function BlogSettings() {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-black mb-1">URL</label>
-                <p className="text-black">/blog/{blog.slug}</p>
+                <label className="block text-sm font-medium text-black mb-1">Blog URLs</label>
+                {userBlogSpace ? (
+                  <div className="space-y-2">
+                    <div className="text-sm">
+                      <div className="flex items-center space-x-2">
+                        {userBlogSpace.useSubdomain ? (
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        ) : (
+                          <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                        )}
+                        <span className="font-medium text-black">
+                          {userBlogSpace.useSubdomain ? 'Subdomain URL (Active)' : 'Path URL (Active)'}
+                        </span>
+                      </div>
+                      <div className="ml-4 text-black font-mono text-xs bg-gray-100 px-2 py-1 rounded mt-1">
+                        {getBlogUrl(userBlogSpace, blog.slug)}
+                      </div>
+                    </div>
+                    
+                    <div className="text-sm">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                        <span className="text-gray-600">
+                          {userBlogSpace.useSubdomain ? 'Path URL (Alternative)' : 'Subdomain URL (Alternative)'}
+                        </span>
+                      </div>
+                      <div className="ml-4 text-gray-600 font-mono text-xs bg-gray-50 px-2 py-1 rounded mt-1">
+                        {userBlogSpace.useSubdomain 
+                          ? `https://from.cafe/${userBlogSpace.slug}/${blog.slug}`
+                          : userBlogSpace.subdomain 
+                            ? `https://${userBlogSpace.subdomain}.from.cafe/${blog.slug}`
+                            : `https://${userBlogSpace.slug}.from.cafe/${blog.slug}`
+                        }
+                      </div>
+                    </div>
+                    
+                    <div className="text-xs text-gray-500 mt-2">
+                      <a 
+                        href="/dashboard/settings" 
+                        className="text-blue-600 hover:text-blue-800 underline"
+                      >
+                        Change URL format in Settings →
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-black">/blog/{blog.slug}</p>
+                )}
               </div>
 
               <div>
