@@ -3,7 +3,6 @@
 import { useSession } from 'next-auth/react'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import Link from 'next/link'
 import { getAvailableThemes } from '@/lib/themes/registry'
 
 interface Blog {
