@@ -105,7 +105,7 @@ export default function VintagePostLayout({ blog, post, hostname }: PostThemePro
                     BY
                   </p>
                   <p className="text-lg font-bold" style={{fontFamily: 'Georgia, "Times New Roman", serif'}}>
-                    {blog.author || blog.title}
+                    {blog.author || blog.slug}
                   </p>
                 </div>
                 

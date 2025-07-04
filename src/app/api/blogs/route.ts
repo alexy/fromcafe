@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
         title,
         description,
         slug,
-        author: user?.displayName || user?.name || 'Anonymous',
+        author: user?.displayName || user?.name || slug,
         evernoteNotebook,
         isPublic: isPublic !== undefined ? isPublic : true,
       },
