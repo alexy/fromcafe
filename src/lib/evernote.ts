@@ -2,16 +2,16 @@ import * as Evernote from 'evernote'
 import { storeTokenSecret, getTokenSecret, removeToken } from './evernote-session'
 import { prisma } from './prisma'
 
-// Helper function to get the correct base URL (prioritizes actual deployment URL)
+// Helper function to get the correct base URL (prioritizes custom domain)
 function getBaseUrl(): string {
-  // For Vercel deployments, always use the actual VERCEL_URL (preview or production)
-  if (process.env.VERCEL && process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`
-  }
-  
-  // Use NEXTAUTH_URL if explicitly set and not on Vercel
+  // Use NEXTAUTH_URL if explicitly set (this should be your custom domain)
   if (process.env.NEXTAUTH_URL) {
     return process.env.NEXTAUTH_URL
+  }
+  
+  // For Vercel deployments, use VERCEL_URL as fallback
+  if (process.env.VERCEL && process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`
   }
   
   // Local development fallback
