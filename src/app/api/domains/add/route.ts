@@ -90,9 +90,23 @@ export async function POST(request: NextRequest) {
           })
         }
         
+        console.error('Vercel domain error:', {
+          message: vercelError.message,
+          code: vercelError.code,
+          status: vercelError.status,
+          domain,
+          blogId
+        })
+        
         return NextResponse.json({ 
           error: `Vercel domain setup failed: ${vercelError.message}`,
-          code: vercelError.code
+          code: vercelError.code,
+          debug: {
+            domain,
+            hasApiToken: !!process.env.VERCEL_API_TOKEN,
+            hasProjectId: !!process.env.VERCEL_PROJECT_ID,
+            tokenLength: process.env.VERCEL_API_TOKEN?.length || 0
+          }
         }, { status: 400 })
       }
       

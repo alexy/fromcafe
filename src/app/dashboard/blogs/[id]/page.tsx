@@ -452,6 +452,12 @@ export default function BlogSettings() {
   const checkDomainStatus = async () => {
     if (!blogCustomDomain.trim()) return
 
+    // Only check status if domain is already added to the blog
+    if (blog?.customDomain !== blogCustomDomain.trim()) {
+      setDomainStatus(null)
+      return
+    }
+
     setDomainStatus({ verified: false, checking: true })
     try {
       const response = await fetch(`/api/domains/status/${encodeURIComponent(blogCustomDomain.trim())}`)
