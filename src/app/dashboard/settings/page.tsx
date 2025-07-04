@@ -26,6 +26,7 @@ export default function UserSettings() {
   const [subdomain, setSubdomain] = useState('')
   const [domain, setDomain] = useState('')
   const [useSubdomain, setUseSubdomain] = useState(false)
+  const [urlFormat, setUrlFormat] = useState<'path' | 'subdomain' | 'custom'>('path')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -41,6 +42,14 @@ export default function UserSettings() {
           setSubdomain(data.user.subdomain || data.user.slug || '')
           setDomain(data.user.domain || '')
           setUseSubdomain(data.user.useSubdomain || false)
+          // Determine URL format based on current settings
+          if (data.user.domain) {
+            setUrlFormat('custom')
+          } else if (data.user.useSubdomain) {
+            setUrlFormat('subdomain')
+          } else {
+            setUrlFormat('path')
+          }
         }
       }
     } catch (error) {
@@ -74,7 +83,8 @@ export default function UserSettings() {
           name: displayName,
           subdomain: subdomain || null,
           domain: domain || null,
-          useSubdomain
+          useSubdomain: urlFormat === 'subdomain',
+          useCustomDomain: urlFormat === 'custom'
         }),
       })
 
@@ -95,14 +105,17 @@ export default function UserSettings() {
   }
 
   const getExampleUrls = () => {
-    if (!userBlogSpace) return { path: '', subdomain: '' }
+    if (!userBlogSpace) return { path: '', subdomain: '', custom: '' }
     
     const pathUrl = `https://from.cafe/${userBlogSpace.slug}/blog-name`
     const subdomainUrl = subdomain 
       ? `https://${subdomain}.from.cafe/blog-name`
       : `https://${userBlogSpace.slug}.from.cafe/blog-name`
+    const customUrl = domain 
+      ? `https://${domain}/blog-name`
+      : 'https://yourdomain.com/blog-name'
     
-    return { path: pathUrl, subdomain: subdomainUrl }
+    return { path: pathUrl, subdomain: subdomainUrl, custom: customUrl }
   }
 
   if (status === 'loading' || loading) {
@@ -252,44 +265,72 @@ export default function UserSettings() {
             <div className="border-t pt-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">URL Format Preference</h3>
               
-              <div className="space-y-4">
-                <div className="flex items-center">
-                  <input
-                    type="radio"
-                    id="usePathUrls"
-                    name="urlFormat"
-                    checked={!useSubdomain}
-                    onChange={() => setUseSubdomain(false)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                  />
-                  <label htmlFor="usePathUrls" className="ml-2 block text-sm text-gray-900">
-                    Use path-based URLs (default)
-                  </label>
-                </div>
-                <div className="ml-6 text-sm text-gray-600">
-                  Example: <code className="bg-gray-100 px-2 py-1 rounded">{exampleUrls.path}</code>
+              <div className="space-y-6">
+                <div>
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      id="usePathUrls"
+                      name="urlFormat"
+                      checked={urlFormat === 'path'}
+                      onChange={() => setUrlFormat('path')}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <label htmlFor="usePathUrls" className="ml-2 block text-sm text-gray-900">
+                      Use path-based URLs (default)
+                    </label>
+                  </div>
+                  <div className="ml-6 text-sm text-gray-600 mt-1">
+                    Example: <code className="bg-gray-100 px-2 py-1 rounded">{exampleUrls.path}</code>
+                  </div>
                 </div>
 
-                <div className="flex items-center">
-                  <input
-                    type="radio"
-                    id="useSubdomainUrls"
-                    name="urlFormat"
-                    checked={useSubdomain}
-                    onChange={() => setUseSubdomain(true)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                  />
-                  <label htmlFor="useSubdomainUrls" className="ml-2 block text-sm text-gray-900">
-                    Use subdomain URLs
-                  </label>
+                <div>
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      id="useSubdomainUrls"
+                      name="urlFormat"
+                      checked={urlFormat === 'subdomain'}
+                      onChange={() => setUrlFormat('subdomain')}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <label htmlFor="useSubdomainUrls" className="ml-2 block text-sm text-gray-900">
+                      Use subdomain URLs
+                    </label>
+                  </div>
+                  <div className="ml-6 text-sm text-gray-600 mt-1">
+                    Example: <code className="bg-gray-100 px-2 py-1 rounded">{exampleUrls.subdomain}</code>
+                    {!subdomain && (
+                      <div className="text-red-600 mt-1">
+                        ⚠️ Subdomain is required for this option
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="ml-6 text-sm text-gray-600">
-                  Example: <code className="bg-gray-100 px-2 py-1 rounded">{exampleUrls.subdomain}</code>
-                  {!subdomain && (
-                    <div className="text-red-600 mt-1">
-                      ⚠️ Subdomain is required for this option
-                    </div>
-                  )}
+
+                <div>
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      id="useCustomDomain"
+                      name="urlFormat"
+                      checked={urlFormat === 'custom'}
+                      onChange={() => setUrlFormat('custom')}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <label htmlFor="useCustomDomain" className="ml-2 block text-sm text-gray-900">
+                      Use custom domain
+                    </label>
+                  </div>
+                  <div className="ml-6 text-sm text-gray-600 mt-1">
+                    Example: <code className="bg-gray-100 px-2 py-1 rounded">{exampleUrls.custom}</code>
+                    {!domain && (
+                      <div className="text-red-600 mt-1">
+                        ⚠️ Custom domain is required for this option
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -300,8 +341,9 @@ export default function UserSettings() {
                 <ul className="text-sm text-blue-700 mt-2 space-y-1">
                   <li>• <strong>Path-based URLs:</strong> Always work, no setup required</li>
                   <li>• <strong>Subdomain URLs:</strong> Require wildcard DNS configuration (*.from.cafe)</li>
+                  <li>• <strong>Custom domain:</strong> Uses your own domain with DNS pointing to our servers</li>
                   <li>• Your &quot;View Blog&quot; links in the dashboard will use your selected format</li>
-                  <li>• If subdomain is not configured properly, visitors will get a 404 error</li>
+                  <li>• If DNS is not configured properly, visitors will get a 404 error</li>
                 </ul>
               </div>
             </div>
