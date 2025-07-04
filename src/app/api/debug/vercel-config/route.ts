@@ -22,12 +22,51 @@ export async function GET() {
       'Not set (optional)',
     tokenLength: process.env.VERCEL_API_TOKEN ? 
       process.env.VERCEL_API_TOKEN.length : 
-      0
+      0,
+    projectIdFull: process.env.VERCEL_PROJECT_ID || 'Not set',
+    tokenPrefix: process.env.VERCEL_API_TOKEN ? 
+      process.env.VERCEL_API_TOKEN.substring(0, 12) + '...' : 
+      'Not set'
+  }
+
+  // Test Vercel API connectivity
+  let apiTest = null
+  if (config.hasApiToken && config.hasProjectId) {
+    try {
+      const headers = {
+        'Authorization': `Bearer ${process.env.VERCEL_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+
+      const testUrl = process.env.VERCEL_TEAM_ID ? 
+        `https://api.vercel.com/v10/projects/${process.env.VERCEL_PROJECT_ID}?teamId=${process.env.VERCEL_TEAM_ID}` :
+        `https://api.vercel.com/v10/projects/${process.env.VERCEL_PROJECT_ID}`
+
+      const testResponse = await fetch(testUrl, { headers })
+      
+      apiTest = {
+        url: testUrl,
+        status: testResponse.status,
+        ok: testResponse.ok,
+        statusText: testResponse.statusText
+      }
+
+      if (!testResponse.ok) {
+        const errorData = await testResponse.json().catch(() => ({ error: 'Failed to parse error response' }))
+        apiTest.error = errorData
+      }
+    } catch (error) {
+      apiTest = {
+        error: 'API test failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
   }
 
   return NextResponse.json({
     success: true,
     config,
+    apiTest,
     ready: config.hasApiToken && config.hasProjectId
   })
 }

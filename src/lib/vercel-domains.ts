@@ -59,11 +59,10 @@ export async function addDomainToVercel(domain: string): Promise<VercelDomainRes
   }
 
   try {
-    const response = await vercelRequest('/v10/projects/domains', {
+    const response = await vercelRequest(`/v10/projects/${VERCEL_PROJECT_ID}/domains`, {
       method: 'POST',
       body: JSON.stringify({
         name: domain,
-        projectId: VERCEL_PROJECT_ID,
         gitBranch: 'main' // Use main branch for production
       })
     })
@@ -92,7 +91,7 @@ export async function removeDomainFromVercel(domain: string): Promise<void> {
   }
 
   try {
-    const response = await vercelRequest(`/v9/projects/${VERCEL_PROJECT_ID}/domains/${domain}`, {
+    const response = await vercelRequest(`/v10/projects/${VERCEL_PROJECT_ID}/domains/${domain}`, {
       method: 'DELETE'
     })
 
@@ -118,7 +117,7 @@ export async function getDomainStatus(domain: string): Promise<VercelDomainRespo
   }
 
   try {
-    const response = await vercelRequest(`/v9/projects/${VERCEL_PROJECT_ID}/domains/${domain}`)
+    const response = await vercelRequest(`/v10/projects/${VERCEL_PROJECT_ID}/domains/${domain}`)
 
     if (response.status === 404) {
       return null
@@ -148,7 +147,7 @@ export async function verifyDomain(domain: string): Promise<VercelDomainResponse
   }
 
   try {
-    const response = await vercelRequest(`/v9/projects/${VERCEL_PROJECT_ID}/domains/${domain}/verify`, {
+    const response = await vercelRequest(`/v10/projects/${VERCEL_PROJECT_ID}/domains/${domain}/verify`, {
       method: 'POST'
     })
 
