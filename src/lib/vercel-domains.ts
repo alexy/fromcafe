@@ -262,6 +262,27 @@ export async function ensurePrimaryDomain(): Promise<void> {
   }
 }
 
+export async function validatePrimaryDomainProtection(): Promise<boolean> {
+  try {
+    const primaryDomain = getPrimaryDomain()
+    
+    // In a real implementation, we would check the Vercel project's primary domain setting
+    // For now, we'll just ensure our configured primary domain is available
+    const primaryDomainStatus = await getDomainStatus(primaryDomain)
+    
+    if (!primaryDomainStatus) {
+      console.log(`⚠️ Primary domain ${primaryDomain} not found in Vercel project`)
+      return false
+    }
+    
+    console.log(`✅ Primary domain ${primaryDomain} is properly configured`)
+    return true
+  } catch (error) {
+    console.error(`❌ Failed to validate primary domain protection:`, error)
+    return false
+  }
+}
+
 export async function validateDomainConfiguration(domain: string): Promise<boolean> {
   try {
     const domainStatus = await getDomainStatus(domain)
@@ -271,16 +292,16 @@ export async function validateDomainConfiguration(domain: string): Promise<boole
       return false
     }
 
-    // Check if domain is configured to serve content (not redirect)
-    const hasRedirect = domainStatus.redirect
+    // Basic validation - domain exists and is properly configured
+    console.log(`✅ Domain ${domain} found in Vercel project`)
     
-    if (hasRedirect) {
-      console.log(`⚠️ Domain ${domain} is configured as redirect, should serve content directly`)
+    if (domainStatus.verified) {
+      console.log(`✅ Domain ${domain} is verified`)
+      return true
+    } else {
+      console.log(`⚠️ Domain ${domain} exists but is not yet verified`)
       return false
     }
-
-    console.log(`✅ Domain ${domain} properly configured to serve content directly`)
-    return true
   } catch (error) {
     console.error(`❌ Failed to validate configuration for ${domain}:`, error)
     return false
