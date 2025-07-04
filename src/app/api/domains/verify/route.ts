@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getDomainStatus, verifyDomain, VercelDomainError } from '@/lib/vercel-domains'
+import { getDomainStatus, verifyDomain } from '@/lib/vercel-domains'
 import { promises as dns } from 'dns'
 
 interface VerificationReport {
@@ -18,7 +18,7 @@ interface VerificationReport {
     domainRouting: { status: 'pass' | 'fail' | 'warn', message: string }
   }
   recommendations: string[]
-  vercelStatus?: any
+  vercelStatus?: unknown
 }
 
 async function performDomainVerification(domain: string): Promise<VerificationReport> {
