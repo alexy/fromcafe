@@ -34,14 +34,18 @@ export async function POST(request: NextRequest) {
     // Simple DNS verification - check if domain resolves to our IP
     // In production, you'd want more sophisticated verification
     try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
+      
       const response = await fetch(`http://${domain}`, {
         method: 'HEAD',
-        timeout: 5000,
+        signal: controller.signal,
         headers: {
           'User-Agent': 'FromCafe-DomainVerifier/1.0',
         },
       })
-
+      
+      clearTimeout(timeoutId)
       const isVerified = response.status < 500 // Basic check
       
       // Update domain verification status
