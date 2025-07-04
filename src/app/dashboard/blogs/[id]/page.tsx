@@ -87,6 +87,9 @@ export default function BlogSettings() {
   const [deleting, setDeleting] = useState(false)
   const [resettingSync, setResettingSync] = useState(false)
   const [userBlogSpace, setUserBlogSpace] = useState<{slug: string; subdomain?: string; useSubdomain?: boolean} | null>(null)
+  const [domainStatus, setDomainStatus] = useState<{verified: boolean; checking: boolean; error?: string} | null>(null)
+  const [addingDomain, setAddingDomain] = useState(false)
+  const [removingDomain, setRemovingDomain] = useState(false)
 
   const fetchBlog = useCallback(async () => {
     try {
@@ -192,6 +195,15 @@ export default function BlogSettings() {
       fetchUserBlogSpace()
     }
   }, [status, router, blogId, fetchBlog, fetchUserBlogSpace])
+
+  // Check domain status when custom domain changes
+  useEffect(() => {
+    if (blogCustomDomain && urlFormat === 'custom') {
+      checkDomainStatus()
+    } else {
+      setDomainStatus(null)
+    }
+  }, [blogCustomDomain, urlFormat]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchNotebooks = async () => {
     try {
@@ -368,6 +380,145 @@ export default function BlogSettings() {
       alert('Sync failed. Please try again.')
     } finally {
       setSyncing(false)
+    }
+  }
+
+  const addCustomDomain = async () => {
+    if (!blogCustomDomain.trim()) {
+      alert('Please enter a domain name.')
+      return
+    }
+
+    setAddingDomain(true)
+    try {
+      const response = await fetch('/api/domains/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          domain: blogCustomDomain.trim(),
+          blogId: blogId
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        await fetchBlog() // Refresh blog data
+        await checkDomainStatus() // Check verification status
+        alert('Domain added successfully! Please check DNS requirements below.')
+      } else {
+        alert(data.error || 'Failed to add domain')
+      }
+    } catch (error) {
+      console.error('Error adding domain:', error)
+      alert('Failed to add domain. Please try again.')
+    } finally {
+      setAddingDomain(false)
+    }
+  }
+
+  const removeCustomDomain = async () => {
+    if (!confirm('Are you sure you want to remove the custom domain? Your blog will revert to path-based URLs.')) {
+      return
+    }
+
+    setRemovingDomain(true)
+    try {
+      const response = await fetch('/api/domains/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blogId: blogId })
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        await fetchBlog() // Refresh blog data
+        setDomainStatus(null)
+        setBlogCustomDomain('')
+        setUrlFormat('path')
+        alert('Custom domain removed successfully.')
+      } else {
+        alert(data.error || 'Failed to remove domain')
+      }
+    } catch (error) {
+      console.error('Error removing domain:', error)
+      alert('Failed to remove domain. Please try again.')
+    } finally {
+      setRemovingDomain(false)
+    }
+  }
+
+  const checkDomainStatus = async () => {
+    if (!blogCustomDomain.trim()) return
+
+    setDomainStatus({ verified: false, checking: true })
+    try {
+      const response = await fetch(`/api/domains/status/${encodeURIComponent(blogCustomDomain.trim())}`)
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        setDomainStatus({
+          verified: data.isValid,
+          checking: false,
+          error: data.isValid ? undefined : 'Domain not verified - please check DNS settings'
+        })
+      } else {
+        setDomainStatus({
+          verified: false,
+          checking: false,
+          error: data.error || 'Failed to check domain status'
+        })
+      }
+    } catch (error) {
+      console.error('Error checking domain status:', error)
+      setDomainStatus({
+        verified: false,
+        checking: false,
+        error: 'Failed to check domain status'
+      })
+    }
+  }
+
+  const verifyDomain = async () => {
+    setDomainStatus(prev => prev ? { ...prev, checking: true } : { verified: false, checking: true })
+    try {
+      const response = await fetch('/api/domains/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blogId: blogId })
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        setDomainStatus({
+          verified: data.verified,
+          checking: false,
+          error: data.verified ? undefined : 'Domain verification failed - please check DNS settings'
+        })
+        
+        if (data.verified) {
+          alert('Domain verified successfully!')
+        } else {
+          alert('Domain not yet verified. Please check your DNS settings and try again.')
+        }
+      } else {
+        setDomainStatus({
+          verified: false,
+          checking: false,
+          error: data.error || 'Verification failed'
+        })
+        alert(data.error || 'Domain verification failed')
+      }
+    } catch (error) {
+      console.error('Error verifying domain:', error)
+      setDomainStatus({
+        verified: false,
+        checking: false,
+        error: 'Failed to verify domain'
+      })
+      alert('Failed to verify domain. Please try again.')
     }
   }
 
@@ -691,14 +842,76 @@ export default function BlogSettings() {
                       </label>
                     </div>
                     <div className="ml-6 mt-2">
-                      <input
-                        type="text"
-                        placeholder="yourdomain.com"
-                        value={blogCustomDomain}
-                        onChange={(e) => setBlogCustomDomain(e.target.value)}
-                        className="w-60 px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
-                        disabled={urlFormat !== 'custom'}
-                      />
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          placeholder="yourdomain.com"
+                          value={blogCustomDomain}
+                          onChange={(e) => setBlogCustomDomain(e.target.value)}
+                          className="w-60 px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
+                          disabled={urlFormat !== 'custom'}
+                        />
+                        {urlFormat === 'custom' && blogCustomDomain && (
+                          <>
+                            {blog?.customDomain === blogCustomDomain.trim() ? (
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={verifyDomain}
+                                  disabled={domainStatus?.checking || saving}
+                                  className="bg-blue-600 text-white px-3 py-1 text-xs rounded hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                  {domainStatus?.checking ? 'Checking...' : 'Verify'}
+                                </button>
+                                <button
+                                  onClick={removeCustomDomain}
+                                  disabled={removingDomain || saving}
+                                  className="bg-red-600 text-white px-3 py-1 text-xs rounded hover:bg-red-700 disabled:opacity-50"
+                                >
+                                  {removingDomain ? 'Removing...' : 'Remove'}
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={addCustomDomain}
+                                disabled={addingDomain || saving}
+                                className="bg-green-600 text-white px-3 py-1 text-xs rounded hover:bg-green-700 disabled:opacity-50"
+                              >
+                                {addingDomain ? 'Adding...' : 'Add Domain'}
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      
+                      {/* Domain Status */}
+                      {urlFormat === 'custom' && domainStatus && (
+                        <div className={`mt-2 p-2 rounded text-sm ${
+                          domainStatus.verified 
+                            ? 'bg-green-50 text-green-800 border border-green-200'
+                            : domainStatus.error
+                            ? 'bg-red-50 text-red-800 border border-red-200'
+                            : 'bg-yellow-50 text-yellow-800 border border-yellow-200'
+                        }`}>
+                          <div className="flex items-center space-x-2">
+                            {domainStatus.checking ? (
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
+                            ) : domainStatus.verified ? (
+                              <span>✅</span>
+                            ) : (
+                              <span>⚠️</span>
+                            )}
+                            <span>
+                              {domainStatus.checking 
+                                ? 'Checking domain status...'
+                                : domainStatus.verified 
+                                ? 'Domain verified and active'
+                                : domainStatus.error || 'Domain not verified'
+                              }
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="text-sm text-gray-600 mt-1">
                         Example: <code className="bg-gray-100 px-2 py-1 rounded">{blogCustomDomain || 'yourdomain.com'}</code>
                       </div>

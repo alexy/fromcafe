@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getDomainStatus, verifyDomain, VercelDomainError } from '@/lib/vercel-domains'
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -12,67 +13,73 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { domain } = body
+    const { blogId } = body
 
-    // Check if user owns this domain
-    const domainRecord = await prisma.domain.findFirst({
-      where: {
-        domain,
-        blog: {
-          userId: session.user.id,
-        },
-      },
-      include: {
-        blog: true,
-      },
-    })
-
-    if (!domainRecord) {
-      return NextResponse.json({ error: 'Domain not found' }, { status: 404 })
+    if (!blogId) {
+      return NextResponse.json({ error: 'BlogId is required' }, { status: 400 })
     }
 
-    // Simple DNS verification - check if domain resolves to our IP
-    // In production, you'd want more sophisticated verification
+    // Check if user owns the blog
+    const blog = await prisma.blog.findFirst({
+      where: {
+        id: blogId,
+        userId: session.user.id
+      }
+    })
+
+    if (!blog) {
+      return NextResponse.json({ error: 'Blog not found or unauthorized' }, { status: 404 })
+    }
+
+    if (!blog.customDomain) {
+      return NextResponse.json({ error: 'Blog does not have a custom domain' }, { status: 400 })
+    }
+
+    const domain = blog.customDomain
+
     try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000)
+      // First get current status
+      const currentStatus = await getDomainStatus(domain)
       
-      const response = await fetch(`http://${domain}`, {
-        method: 'HEAD',
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'FromCafe-DomainVerifier/1.0',
-        },
-      })
-      
-      clearTimeout(timeoutId)
-      const isVerified = response.status < 500 // Basic check
-      
-      // Update domain verification status
-      await prisma.domain.update({
-        where: { id: domainRecord.id },
-        data: { 
-          isVerified,
-          updatedAt: new Date(),
-        },
+      if (!currentStatus) {
+        return NextResponse.json({ 
+          error: 'Domain not found in Vercel project. Please add the domain first.' 
+        }, { status: 404 })
+      }
+
+      // If already verified, return current status
+      if (currentStatus.verified) {
+        return NextResponse.json({
+          success: true,
+          verified: true,
+          domain: domain,
+          status: currentStatus
+        })
+      }
+
+      // Attempt verification
+      const verificationResult = await verifyDomain(domain)
+
+      return NextResponse.json({
+        success: true,
+        verified: verificationResult.verified,
+        domain: domain,
+        status: verificationResult
       })
 
-      return NextResponse.json({ 
-        verified: isVerified,
-        message: isVerified 
-          ? 'Domain verified successfully!' 
-          : 'Domain verification failed. Please check your DNS settings.',
-      })
+    } catch (vercelError) {
+      if (vercelError instanceof VercelDomainError) {
+        return NextResponse.json({ 
+          error: `Domain verification failed: ${vercelError.message}`,
+          code: vercelError.code
+        }, { status: 400 })
+      }
       
-    } catch {
-      return NextResponse.json({
-        verified: false,
-        message: 'Domain verification failed. Please check your DNS settings and try again.',
-      })
+      throw vercelError
     }
 
   } catch (error) {
-    console.error('Error verifying domain:', error)
-    return NextResponse.json({ error: 'Failed to verify domain' }, { status: 500 })
+    console.error('Error verifying custom domain:', error)
+    return NextResponse.json({ error: 'Failed to verify custom domain' }, { status: 500 })
   }
 }
