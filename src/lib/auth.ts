@@ -69,29 +69,26 @@ export const authOptions = {
     redirect: async ({ url, baseUrl }: { url: string; baseUrl: string }) => {
       // Use our custom base URL instead of auto-detected one
       const customBaseUrl = getBaseUrl()
-      console.log('🔍 NextAuth redirect called:', { url, baseUrl, customBaseUrl })
       
-      // For relative URLs, use the custom baseUrl
-      if (url.startsWith('/')) {
-        return `${customBaseUrl}${url}`
+      // Check if we're on a subdomain
+      const isSubdomain = baseUrl.includes('.from.cafe') && !baseUrl.startsWith('from.cafe')
+      
+      // If we're on a subdomain and the URL is requesting dashboard/admin, redirect to main domain
+      if (isSubdomain && (url.includes('/dashboard') || url.includes('/admin') || url.includes('/auth'))) {
+        return `${customBaseUrl}${url.startsWith('/') ? url : '/' + url}`
       }
       
-      // For absolute URLs that match our custom domain, allow them
-      if (url.startsWith(customBaseUrl)) {
+      // For relative URLs, use the appropriate base URL
+      if (url.startsWith('/')) {
+        return isSubdomain && !url.includes('/dashboard') && !url.includes('/admin') ? `${baseUrl}${url}` : `${customBaseUrl}${url}`
+      }
+      
+      // For absolute URLs that match our domains, allow them
+      if (url.startsWith(customBaseUrl) || url.startsWith(baseUrl)) {
         return url
       }
       
-      // If the URL contains admin, redirect to custom domain
-      if (url.includes('/admin')) {
-        return `${customBaseUrl}/admin`
-      }
-      
-      // Don't redirect to dashboard if we're already on dashboard
-      if (url === `${customBaseUrl}/dashboard` || url.endsWith('/dashboard')) {
-        return `${customBaseUrl}/dashboard`
-      }
-      
-      // For sign-in success without specific destination, go to dashboard
+      // Default: redirect to main domain dashboard
       return `${customBaseUrl}/dashboard`
     },
   },
