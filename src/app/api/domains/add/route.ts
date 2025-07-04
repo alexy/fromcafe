@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { addDomainToVercel, VercelDomainError, ensurePrimaryDomain, validateDomainRedirect } from '@/lib/vercel-domains'
+import { addDomainToVercel, VercelDomainError, ensurePrimaryDomain, validateDomainConfiguration } from '@/lib/vercel-domains'
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -56,16 +56,16 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // Add domain to Vercel with redirect
+      // Add domain to Vercel to serve content directly
       const vercelResponse = await addDomainToVercel(domain)
       
-      // Ensure from.cafe remains primary domain
+      // Ensure primary domain remains set (but allow custom domains to serve content)
       await ensurePrimaryDomain()
       
-      // Validate redirect configuration
-      const isRedirectValid = await validateDomainRedirect(domain)
-      if (!isRedirectValid) {
-        console.warn(`⚠️ Domain ${domain} may not be properly configured as redirect`)
+      // Validate domain configuration
+      const isConfigValid = await validateDomainConfiguration(domain)
+      if (!isConfigValid) {
+        console.warn(`⚠️ Domain ${domain} may not be properly configured to serve content`)
       }
       
       // Update blog with custom domain
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         vercel: {
           verified: vercelResponse.verified,
           verification: vercelResponse.verification,
-          redirectValid: isRedirectValid
+          configValid: isConfigValid
         }
       })
 

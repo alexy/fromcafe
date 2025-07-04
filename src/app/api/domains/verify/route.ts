@@ -4,7 +4,6 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getDomainStatus, verifyDomain } from '@/lib/vercel-domains'
 import { promises as dns } from 'dns'
-import { getPrimaryDomain } from '@/config/domains'
 
 interface VerificationReport {
   success: boolean
@@ -189,28 +188,19 @@ async function performDomainVerification(domain: string): Promise<VerificationRe
         redirect: 'manual'
       })
       
-      if (response.status === 307 || response.status === 308) {
-        // Check if redirect goes to primary domain
-        const primaryDomain = getPrimaryDomain()
-        const location = response.headers.get('location')
-        if (location && location.includes(primaryDomain)) {
-          report.checks.domainRouting = {
-            status: 'pass',
-            message: `Domain correctly redirects to ${primaryDomain} (${response.status} → ${location})`
-          }
-        } else {
-          report.checks.domainRouting = {
-            status: 'warn',
-            message: `Domain redirects but not to ${primaryDomain} (${response.status} → ${location || 'unknown'})`
-          }
+      if (response.status >= 200 && response.status < 300) {
+        report.checks.domainRouting = {
+          status: 'pass',
+          message: 'Domain serves content directly and is working correctly'
         }
-      } else if (response.status >= 200 && response.status < 300) {
-        const primaryDomain = getPrimaryDomain()
+      } else if (response.status === 307 || response.status === 308) {
+        // Custom domains should not redirect - they should serve content
+        const location = response.headers.get('location')
         report.checks.domainRouting = {
           status: 'warn',
-          message: `Domain serves content directly (no redirect to ${primaryDomain}). This may cause routing issues.`
+          message: `Domain redirects (${response.status} → ${location || 'unknown'}). Custom domains should serve content directly.`
         }
-        report.recommendations.push(`Configure domain to redirect to ${primaryDomain} for proper routing`)
+        report.recommendations.push('Remove redirect configuration to allow domain to serve content directly')
       } else if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get('location')
         report.checks.domainRouting = {

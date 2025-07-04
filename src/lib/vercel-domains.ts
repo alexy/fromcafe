@@ -3,7 +3,7 @@
  * Based on: https://vercel.com/docs/multi-tenant/domain-management#adding-a-domain-programmatically
  */
 
-import { getPrimaryDomain, getRedirectStatusCode } from '@/config/domains'
+import { getPrimaryDomain } from '@/config/domains'
 
 const VERCEL_API_TOKEN = process.env.VERCEL_API_TOKEN
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID
@@ -66,10 +66,8 @@ export async function addDomainToVercel(domain: string): Promise<VercelDomainRes
     const response = await vercelRequest(`/v10/projects/${VERCEL_PROJECT_ID}/domains`, {
       method: 'POST',
       body: JSON.stringify({
-        name: domain,
-        redirect: getPrimaryDomain(),
-        redirectStatusCode: getRedirectStatusCode()
-        // Redirect custom domains to primary domain for proper routing
+        name: domain
+        // Custom domains should serve content directly, not redirect
       })
     })
 
@@ -264,7 +262,7 @@ export async function ensurePrimaryDomain(): Promise<void> {
   }
 }
 
-export async function validateDomainRedirect(domain: string): Promise<boolean> {
+export async function validateDomainConfiguration(domain: string): Promise<boolean> {
   try {
     const domainStatus = await getDomainStatus(domain)
     
@@ -273,19 +271,18 @@ export async function validateDomainRedirect(domain: string): Promise<boolean> {
       return false
     }
 
-    // Check if domain has redirect configuration
-    const primaryDomain = getPrimaryDomain()
-    const hasRedirect = domainStatus.redirect && domainStatus.redirect.includes(primaryDomain)
+    // Check if domain is configured to serve content (not redirect)
+    const hasRedirect = domainStatus.redirect
     
-    if (!hasRedirect) {
-      console.log(`⚠️ Domain ${domain} is not configured as redirect to ${primaryDomain}`)
+    if (hasRedirect) {
+      console.log(`⚠️ Domain ${domain} is configured as redirect, should serve content directly`)
       return false
     }
 
-    console.log(`✅ Domain ${domain} properly configured as redirect to ${primaryDomain}`)
+    console.log(`✅ Domain ${domain} properly configured to serve content directly`)
     return true
   } catch (error) {
-    console.error(`❌ Failed to validate redirect for ${domain}:`, error)
+    console.error(`❌ Failed to validate configuration for ${domain}:`, error)
     return false
   }
 }
