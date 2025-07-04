@@ -30,10 +30,10 @@ export async function POST(request: Request) {
       success: true,
       message: `Primary domain set to ${domain}`
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error setting primary domain:', error)
     return NextResponse.json({ 
-      error: error.message || 'Failed to set primary domain'
+      error: error instanceof Error ? error.message : 'Failed to set primary domain'
     }, { status: 500 })
   }
 }
