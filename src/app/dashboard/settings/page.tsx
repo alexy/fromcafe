@@ -43,7 +43,7 @@ export default function UserSettings() {
           setDomain(data.user.domain || '')
           setUseSubdomain(data.user.useSubdomain || false)
           // Determine URL format based on current settings
-          if (data.user.domain) {
+          if (data.user.domain && !data.user.useSubdomain) {
             setUrlFormat('custom')
           } else if (data.user.useSubdomain) {
             setUrlFormat('subdomain')
@@ -83,8 +83,7 @@ export default function UserSettings() {
           name: displayName,
           subdomain: subdomain || null,
           domain: domain || null,
-          useSubdomain: urlFormat === 'subdomain',
-          useCustomDomain: urlFormat === 'custom'
+          useSubdomain: urlFormat === 'subdomain'
         }),
       })
 

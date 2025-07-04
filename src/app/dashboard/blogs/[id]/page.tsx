@@ -25,10 +25,16 @@ interface Blog {
 }
 
 // Helper function to determine the correct blog URL based on user preferences
-function getBlogUrl(userBlogSpace: {slug: string; subdomain?: string; useSubdomain?: boolean}, blogSlug: string): string {
+function getBlogUrl(userBlogSpace: {slug: string; subdomain?: string; useSubdomain?: boolean; domain?: string}, blogSlug: string): string {
+  // Custom domain takes priority
+  if (userBlogSpace.domain) {
+    return `https://${userBlogSpace.domain}/${blogSlug}`
+  }
+  // Subdomain URLs
   if (userBlogSpace.useSubdomain && userBlogSpace.subdomain) {
     return `https://${userBlogSpace.subdomain}.from.cafe/${blogSlug}`
   }
+  // Default path-based URLs
   return `https://from.cafe/${userBlogSpace.slug}/${blogSlug}`
 }
 
