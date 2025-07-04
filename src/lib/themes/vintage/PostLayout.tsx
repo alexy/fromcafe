@@ -1,6 +1,7 @@
 import { PostThemeProps } from '../types'
+import { getBlogUrl } from '../../utils/urls'
 
-export default function VintagePostLayout({ blog, post }: PostThemeProps) {
+export default function VintagePostLayout({ blog, post, hostname }: PostThemeProps) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-yellow-50" style={{
       backgroundImage: `
@@ -19,7 +20,7 @@ export default function VintagePostLayout({ blog, post }: PostThemeProps) {
         <div className="max-w-4xl mx-auto px-6">
           <nav className="mb-4">
             <a
-              href={`/${blog.userSlug}/${blog.slug}`}
+              href={getBlogUrl(blog.userSlug, blog.slug, hostname)}
               className="inline-flex items-center text-amber-800 hover:text-amber-600 font-semibold transition-colors group"
               style={{fontFamily: 'Georgia, "Times New Roman", serif'}}
             >

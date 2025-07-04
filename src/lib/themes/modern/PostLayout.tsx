@@ -1,13 +1,14 @@
 import { PostThemeProps } from '../types'
+import { getBlogUrl } from '../../utils/urls'
 
-export default function ModernPostLayout({ blog, post }: PostThemeProps) {
+export default function ModernPostLayout({ blog, post, hostname }: PostThemeProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="max-w-4xl mx-auto px-4 py-12">
         <nav className="mb-8">
           <a
-            href={`/${blog.userSlug}/${blog.slug}`}
+            href={getBlogUrl(blog.userSlug, blog.slug, hostname)}
             className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium transition-colors"
           >
             <svg className="mr-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

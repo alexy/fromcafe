@@ -1,6 +1,7 @@
 import { BlogThemeProps } from '../types'
+import { getPostUrl } from '../../utils/urls'
 
-export default function ModernBlogLayout({ blog, posts }: BlogThemeProps) {
+export default function ModernBlogLayout({ blog, posts, hostname }: BlogThemeProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="max-w-4xl mx-auto px-4 py-12">
@@ -46,7 +47,7 @@ export default function ModernBlogLayout({ blog, posts }: BlogThemeProps) {
                     </div>
                     <h2 className="text-xl font-bold text-gray-900 mb-2">
                       <a
-                        href={`/${blog.userSlug}/${blog.slug}/${post.slug}`}
+                        href={getPostUrl(blog.userSlug, blog.slug, post.slug, hostname)}
                         className="hover:text-blue-600 transition-colors"
                       >
                         {post.title}
@@ -60,7 +61,7 @@ export default function ModernBlogLayout({ blog, posts }: BlogThemeProps) {
                   )}
                   <footer>
                     <a
-                      href={`/${blog.userSlug}/${blog.slug}/${post.slug}`}
+                      href={getPostUrl(blog.userSlug, blog.slug, post.slug, hostname)}
                       className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
                     >
                       Read full post

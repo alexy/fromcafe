@@ -1,6 +1,7 @@
 import { BlogThemeProps } from '../types'
+import { getPostUrl } from '../../utils/urls'
 
-export default function VintageBlogLayout({ blog, posts }: BlogThemeProps) {
+export default function VintageBlogLayout({ blog, posts, hostname }: BlogThemeProps) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-yellow-50" style={{
       backgroundImage: `
@@ -133,7 +134,7 @@ export default function VintageBlogLayout({ blog, posts }: BlogThemeProps) {
                         textShadow: '1px 1px 2px rgba(139, 69, 19, 0.1)'
                       }}>
                         <a
-                          href={`/${blog.userSlug}/${blog.slug}/${post.slug}`}
+                          href={getPostUrl(blog.userSlug, blog.slug, post.slug, hostname)}
                           className="hover:text-amber-700 transition-colors decoration-2 underline-offset-4 hover:underline"
                         >
                           {post.title}
@@ -162,7 +163,7 @@ export default function VintageBlogLayout({ blog, posts }: BlogThemeProps) {
 
                     <footer className="pt-4 border-t border-amber-300 border-dotted">
                       <a
-                        href={`/${blog.userSlug}/${blog.slug}/${post.slug}`}
+                        href={getPostUrl(blog.userSlug, blog.slug, post.slug, hostname)}
                         className="inline-flex items-center text-amber-800 hover:text-amber-600 font-semibold text-sm transition-colors group"
                         style={{fontFamily: 'Georgia, "Times New Roman", serif'}}
                       >

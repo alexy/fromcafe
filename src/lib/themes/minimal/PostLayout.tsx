@@ -1,6 +1,7 @@
 import { PostThemeProps } from '../types'
+import { getBlogUrl } from '../../utils/urls'
 
-export default function MinimalPostLayout({ blog, post }: PostThemeProps) {
+export default function MinimalPostLayout({ blog, post, hostname }: PostThemeProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -8,7 +9,7 @@ export default function MinimalPostLayout({ blog, post }: PostThemeProps) {
         <header className="mb-12">
           <nav className="mb-8">
             <a
-              href={`/${blog.userSlug}/${blog.slug}`}
+              href={getBlogUrl(blog.userSlug, blog.slug, hostname)}
               className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
             >
               ← {blog.title}
