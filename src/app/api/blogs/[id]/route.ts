@@ -51,7 +51,7 @@ export async function PUT(
   try {
     const resolvedParams = await params
     const body = await request.json()
-    const { title, description, author, isPublic, evernoteNotebook, theme } = body
+    const { title, description, author, isPublic, evernoteNotebook, theme, urlFormat, subdomain, customDomain } = body
     
     // Build update object with only provided fields
     const updateData: { 
@@ -62,6 +62,9 @@ export async function PUT(
       evernoteNotebook?: string | null;
       evernoteWebhookId?: string | null;
       theme?: string;
+      urlFormat?: string;
+      subdomain?: string;
+      customDomain?: string;
     } = {}
     
     if (title !== undefined) updateData.title = title
@@ -70,6 +73,9 @@ export async function PUT(
     if (isPublic !== undefined) updateData.isPublic = isPublic
     if (evernoteNotebook !== undefined) updateData.evernoteNotebook = evernoteNotebook
     if (theme !== undefined) updateData.theme = theme
+    if (urlFormat !== undefined) updateData.urlFormat = urlFormat
+    if (subdomain !== undefined) updateData.subdomain = subdomain
+    if (customDomain !== undefined) updateData.customDomain = customDomain
 
     // Get the current blog to check for webhook changes
     const currentBlog = await prisma.blog.findFirst({

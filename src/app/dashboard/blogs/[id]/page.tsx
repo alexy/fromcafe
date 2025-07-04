@@ -13,6 +13,8 @@ interface Blog {
   description: string
   author?: string
   customDomain?: string
+  subdomain?: string
+  urlFormat?: string
   evernoteNotebook?: string
   theme: string
   isPublic: boolean
@@ -24,18 +26,18 @@ interface Blog {
   }
 }
 
-// Helper function to determine the correct blog URL based on user preferences
-function getBlogUrl(userBlogSpace: {slug: string; subdomain?: string; useSubdomain?: boolean; domain?: string}, blogSlug: string): string {
+// Helper function to determine the correct blog URL based on blog preferences
+function getBlogUrl(blog: Blog, userSlug: string): string {
   // Custom domain takes priority
-  if (userBlogSpace.domain) {
-    return `https://${userBlogSpace.domain}/${blogSlug}`
+  if (blog.urlFormat === 'custom' && blog.customDomain) {
+    return `https://${blog.customDomain}`
   }
   // Subdomain URLs
-  if (userBlogSpace.useSubdomain && userBlogSpace.subdomain) {
-    return `https://${userBlogSpace.subdomain}.from.cafe/${blogSlug}`
+  if (blog.urlFormat === 'subdomain' && blog.subdomain) {
+    return `https://${blog.subdomain}.from.cafe`
   }
   // Default path-based URLs
-  return `https://from.cafe/${userBlogSpace.slug}/${blogSlug}`
+  return `https://from.cafe/${userSlug}/${blog.slug}`
 }
 
 export default function BlogSettings() {
@@ -53,6 +55,9 @@ export default function BlogSettings() {
   const [author, setAuthor] = useState('')
   const [isPublic, setIsPublic] = useState(true)
   const [theme, setTheme] = useState('default')
+  const [urlFormat, setUrlFormat] = useState<'path' | 'subdomain' | 'custom'>('path')
+  const [blogSubdomain, setBlogSubdomain] = useState('')
+  const [blogCustomDomain, setBlogCustomDomain] = useState('')
   
   // Track original values for change detection
   const [originalTitle, setOriginalTitle] = useState('')
@@ -60,6 +65,9 @@ export default function BlogSettings() {
   const [originalAuthor, setOriginalAuthor] = useState('')
   const [originalIsPublic, setOriginalIsPublic] = useState(true)
   const [originalTheme, setOriginalTheme] = useState('default')
+  const [originalUrlFormat, setOriginalUrlFormat] = useState<'path' | 'subdomain' | 'custom'>('path')
+  const [originalBlogSubdomain, setOriginalBlogSubdomain] = useState('')
+  const [originalBlogCustomDomain, setOriginalBlogCustomDomain] = useState('')
   const [notebooks, setNotebooks] = useState<Array<{guid: string, name: string}>>([])
   const [showNotebooks, setShowNotebooks] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -82,12 +90,21 @@ export default function BlogSettings() {
         setIsPublic(data.blog.isPublic)
         setTheme(data.blog.theme || 'default')
         
+        // Set URL format fields
+        const currentUrlFormat = data.blog.urlFormat || 'path'
+        setUrlFormat(currentUrlFormat)
+        setBlogSubdomain(data.blog.subdomain || '')
+        setBlogCustomDomain(data.blog.customDomain || '')
+        
         // Set original values for change detection
         setOriginalTitle(data.blog.title)
         setOriginalDescription(data.blog.description || '')
         setOriginalAuthor(data.blog.author || '')
         setOriginalIsPublic(data.blog.isPublic)
         setOriginalTheme(data.blog.theme || 'default')
+        setOriginalUrlFormat(currentUrlFormat)
+        setOriginalBlogSubdomain(data.blog.subdomain || '')
+        setOriginalBlogCustomDomain(data.blog.customDomain || '')
         
         // If notebook is connected, fetch the notebook name
         if (data.blog.evernoteNotebook) {
@@ -346,7 +363,7 @@ export default function BlogSettings() {
 
   const handleSave = async () => {
     // Build object with only changed fields
-    const changes: { title?: string; description?: string; author?: string; isPublic?: boolean; theme?: string } = {}
+    const changes: { title?: string; description?: string; author?: string; isPublic?: boolean; theme?: string; urlFormat?: string; subdomain?: string; customDomain?: string } = {}
     
     if (title !== originalTitle) {
       changes.title = title
@@ -362,6 +379,15 @@ export default function BlogSettings() {
     }
     if (theme !== originalTheme) {
       changes.theme = theme
+    }
+    if (urlFormat !== originalUrlFormat) {
+      changes.urlFormat = urlFormat
+    }
+    if (blogSubdomain !== originalBlogSubdomain) {
+      changes.subdomain = blogSubdomain
+    }
+    if (blogCustomDomain !== originalBlogCustomDomain) {
+      changes.customDomain = blogCustomDomain
     }
 
     // Check if any changes were made
@@ -390,6 +416,9 @@ export default function BlogSettings() {
         setOriginalAuthor(author)
         setOriginalIsPublic(isPublic)
         setOriginalTheme(theme)
+        setOriginalUrlFormat(urlFormat)
+        setOriginalBlogSubdomain(blogSubdomain)
+        setOriginalBlogCustomDomain(blogCustomDomain)
         
         alert('Blog updated successfully!')
       } else {
@@ -457,7 +486,7 @@ export default function BlogSettings() {
               {userBlogSpace ? (
                 <div className="flex items-center space-x-2">
                   <a
-                    href={getBlogUrl(userBlogSpace, blog.slug)}
+                    href={getBlogUrl(blog, userBlogSpace.slug)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
@@ -465,7 +494,7 @@ export default function BlogSettings() {
                     View Blog
                   </a>
                   <span className="text-xs text-gray-500">
-                    ({userBlogSpace.useSubdomain ? 'subdomain' : 'path'})
+                    ({blog.urlFormat || 'path'})
                   </span>
                 </div>
               ) : (
@@ -570,6 +599,97 @@ export default function BlogSettings() {
                   >
                     Preview current theme →
                   </a>
+                </div>
+              </div>
+
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-medium text-black mb-4">URL Format</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center">
+                      <input
+                        type="radio"
+                        id="pathUrls"
+                        name="urlFormat"
+                        checked={urlFormat === 'path'}
+                        onChange={() => setUrlFormat('path')}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <label htmlFor="pathUrls" className="ml-2 block text-sm text-black">
+                        Use path-based URLs (default)
+                      </label>
+                    </div>
+                    <div className="ml-6 text-sm text-gray-600 mt-1">
+                      Example: <code className="bg-gray-100 px-2 py-1 rounded">from.cafe/username/{blog?.slug}</code>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center">
+                      <input
+                        type="radio"
+                        id="subdomainUrls"
+                        name="urlFormat"
+                        checked={urlFormat === 'subdomain'}
+                        onChange={() => setUrlFormat('subdomain')}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <label htmlFor="subdomainUrls" className="ml-2 block text-sm text-black">
+                        Use subdomain URLs
+                      </label>
+                    </div>
+                    <div className="ml-6 mt-2">
+                      <input
+                        type="text"
+                        placeholder="subdomain"
+                        value={blogSubdomain}
+                        onChange={(e) => setBlogSubdomain(e.target.value)}
+                        className="w-40 px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
+                        disabled={urlFormat !== 'subdomain'}
+                      />
+                      <span className="text-sm text-gray-600">.from.cafe</span>
+                      <div className="text-sm text-gray-600 mt-1">
+                        Example: <code className="bg-gray-100 px-2 py-1 rounded">{blogSubdomain || 'subdomain'}.from.cafe</code>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center">
+                      <input
+                        type="radio"
+                        id="customDomainUrls"
+                        name="urlFormat"
+                        checked={urlFormat === 'custom'}
+                        onChange={() => setUrlFormat('custom')}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <label htmlFor="customDomainUrls" className="ml-2 block text-sm text-black">
+                        Use custom domain
+                      </label>
+                    </div>
+                    <div className="ml-6 mt-2">
+                      <input
+                        type="text"
+                        placeholder="yourdomain.com"
+                        value={blogCustomDomain}
+                        onChange={(e) => setBlogCustomDomain(e.target.value)}
+                        className="w-60 px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
+                        disabled={urlFormat !== 'custom'}
+                      />
+                      <div className="text-sm text-gray-600 mt-1">
+                        Example: <code className="bg-gray-100 px-2 py-1 rounded">{blogCustomDomain || 'yourdomain.com'}</code>
+                      </div>
+                      {urlFormat === 'custom' && (
+                        <div className="text-xs text-blue-600 mt-1">
+                          <a href="/site/domains" target="_blank" rel="noopener noreferrer" className="underline">
+                            📖 View DNS setup instructions
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 

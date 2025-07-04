@@ -91,6 +91,8 @@ model Blog {
   slug                String    
   author              String?   // Author name for byline, defaults to user name
   customDomain        String?   @unique
+  subdomain           String?   // Subdomain for this blog (e.g., tech.from.cafe)
+  urlFormat           String    @default("path") // "path", "subdomain", or "custom"
   evernoteNotebook    String?
   evernoteWebhookId   String?
   theme               String    @default("default")

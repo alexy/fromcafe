@@ -10,6 +10,8 @@ interface Blog {
   slug: string
   description: string
   customDomain?: string
+  subdomain?: string
+  urlFormat?: string
   evernoteNotebook?: string
   isPublic: boolean
   lastSyncedAt?: string
@@ -19,18 +21,18 @@ interface Blog {
   }
 }
 
-// Helper function to determine the correct blog URL based on user preferences
-function getBlogUrl(userBlogSpace: {slug: string; subdomain?: string; useSubdomain?: boolean; domain?: string}, blogSlug: string): string {
+// Helper function to determine the correct blog URL based on blog preferences
+function getBlogUrl(blog: Blog, userSlug: string): string {
   // Custom domain takes priority
-  if (userBlogSpace.domain) {
-    return `https://${userBlogSpace.domain}/${blogSlug}`
+  if (blog.urlFormat === 'custom' && blog.customDomain) {
+    return `https://${blog.customDomain}`
   }
   // Subdomain URLs
-  if (userBlogSpace.useSubdomain && userBlogSpace.subdomain) {
-    return `https://${userBlogSpace.subdomain}.from.cafe/${blogSlug}`
+  if (blog.urlFormat === 'subdomain' && blog.subdomain) {
+    return `https://${blog.subdomain}.from.cafe`
   }
   // Default path-based URLs
-  return `https://from.cafe/${userBlogSpace.slug}/${blogSlug}`
+  return `https://from.cafe/${userSlug}/${blog.slug}`
 }
 
 export default function Dashboard() {
@@ -605,7 +607,7 @@ export default function Dashboard() {
                   {userBlogSpace ? (
                     <div className="flex items-center space-x-1">
                       <a
-                        href={getBlogUrl(userBlogSpace, blog.slug)}
+                        href={getBlogUrl(blog, userBlogSpace.slug)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800"
@@ -613,8 +615,8 @@ export default function Dashboard() {
                           console.log('🔗 Clicking View Blog link:', {
                             userSlug: userBlogSpace.slug,
                             blogSlug: blog.slug,
-                            useSubdomain: userBlogSpace.useSubdomain,
-                            url: getBlogUrl(userBlogSpace, blog.slug),
+                            urlFormat: blog.urlFormat,
+                            url: getBlogUrl(blog, userBlogSpace.slug),
                             blogTitle: blog.title,
                             isPublic: blog.isPublic
                           })
