@@ -74,16 +74,14 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
           return null
         }
 
-        // Extract the secret part and decode from hex
+        // Extract the secret part - use as string, not hex-decoded buffer
         const secret = matchingToken.token.split(':')[1]
         console.log('DEBUG: Secret length:', secret.length, 'chars')
         console.log('DEBUG: Secret preview:', secret.substring(0, 10) + '...')
-        const secretBuffer = Buffer.from(secret, 'hex')
-        console.log('DEBUG: Secret buffer length:', secretBuffer.length, 'bytes')
 
-        // Verify JWT with the decoded secret
+        // Verify JWT with the secret as a string (Ghost standard)
         try {
-          jwt.verify(token, secretBuffer, { algorithms: ['HS256'] })
+          jwt.verify(token, secret, { algorithms: ['HS256'] })
           console.log('JWT verified successfully with Admin API key')
           return {
             blogId: matchingToken.blogId,
@@ -91,7 +89,20 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
           }
         } catch (jwtError) {
           console.log('JWT verification failed:', jwtError)
-          return null
+          // Try with hex-decoded buffer as fallback
+          try {
+            const secretBuffer = Buffer.from(secret, 'hex')
+            console.log('DEBUG: Trying hex-decoded secret, buffer length:', secretBuffer.length, 'bytes')
+            jwt.verify(token, secretBuffer, { algorithms: ['HS256'] })
+            console.log('JWT verified successfully with hex-decoded secret')
+            return {
+              blogId: matchingToken.blogId,
+              userId: matchingToken.userId
+            }
+          } catch (jwtError2) {
+            console.log('JWT verification failed with hex-decoded secret:', jwtError2)
+            return null
+          }
         }
         
       } catch (error) {
