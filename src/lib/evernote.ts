@@ -75,15 +75,8 @@ export class EvernoteService {
         ? tokenizedClient.getNoteStore(this.noteStoreUrl)
         : tokenizedClient.getNoteStore()
       
-      // Try both approaches: with and without the auth token parameter
-      let notebooks
-      try {
-        // Approach 1: Pass auth token as parameter (needed for production)
-        notebooks = await freshNoteStore.listNotebooks(this.accessToken)
-      } catch {
-        // Approach 2: Use client's built-in token (for local development)
-        notebooks = await freshNoteStore.listNotebooks()
-      }
+      // Call listNotebooks with auth token
+      const notebooks = await freshNoteStore.listNotebooks(this.accessToken)
       
       if (notebooks && Array.isArray(notebooks)) {
         return notebooks.map((notebook: { guid: string; name: string }) => ({
