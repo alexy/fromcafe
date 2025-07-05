@@ -19,7 +19,7 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
     if (token.startsWith('eyJ')) {
       try {
         // Decode JWT without verification to get the kid (key ID)
-        const decoded = jwt.decode(token, { complete: true }) as any
+        const decoded = jwt.decode(token, { complete: true }) as { header: { kid: string } } | null
         
         if (!decoded || !decoded.header || !decoded.header.kid) {
           console.log('Invalid JWT: missing kid in header')
@@ -41,7 +41,7 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
 
         let matchingToken = null
         for (const tokenRecord of allTokens) {
-          const [tokenId, tokenSecret] = tokenRecord.token.split(':')
+          const [tokenId] = tokenRecord.token.split(':')
           if (tokenId === kid) {
             matchingToken = tokenRecord
             break
@@ -63,7 +63,7 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
         }
 
         // Extract the secret part and decode from hex
-        const [_, secret] = matchingToken.token.split(':')
+        const secret = matchingToken.token.split(':')[1]
         const secretBuffer = Buffer.from(secret, 'hex')
 
         // Verify JWT with the decoded secret
