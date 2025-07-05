@@ -1,38 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-
-/**
- * Find blog by domain, subdomain, or slug
- */
-async function findBlogByIdentifier(
-  domain?: string, 
-  subdomain?: string, 
-  blogSlug?: string
-): Promise<{ id: string } | null> {
-  try {
-    let whereClause: { customDomain?: string; subdomain?: string; slug?: string } = {}
-    
-    if (domain) {
-      whereClause = { customDomain: domain }
-    } else if (subdomain) {
-      whereClause = { subdomain: subdomain }
-    } else if (blogSlug) {
-      whereClause = { slug: blogSlug }
-    } else {
-      return null
-    }
-
-    const blog = await prisma.blog.findFirst({
-      where: whereClause,
-      select: { id: true }
-    })
-
-    return blog
-  } catch (error) {
-    console.error('Error finding blog by identifier:', error)
-    return null
-  }
-}
+import { findBlogByIdentifier } from '@/lib/ghost-auth'
 
 /**
  * GET /ghost/api/v4/admin/tags - Get tags (Ghost Admin API compatible)

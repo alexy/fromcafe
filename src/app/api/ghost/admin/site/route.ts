@@ -1,50 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-
-/**
- * Find blog by domain, subdomain, or slug
- */
-async function findBlogByIdentifier(
-  domain?: string, 
-  subdomain?: string, 
-  blogSlug?: string
-): Promise<{ id: string; title: string; description: string | null; customDomain: string | null; subdomain: string | null; slug: string; user: { slug: string | null } } | null> {
-  try {
-    let whereClause: { customDomain?: string; subdomain?: string; slug?: string } = {}
-    
-    if (domain) {
-      whereClause = { customDomain: domain }
-    } else if (subdomain) {
-      whereClause = { subdomain: subdomain }
-    } else if (blogSlug) {
-      whereClause = { slug: blogSlug }
-    } else {
-      return null
-    }
-
-    const blog = await prisma.blog.findFirst({
-      where: whereClause,
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        customDomain: true,
-        subdomain: true,
-        slug: true,
-        user: {
-          select: {
-            slug: true
-          }
-        }
-      }
-    })
-
-    return blog
-  } catch (error) {
-    console.error('Error finding blog by identifier:', error)
-    return null
-  }
-}
+import { findBlogByIdentifierExtended } from '@/lib/ghost-auth'
 
 /**
  * GET /ghost/api/v4/admin/site - Get site information (Ghost Admin API compatible)
@@ -58,7 +13,7 @@ export async function GET(request: NextRequest) {
     const blogSlug = searchParams.get('blogSlug')
 
     // Find the blog by URL structure
-    const blog = await findBlogByIdentifier(domain || undefined, subdomain || undefined, blogSlug || undefined)
+    const blog = await findBlogByIdentifierExtended(domain || undefined, subdomain || undefined, blogSlug || undefined)
     if (!blog) {
       return NextResponse.json(
         { errors: [{ message: 'Blog not found for this URL' }] },
