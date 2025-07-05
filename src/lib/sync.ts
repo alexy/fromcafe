@@ -512,7 +512,17 @@ export class SyncService {
   }
 
 
+  private static schedulerStarted = false
+
   static startSyncScheduler(): void {
+    // Prevent multiple scheduler instances
+    if (this.schedulerStarted) {
+      console.log('Sync scheduler already running, skipping initialization')
+      return
+    }
+    
+    this.schedulerStarted = true
+    
     // Run sync every 15 minutes
     cron.schedule('*/15 * * * *', async () => {
       console.log('Starting scheduled sync...')
