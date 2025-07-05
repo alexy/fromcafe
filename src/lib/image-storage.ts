@@ -2,9 +2,10 @@
  * Image storage service for handling Evernote images
  */
 
-import { writeFile, mkdir, access, unlink } from 'fs/promises'
+import { writeFile, mkdir, access, unlink, readdir } from 'fs/promises'
 import { join } from 'path'
 import { createHash } from 'crypto'
+import { getConfig } from './config'
 
 export interface ImageInfo {
   originalHash: string
@@ -32,31 +33,22 @@ export class ImageStorageService {
     originalHash: string,
     mimeType: string,
     postId: string,
-    title?: string
+    title?: string,
+    originalFilename?: string
   ): Promise<ImageInfo> {
     try {
       // Ensure the directory exists
       await this.ensureDirectoryExists()
 
-      // Generate filename based on title (if available) or hash
-      const contentHash = createHash('sha256').update(imageData).digest('hex').substring(0, 16)
+      // Generate filename using new sophisticated system
       const extension = this.getExtensionFromMimeType(mimeType)
-      
-      let filename: string
-      if (title && title.trim()) {
-        // Use title as filename with sanitization
-        const sanitizedTitle = this.sanitizeFilename(title.trim())
-        if (sanitizedTitle) {
-          // Include short hash to avoid filename conflicts
-          filename = `${postId}_${sanitizedTitle}_${contentHash.substring(0, 8)}.${extension}`
-        } else {
-          // Fallback to hash if title becomes empty after sanitization
-          filename = `${postId}_${contentHash}_${originalHash.substring(0, 8)}.${extension}`
-        }
-      } else {
-        // No title, use hash-based naming
-        filename = `${postId}_${contentHash}_${originalHash.substring(0, 8)}.${extension}`
-      }
+      const filename = await this.generateImageFilename(
+        imageData, 
+        title, 
+        originalFilename, 
+        extension, 
+        postId
+      )
       
       const filePath = join(this.baseDir, filename)
       const publicUrl = `${this.baseUrl}/${filename}`
@@ -87,22 +79,26 @@ export class ImageStorageService {
     try {
       await this.ensureDirectoryExists()
       
-      // Look for files that match the pattern: postId_*_[contentHash|originalHash].ext
-      const { readdir } = await import('fs/promises')
       const files = await readdir(this.baseDir)
-      
       const hashPrefix = originalHash.substring(0, 8)
-      // Updated pattern to handle both title-based and hash-based filenames
-      // Pattern: postId_[title|hash]_8-char-hash.ext
-      const pattern = new RegExp(`^${postId}_.*_[a-f0-9]{8}\\.(jpg|jpeg|png|gif|webp|bmp|tiff)$`)
       
-      // Find files that start with our post ID and check if they contain our hash
+      // Look for files that match various patterns:
+      // 1. Legacy: postId_*_[contentHash|originalHash].ext
+      // 2. Title-based: postId_title_contentHash.ext  
+      // 3. New structured: PREFIX_YYYYMMDD_SUFFIX.ext
+      
       const candidateFiles = files.filter(file => {
-        if (!pattern.test(file)) return false
-        // Check if the file contains our original hash (for legacy files)
-        if (file.includes(hashPrefix)) return true
-        // For new files, we'd need to check content hash, but since we're generating
-        // content hash from the same data, we'll rely on the more specific search below
+        // Pattern 1: Legacy postId-based files
+        if (file.startsWith(`${postId}_`) && file.includes(hashPrefix)) {
+          return true
+        }
+        
+        // Pattern 2: Check if it's a content hash we generated
+        const contentHash = createHash('sha256').update(originalHash).digest('hex').substring(0, 8)
+        if (file.includes(contentHash)) {
+          return true
+        }
+        
         return false
       })
       
@@ -144,6 +140,164 @@ export class ImageStorageService {
     } catch (error) {
       console.error(`Error deleting images for post ${postId}:`, error)
       // Don't throw - image cleanup is not critical
+    }
+  }
+
+  /**
+   * Generate sophisticated image filename using EXIF data and configuration
+   */
+  private async generateImageFilename(
+    imageData: Buffer,
+    title?: string,
+    originalFilename?: string,
+    extension?: string,
+    postId?: string
+  ): Promise<string> {
+    const config = getConfig()
+    
+    // If we have a meaningful title/filename, use it
+    if (title && title.trim()) {
+      const sanitizedTitle = this.sanitizeFilename(title.trim())
+      if (sanitizedTitle) {
+        const contentHash = createHash('sha256').update(imageData).digest('hex').substring(0, 8)
+        return `${postId}_${sanitizedTitle}_${contentHash}.${extension}`
+      }
+    }
+    
+    // Generate structured filename: PREFIX_YYYYMMDD_SUFFIX
+    const prefix = config.images.defaultPrefix
+    const dateStr = await this.extractImageDate(imageData)
+    const numericSuffix = this.extractNumericSuffix(originalFilename)
+    
+    // Build base filename
+    let baseFilename = `${prefix}_${dateStr}`
+    if (numericSuffix) {
+      baseFilename += `_${numericSuffix}`
+    }
+    
+    // Ensure uniqueness by checking for duplicates and incrementing
+    const finalFilename = await this.ensureUniqueImageFilename(baseFilename, extension!)
+    
+    return finalFilename
+  }
+
+  /**
+   * Extract creation date from EXIF data or use current date
+   */
+  private async extractImageDate(imageData: Buffer): Promise<string> {
+    const config = getConfig()
+    
+    if (config.images.useExifDates) {
+      try {
+        // Dynamic import to avoid issues if exifr is not available
+        const exifr = await import('exifr')
+        const exifData = await exifr.parse(imageData, { 
+          tiff: true, 
+          exif: true,
+          gps: false,
+          interop: false,
+          ifd1: false
+        })
+        
+        // Try various EXIF date fields in order of preference
+        const dateFields = [
+          'DateTimeOriginal',     // Camera capture time
+          'CreateDate',           // File creation time
+          'DateTime',             // File modification time
+          'DateTimeDigitized'     // Digitization time
+        ]
+        
+        for (const field of dateFields) {
+          const date = exifData?.[field]
+          if (date && date instanceof Date) {
+            return this.formatDateForFilename(date)
+          }
+          // Handle string dates
+          if (typeof date === 'string') {
+            const parsedDate = new Date(date)
+            if (!isNaN(parsedDate.getTime())) {
+              return this.formatDateForFilename(parsedDate)
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to extract EXIF date:', error)
+      }
+    }
+    
+    // Fallback to current date
+    return this.formatDateForFilename(new Date())
+  }
+
+  /**
+   * Format date as YYYYMMDD
+   */
+  private formatDateForFilename(date: Date): string {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}${month}${day}`
+  }
+
+  /**
+   * Extract numeric suffix from original filename
+   */
+  private extractNumericSuffix(originalFilename?: string): string | null {
+    if (!originalFilename) return null
+    
+    // Remove file extension first
+    const nameWithoutExt = originalFilename.replace(/\.[^.]*$/, '')
+    
+    // Look for numeric sequence at the end: IMG_123, photo_001, etc.
+    const match = nameWithoutExt.match(/_(\d+)$/)
+    return match ? match[1] : null
+  }
+
+  /**
+   * Ensure filename is unique by checking existing files and incrementing suffix
+   */
+  private async ensureUniqueImageFilename(baseFilename: string, extension: string): Promise<string> {
+    await this.ensureDirectoryExists()
+    
+    try {
+      const files = await readdir(this.baseDir)
+      let counter = 1
+      let candidateFilename = `${baseFilename}.${extension}`
+      
+      // Check if base filename exists
+      while (files.includes(candidateFilename)) {
+        // Extract existing numeric suffix if any
+        const lastUnderscoreIndex = baseFilename.lastIndexOf('_')
+        let baseWithoutSuffix = baseFilename
+        let startCounter = counter
+        
+        if (lastUnderscoreIndex > 0) {
+          const possibleSuffix = baseFilename.substring(lastUnderscoreIndex + 1)
+          if (/^\d+$/.test(possibleSuffix)) {
+            // Already has numeric suffix, increment from there
+            baseWithoutSuffix = baseFilename.substring(0, lastUnderscoreIndex)
+            startCounter = parseInt(possibleSuffix) + counter
+          }
+        }
+        
+        candidateFilename = `${baseWithoutSuffix}_${String(startCounter).padStart(3, '0')}.${extension}`
+        counter++
+        
+        // Safety check to prevent infinite loop
+        if (counter > 999) {
+          // Fall back to hash-based naming
+          const hash = createHash('sha256').update(baseFilename + Date.now()).digest('hex').substring(0, 8)
+          candidateFilename = `${baseWithoutSuffix}_${hash}.${extension}`
+          break
+        }
+      }
+      
+      return candidateFilename
+    } catch (error) {
+      console.error('Error checking filename uniqueness:', error)
+      // Fallback to timestamp-based naming
+      const timestamp = Date.now().toString()
+      return `${baseFilename}_${timestamp}.${extension}`
     }
   }
 

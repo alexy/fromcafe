@@ -167,9 +167,12 @@ export class ContentProcessor {
             // Priority: export-as > filename > title > alt
             const title = exportAsMatch?.[1] || filenameMatch?.[1] || titleMatch?.[1] || altMatch?.[1] || undefined
             
+            // Extract original filename from URL
+            const originalFilename = this.extractFilenameFromUrl(imageUrl)
+            
             // Determine MIME type from image data or URL
             const mimeType = this.detectMimeType(imageData, imageUrl)
-            const imageInfo = await this.imageStorage.storeImage(imageData, urlHash, mimeType, postId, title)
+            const imageInfo = await this.imageStorage.storeImage(imageData, urlHash, mimeType, postId, title, originalFilename)
             localImageUrl = imageInfo.url
             
             // Log which attribute was used for the filename
@@ -238,6 +241,25 @@ export class ContentProcessor {
       console.error(`Failed to download image ${imageUrl}:`, error)
       return null
     }
+  }
+
+  /**
+   * Extract filename from URL
+   */
+  private extractFilenameFromUrl(url: string): string | undefined {
+    try {
+      const urlObj = new URL(url)
+      const pathname = urlObj.pathname
+      const filename = pathname.split('/').pop()
+      
+      // Only return if it looks like a real filename (has extension)
+      if (filename && filename.includes('.')) {
+        return filename
+      }
+    } catch {
+      // Invalid URL, ignore
+    }
+    return undefined
   }
 
   /**
