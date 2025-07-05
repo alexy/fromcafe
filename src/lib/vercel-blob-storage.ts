@@ -34,25 +34,31 @@ export class VercelBlobStorageService {
       const extension = this.getExtensionFromMimeType(mimeType)
       const filename = this.generateFilename(title, originalFilename, contentHash, extension, postId)
 
-      // Check if blob already exists (optional optimization)
+      // Check if blob already exists by content hash (more robust deduplication)
       try {
         const existingBlob = await head(`images/${filename}`)
         if (existingBlob) {
-          console.log(`Image already exists in Vercel Blob: ${filename}`)
-          return {
-            originalHash,
-            filename,
-            mimeType,
-            size: existingBlob.size,
-            url: existingBlob.url,
-            contentHash
+          // Verify the existing blob is the same size to ensure it's the same file
+          if (existingBlob.size === imageData.length) {
+            console.log(`Image already exists in Vercel Blob: ${filename} (${existingBlob.size} bytes) - reusing existing`)
+            return {
+              originalHash,
+              filename,
+              mimeType,
+              size: existingBlob.size,
+              url: existingBlob.url,
+              contentHash
+            }
+          } else {
+            console.log(`Image exists but size mismatch: expected ${imageData.length}, found ${existingBlob.size} - uploading new version`)
           }
         }
       } catch {
         // Blob doesn't exist, continue with upload
+        console.log(`Image not found in blob storage: ${filename} - uploading new`)
       }
 
-      // Upload to Vercel Blob
+      // Upload to Vercel Blob (new upload or replacing mismatched file)
       const blob = await put(`images/${filename}`, imageData, {
         access: 'public',
         contentType: mimeType,
