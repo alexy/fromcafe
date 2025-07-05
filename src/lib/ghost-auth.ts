@@ -33,6 +33,27 @@ export async function parseGhostToken(authHeader: string): Promise<GhostAuthResu
 }
 
 /**
+ * Clean up expired tokens from the database
+ */
+export async function cleanupExpiredTokens(): Promise<void> {
+  try {
+    const deletedTokens = await prisma.ghostToken.deleteMany({
+      where: {
+        expiresAt: {
+          lt: new Date()
+        }
+      }
+    })
+    
+    if (deletedTokens.count > 0) {
+      console.log(`Cleaned up ${deletedTokens.count} expired Ghost tokens`)
+    }
+  } catch (error) {
+    console.error('Error cleaning up expired tokens:', error)
+  }
+}
+
+/**
  * Parse JWT-based Ghost token
  */
 async function parseJWTToken(token: string): Promise<GhostAuthResult | null> {
@@ -217,6 +238,9 @@ export async function validateGhostAuth(
   tokenData: GhostAuthResult
   blog: { id: string; userId: string; user: { slug: string | null } }
 } | { error: Response }> {
+  // Clean up expired tokens periodically
+  await cleanupExpiredTokens()
+
   // Parse authentication
   const authHeader = request.headers.get('authorization')
   if (!authHeader) {
@@ -232,7 +256,7 @@ export async function validateGhostAuth(
   if (!tokenData) {
     return {
       error: new Response(
-        JSON.stringify({ errors: [{ message: 'Invalid authorization token' }] }),
+        JSON.stringify({ errors: [{ message: 'Invalid authorization token. Please generate a new token.' }] }),
         { status: 401, headers: { 'Content-Type': 'application/json' } }
       )
     }
