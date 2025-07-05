@@ -19,7 +19,7 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
     if (token.startsWith('eyJ')) {
       try {
         // Decode JWT without verification to get the kid (key ID)
-        const decoded = jwt.decode(token, { complete: true }) as { header: { kid: string } } | null
+        const decoded = jwt.decode(token, { complete: true }) as { header: { kid: string; alg: string } } | null
         
         if (!decoded || !decoded.header || !decoded.header.kid) {
           console.log('Invalid JWT: missing kid in header')
