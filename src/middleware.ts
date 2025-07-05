@@ -17,7 +17,9 @@ export async function middleware(request: NextRequest) {
 
   // Handle Ghost API routes specially for blog-specific domains
   if (pathname.startsWith('/ghost/api/')) {
-    console.log('👻 Ghost API request detected:', pathname, 'on hostname:', hostname)
+    console.log('👻 Ghost API request detected:', request.method, pathname, 'on hostname:', hostname)
+    console.log('👻 Original request URL:', request.url)
+    console.log('👻 Request headers:', Object.fromEntries(request.headers.entries()))
     
     if (isCustomDomain(hostname)) {
       // Custom domain Ghost API: customdomain.com/ghost/api/v4/admin/site → /api/ghost/admin/site?domain=customdomain.com
@@ -38,6 +40,7 @@ export async function middleware(request: NextRequest) {
       url.pathname = url.pathname.replace('/ghost/api/admin/', '/api/ghost/admin/')
       url.searchParams.set('subdomain', subdomain)
       console.log('🔄 Rewriting subdomain Ghost API:', pathname, '→', url.pathname)
+      console.log('👻 Final rewritten URL with params:', url.toString())
       return NextResponse.rewrite(url)
     }
     
