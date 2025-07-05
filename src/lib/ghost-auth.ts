@@ -54,7 +54,7 @@ export async function cleanupExpiredTokens(): Promise<void> {
 }
 
 /**
- * Parse JWT-based Ghost token
+ * Parse JWT-based Ghost token (simplified according to Ghost API spec)
  */
 async function parseJWTToken(token: string): Promise<GhostAuthResult | null> {
   try {
@@ -69,8 +69,16 @@ async function parseJWTToken(token: string): Promise<GhostAuthResult | null> {
     const kid = decoded.header.kid
     console.log('DEBUG: JWT kid (Admin API key ID):', kid)
     
-    // Find the Admin API key by matching the ID part (before colon)
-    const allTokens = await prisma.ghostToken.findMany({
+    // Find the Admin API key by the exact ID part (before colon)
+    const adminApiKey = await prisma.ghostToken.findFirst({
+      where: {
+        token: {
+          startsWith: `${kid}:`
+        },
+        expiresAt: {
+          gt: new Date() // Only non-expired admin keys
+        }
+      },
       select: {
         token: true,
         blogId: true,
@@ -79,102 +87,32 @@ async function parseJWTToken(token: string): Promise<GhostAuthResult | null> {
       }
     })
     
-    console.log('DEBUG: Found', allTokens.length, 'tokens in database')
-    console.log('DEBUG: All token IDs:', allTokens.map(t => t.token.split(':')[0]))
-    
-    let matchingToken = null
-    
-    // First try to find exact match by token ID
-    for (const dbToken of allTokens) {
-      const [tokenId] = dbToken.token.split(':')
-      console.log('DEBUG: Checking token ID:', tokenId, 'against kid:', kid)
-      
-      if (tokenId === kid) {
-        matchingToken = dbToken
-        console.log('DEBUG: Found exact matching token for kid:', kid)
-        break
-      }
-    }
-    
-    console.log('DEBUG: Exact match result:', matchingToken ? 'found' : 'not found')
-    
-    // If no exact match, try to verify JWT with all available tokens
-    // (Ulysses might generate kid differently than we expect)
-    if (!matchingToken) {
-      console.log('No exact kid match found, trying all tokens for JWT verification...')
-      
-      for (const dbToken of allTokens) {
-        // Check if token has expired
-        if (dbToken.expiresAt < new Date()) {
-          continue
-        }
-        
-        const [, secret] = dbToken.token.split(':')
-        
-        // Try different verification approaches
-        const verificationMethods = [
-          { name: 'string secret', secret: secret },
-          { name: 'hex-decoded buffer', secret: Buffer.from(secret, 'hex') }
-        ]
-
-        for (const method of verificationMethods) {
-          try {
-            jwt.verify(token, method.secret, { algorithms: ['HS256'] })
-            console.log(`JWT verified successfully with token ${dbToken.token.substring(0, 24)}... using ${method.name}`)
-            matchingToken = dbToken
-            break
-          } catch {
-            // Continue to next method
-          }
-        }
-        
-        if (matchingToken) break
-      }
-    }
-    
-    if (!matchingToken) {
-      console.log('No matching Admin API key found for kid:', kid, 'and JWT verification failed with all tokens')
+    if (!adminApiKey) {
+      console.log('No valid Admin API key found for kid:', kid)
       return null
     }
     
-    // Check if token has expired (final check)
-    if (matchingToken.expiresAt < new Date()) {
-      console.log('Token expired, cleaning up')
-      await prisma.ghostToken.delete({
-        where: { token: matchingToken.token }
-      })
-      return null
-    }
+    console.log('DEBUG: Found Admin API key for kid:', kid)
     
-    // If we found the token through verification, we're already good
-    // If we found it through exact kid match, verify it now
-    const [, secret] = matchingToken.token.split(':')
+    // Extract the secret part (after colon) and decode as hex buffer (Ghost standard)
+    const [, secret] = adminApiKey.token.split(':')
+    const secretBuffer = Buffer.from(secret, 'hex')
     
-    if (matchingToken.token.split(':')[0] === kid) {
-      // Found through exact kid match, need to verify
-      console.log('DEBUG: Using secret for verification, length:', secret.length)
+    console.log('DEBUG: Using hex-decoded secret for verification, length:', secretBuffer.length)
+    
+    // Verify JWT with the hex-decoded secret (this is how Ghost does it)
+    try {
+      const payload = jwt.verify(token, secretBuffer, { algorithms: ['HS256'] }) as { aud: string; exp: number; iat: number }
+      console.log('JWT verified successfully with Admin API key')
+      console.log('DEBUG: JWT payload aud:', payload.aud, 'exp:', new Date(payload.exp * 1000).toISOString())
       
-      // Verify JWT with the secret as a string (Ghost standard)
-      try {
-        jwt.verify(token, secret, { algorithms: ['HS256'] })
-        console.log('JWT verified successfully with Admin API key')
-      } catch (jwtError) {
-        console.log('JWT verification failed:', jwtError)
-        // Try with hex-decoded buffer as fallback
-        try {
-          const secretBuffer = Buffer.from(secret, 'hex')
-          jwt.verify(token, secretBuffer, { algorithms: ['HS256'] })
-          console.log('JWT verified successfully with hex-decoded secret')
-        } catch (jwtError2) {
-          console.log('JWT verification failed with hex-decoded secret:', jwtError2)
-          return null
-        }
+      return {
+        blogId: adminApiKey.blogId,
+        userId: adminApiKey.userId
       }
-    }
-    
-    return {
-      blogId: matchingToken.blogId,
-      userId: matchingToken.userId
+    } catch (jwtError) {
+      console.log('JWT verification failed with hex-decoded secret:', jwtError)
+      return null
     }
   } catch (error) {
     console.error('Error processing JWT:', error)
