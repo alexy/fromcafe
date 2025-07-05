@@ -198,6 +198,31 @@ export async function GET(request: NextRequest) {
       ? `https://${blog.subdomain}.from.cafe`
       : `https://from.cafe/${blog.slug}`
 
+    // Get existing tokens for this blog
+    const existingTokens = await prisma.ghostToken.findMany({
+      where: {
+        blogId: blog.id,
+        userId: session.user.id,
+        expiresAt: { gt: new Date() } // Only non-expired tokens
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 1 // Get the most recent token
+    })
+
+    const currentToken = existingTokens.length > 0 ? {
+      token: existingTokens[0].token,
+      expiresAt: existingTokens[0].expiresAt.toISOString(),
+      blog: {
+        id: blog.id,
+        title: blog.title,
+        url: blog.customDomain 
+          ? `https://${blog.customDomain}`
+          : blog.subdomain
+          ? `https://${blog.subdomain}.from.cafe`
+          : `https://from.cafe/${blog.user.slug}/${blog.slug}`
+      }
+    } : null
+
     return NextResponse.json({
       blog: {
         id: blog.id,
@@ -208,7 +233,8 @@ export async function GET(request: NextRequest) {
         ghostPostCount: blog._count.posts
       },
       apiEndpoint,
-      authEndpoint: `${request.nextUrl.origin}/api/ghost/admin/auth`
+      authEndpoint: `${request.nextUrl.origin}/api/ghost/admin/auth`,
+      currentToken
     })
 
   } catch (error) {

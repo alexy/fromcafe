@@ -17,9 +17,9 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
     
     // Decode the JWT to see its full content
     try {
-      const fullDecoded = jwt.decode(token) as any
+      const fullDecoded = jwt.decode(token) as Record<string, unknown>
       console.log('DEBUG: JWT payload:', JSON.stringify(fullDecoded, null, 2))
-    } catch (e) {
+    } catch {
       console.log('DEBUG: Could not decode JWT payload')
     }
     

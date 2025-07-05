@@ -13,6 +13,10 @@ interface GhostBlogInfo {
   }
   apiEndpoint: string
   authEndpoint: string
+  currentToken?: {
+    token: string
+    expiresAt: string
+  } | null
 }
 
 interface GhostToken {
@@ -46,6 +50,13 @@ export default function GhostConfigSection({ blogId }: GhostConfigSectionProps) 
       if (response.ok) {
         const data = await response.json()
         setBlogInfo(data)
+        
+        // Set existing token if available
+        if (data.currentToken) {
+          setCurrentToken(data.currentToken)
+        } else {
+          setCurrentToken(null)
+        }
       } else {
         console.error('Failed to fetch blog info')
       }
