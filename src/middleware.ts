@@ -6,7 +6,43 @@ export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || ''
   const pathname = request.nextUrl.pathname
   
-  // Skip middleware for API routes, static files, and special Next.js routes
+  // Handle Ghost API routes specially for blog-specific domains
+  if (pathname.startsWith('/ghost/api/admin/')) {
+    console.log('👻 Ghost API request detected:', pathname, 'on hostname:', hostname)
+    
+    if (isCustomDomain(hostname)) {
+      // Custom domain Ghost API: customdomain.com/ghost/api/admin/posts → /api/ghost/admin/posts?domain=customdomain.com
+      const url = request.nextUrl.clone()
+      url.pathname = pathname.replace('/ghost/api/admin/', '/api/ghost/admin/')
+      url.searchParams.set('domain', hostname)
+      console.log('🔄 Rewriting custom domain Ghost API:', pathname, '→', url.pathname)
+      return NextResponse.rewrite(url)
+    }
+    
+    const subdomain = getSubdomain(hostname)
+    if (subdomain) {
+      // Subdomain Ghost API: subdomain.from.cafe/ghost/api/admin/posts → /api/ghost/admin/posts?subdomain=subdomain
+      const url = request.nextUrl.clone()
+      url.pathname = pathname.replace('/ghost/api/admin/', '/api/ghost/admin/')
+      url.searchParams.set('subdomain', subdomain)
+      console.log('🔄 Rewriting subdomain Ghost API:', pathname, '→', url.pathname)
+      return NextResponse.rewrite(url)
+    }
+    
+    // Main domain with path: from.cafe/anthropology/ghost/api/admin/posts
+    const pathSegments = pathname.split('/').filter(Boolean)
+    if (pathSegments.length >= 4 && pathSegments[1] === 'ghost' && pathSegments[2] === 'api' && pathSegments[3] === 'admin') {
+      // Extract blog slug from path: /anthropology/ghost/api/admin/posts
+      const blogSlug = pathSegments[0] // 'anthropology'
+      const url = request.nextUrl.clone()
+      url.pathname = pathname.replace(`/${blogSlug}/ghost/api/admin/`, '/api/ghost/admin/')
+      url.searchParams.set('blogSlug', blogSlug)
+      console.log('🔄 Rewriting path-based Ghost API:', pathname, '→', url.pathname)
+      return NextResponse.rewrite(url)
+    }
+  }
+
+  // Skip middleware for other API routes, static files, and special Next.js routes
   if (
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||

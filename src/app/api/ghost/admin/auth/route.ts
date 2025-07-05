@@ -183,12 +183,19 @@ export async function GET(request: NextRequest) {
       }, { status: 404 })
     }
 
-    // Generate blog URL
+    // Generate blog URL and corresponding API endpoint
     const blogUrl = blog.customDomain 
       ? `https://${blog.customDomain}`
       : blog.subdomain
       ? `https://${blog.subdomain}.from.cafe`
       : `https://from.cafe/${blog.user.slug}/${blog.slug}`
+
+    // Generate blog-specific Ghost API endpoint
+    const apiEndpoint = blog.customDomain 
+      ? `https://${blog.customDomain}/ghost/api/admin/posts`
+      : blog.subdomain
+      ? `https://${blog.subdomain}.from.cafe/ghost/api/admin/posts`
+      : `https://from.cafe/${blog.slug}/ghost/api/admin/posts`
 
     return NextResponse.json({
       blog: {
@@ -199,7 +206,7 @@ export async function GET(request: NextRequest) {
         ghostEnabled: blog.contentSources.includes('GHOST'),
         ghostPostCount: blog._count.posts
       },
-      apiEndpoint: `${request.nextUrl.origin}/api/ghost/admin/posts`,
+      apiEndpoint,
       authEndpoint: `${request.nextUrl.origin}/api/ghost/admin/auth`
     })
 

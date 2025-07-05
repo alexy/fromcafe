@@ -94,6 +94,50 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
 }
 
 /**
+ * Find blog by domain, subdomain, or slug
+ */
+async function findBlogByIdentifier(
+  domain?: string, 
+  subdomain?: string, 
+  blogSlug?: string
+): Promise<{ id: string; userId: string; user: { slug: string | null } } | null> {
+  try {
+    let whereClause: { customDomain?: string; subdomain?: string; slug?: string } = {}
+    
+    if (domain) {
+      // Custom domain
+      whereClause = { customDomain: domain }
+    } else if (subdomain) {
+      // Subdomain
+      whereClause = { subdomain: subdomain }
+    } else if (blogSlug) {
+      // Path-based blog slug
+      whereClause = { slug: blogSlug }
+    } else {
+      return null
+    }
+
+    const blog = await prisma.blog.findFirst({
+      where: whereClause,
+      select: {
+        id: true,
+        userId: true,
+        user: {
+          select: {
+            slug: true
+          }
+        }
+      }
+    })
+
+    return blog
+  } catch (error) {
+    console.error('Error finding blog by identifier:', error)
+    return null
+  }
+}
+
+/**
  * Generate slug from title
  */
 function generateSlug(title: string): string {
@@ -145,6 +189,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get blog identifier from query parameters (set by middleware)
+    const { searchParams } = new URL(request.url)
+    const domain = searchParams.get('domain')
+    const subdomain = searchParams.get('subdomain')
+    const blogSlug = searchParams.get('blogSlug')
+
+    // Find the blog by URL structure
+    const blog = await findBlogByIdentifier(domain || undefined, subdomain || undefined, blogSlug || undefined)
+    if (!blog) {
+      return NextResponse.json(
+        { errors: [{ message: 'Blog not found for this URL' }] },
+        { status: 404 }
+      )
+    }
+
     // Parse authentication
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
@@ -162,20 +221,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify blog exists and user has access
-    const blog = await prisma.blog.findFirst({
-      where: {
-        id: tokenData.blogId,
-        userId: tokenData.userId
-      },
-      include: {
-        user: true
-      }
+    // Verify token is valid for this specific blog
+    if (tokenData.blogId !== blog.id) {
+      return NextResponse.json(
+        { errors: [{ message: 'Authorization token not valid for this blog' }] },
+        { status: 403 }
+      )
+    }
+
+    // Get full blog details
+    const fullBlog = await prisma.blog.findUnique({
+      where: { id: blog.id },
+      include: { user: true }
     })
 
-    if (!blog) {
+    if (!fullBlog) {
       return NextResponse.json(
-        { errors: [{ message: 'Blog not found or access denied' }] },
+        { errors: [{ message: 'Blog not found' }] },
         { status: 404 }
       )
     }
@@ -215,7 +277,7 @@ export async function POST(request: NextRequest) {
 
       // Generate slug
       const baseSlug = ghostPost.slug || generateSlug(ghostPost.title)
-      const uniqueSlug = await ensureUniqueSlug(baseSlug, blog.id)
+      const uniqueSlug = await ensureUniqueSlug(baseSlug, fullBlog.id)
 
       // Determine publication status
       const isPublished = ghostPost.status === 'published'
@@ -228,7 +290,7 @@ export async function POST(request: NextRequest) {
         const existingPost = await prisma.post.findFirst({
           where: {
             ghostPostId: ghostPost.id,
-            blogId: blog.id
+            blogId: fullBlog.id
           }
         })
         
@@ -243,7 +305,7 @@ export async function POST(request: NextRequest) {
       // Create the post first (we need the post ID for image processing)
       const post = await prisma.post.create({
         data: {
-          blogId: blog.id,
+          blogId: fullBlog.id,
           title: ghostPost.title,
           content: '', // Will be updated after image processing
           excerpt: '', // Will be updated after processing
@@ -298,7 +360,7 @@ export async function POST(request: NextRequest) {
         created_at: updatedPost!.createdAt.toISOString(),
         updated_at: updatedPost!.updatedAt.toISOString(),
         published_at: updatedPost!.publishedAt?.toISOString() || null,
-        url: `${request.nextUrl.origin}/${blog.user.slug || 'blog'}/${blog.slug}/${updatedPost!.slug}`
+        url: `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${updatedPost!.slug}`
       }
 
       createdPosts.push(ghostResponse)
@@ -330,6 +392,21 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
+    // Get blog identifier from query parameters (set by middleware)
+    const { searchParams } = new URL(request.url)
+    const domain = searchParams.get('domain')
+    const subdomain = searchParams.get('subdomain')
+    const blogSlug = searchParams.get('blogSlug')
+
+    // Find the blog by URL structure
+    const blog = await findBlogByIdentifier(domain || undefined, subdomain || undefined, blogSlug || undefined)
+    if (!blog) {
+      return NextResponse.json(
+        { errors: [{ message: 'Blog not found for this URL' }] },
+        { status: 404 }
+      )
+    }
+
     // Parse authentication
     const authHeader = request.headers.get('authorization')
     if (!authHeader) {
@@ -347,26 +424,28 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Verify blog exists and user has access
-    const blog = await prisma.blog.findFirst({
-      where: {
-        id: tokenData.blogId,
-        userId: tokenData.userId
-      },
-      include: {
-        user: true
-      }
+    // Verify token is valid for this specific blog
+    if (tokenData.blogId !== blog.id) {
+      return NextResponse.json(
+        { errors: [{ message: 'Authorization token not valid for this blog' }] },
+        { status: 403 }
+      )
+    }
+
+    // Get full blog details
+    const fullBlog = await prisma.blog.findUnique({
+      where: { id: blog.id },
+      include: { user: true }
     })
 
-    if (!blog) {
+    if (!fullBlog) {
       return NextResponse.json(
-        { errors: [{ message: 'Blog not found or access denied' }] },
+        { errors: [{ message: 'Blog not found' }] },
         { status: 404 }
       )
     }
 
-    // Get query parameters
-    const { searchParams } = new URL(request.url)
+    // Get additional query parameters
     const limit = parseInt(searchParams.get('limit') || '15')
     const page = parseInt(searchParams.get('page') || '1')
     const status = searchParams.get('filter')?.includes('published') ? 'published' : undefined
@@ -374,7 +453,7 @@ export async function GET(request: NextRequest) {
     // Fetch posts
     const posts = await prisma.post.findMany({
       where: {
-        blogId: blog.id,
+        blogId: fullBlog.id,
         contentSource: ContentSource.GHOST,
         ...(status && { isPublished: status === 'published' })
       },
@@ -395,7 +474,7 @@ export async function GET(request: NextRequest) {
       created_at: post.createdAt.toISOString(),
       updated_at: post.updatedAt.toISOString(),
       published_at: post.publishedAt?.toISOString() || null,
-      url: `${request.nextUrl.origin}/${blog.user.slug || 'blog'}/${blog.slug}/${post.slug}`
+      url: `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${post.slug}`
     }))
 
     return NextResponse.json({
