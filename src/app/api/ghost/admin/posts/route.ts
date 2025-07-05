@@ -195,6 +195,9 @@ export async function POST(request: NextRequest) {
     const domain = searchParams.get('domain')
     const subdomain = searchParams.get('subdomain')
     const blogSlug = searchParams.get('blogSlug')
+    const source = searchParams.get('source') // Ghost API source parameter (html, markdown, etc.)
+    
+    console.log(`👻 Ghost POST request: source=${source}, url=${request.url}`)
 
     // Find the blog by URL structure
     const blog = await findBlogByIdentifier(domain || undefined, subdomain || undefined, blogSlug || undefined)
@@ -246,6 +249,8 @@ export async function POST(request: NextRequest) {
     // Parse request body
     const body: GhostPostRequest = await request.json()
     
+    console.log(`👻 Ghost POST body:`, JSON.stringify(body, null, 2))
+    
     if (!body.posts || !Array.isArray(body.posts)) {
       return NextResponse.json(
         { errors: [{ message: 'Invalid request format. Expected posts array.' }] },
@@ -264,23 +269,30 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Extract content from different formats - prioritize Markdown from Ulysses
+      // Extract content from different formats
       let content = ''
       let isMarkdownContent = false
       
-      if (ghostPost.markdown) {
-        // Ulysses sends Markdown XL - store as-is
-        content = ghostPost.markdown
+      // Determine content format based on source parameter and available fields
+      if (source === 'markdown' || ghostPost.markdown) {
+        // Markdown content (Ulysses with markdown source or explicit markdown field)
+        content = ghostPost.markdown || ghostPost.html || ''
         isMarkdownContent = true
       } else if (ghostPost.html) {
+        // HTML content (default for most Ghost clients)
         content = ghostPost.html
+        isMarkdownContent = false
       } else if (ghostPost.lexical) {
         // Store lexical as-is for now
         content = ghostPost.lexical
+        isMarkdownContent = false
       } else if (ghostPost.mobiledoc) {
         // Store mobiledoc as-is for now
         content = ghostPost.mobiledoc
+        isMarkdownContent = false
       }
+      
+      console.log(`👻 Content processing: source=${source}, isMarkdown=${isMarkdownContent}, contentLength=${content.length}`)
 
       // Generate slug
       const baseSlug = ghostPost.slug || generateSlug(ghostPost.title)
