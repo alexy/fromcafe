@@ -89,8 +89,10 @@ export async function POST(request: NextRequest) {
       '1h': 60 * 60 * 1000,
       '24h': 24 * 60 * 60 * 1000,
       '7d': 7 * 24 * 60 * 60 * 1000,
-      '30d': 30 * 24 * 60 * 60 * 1000
-    }[expiresIn] || 24 * 60 * 60 * 1000
+      '30d': 30 * 24 * 60 * 60 * 1000,
+      '1y': 365 * 24 * 60 * 60 * 1000,
+      'never': 100 * 365 * 24 * 60 * 60 * 1000 // 100 years
+    }[expiresIn] || 365 * 24 * 60 * 60 * 1000 // Default to 1 year
 
     const expiresAtDate = new Date(Date.now() + expirationMs)
 

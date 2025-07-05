@@ -34,7 +34,7 @@ export default function GhostConfigSection({ blogId }: GhostConfigSectionProps) 
   const [loading, setLoading] = useState(true)
   const [generatingToken, setGeneratingToken] = useState(false)
   const [currentToken, setCurrentToken] = useState<GhostToken | null>(null)
-  const [tokenExpiry, setTokenExpiry] = useState('24h')
+  const [tokenExpiry, setTokenExpiry] = useState('1y')
 
   useEffect(() => {
     fetchBlogInfo()
@@ -175,13 +175,15 @@ export default function GhostConfigSection({ blogId }: GhostConfigSectionProps) 
               <option value="24h">24 hours</option>
               <option value="7d">7 days</option>
               <option value="30d">30 days</option>
+              <option value="1y">1 year</option>
+              <option value="never">Never</option>
             </select>
             <button
               onClick={generateToken}
               disabled={generatingToken}
               className="bg-blue-600 text-white px-3 py-1 text-sm rounded hover:bg-blue-700 disabled:opacity-50"
             >
-              {generatingToken ? 'Generating...' : 'Generate Token'}
+              {generatingToken ? 'Generating...' : (currentToken ? 'Regenerate Token' : 'Generate Token')}
             </button>
           </div>
           <p className="text-xs text-gray-500 mt-1">

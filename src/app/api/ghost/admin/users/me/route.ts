@@ -13,8 +13,7 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
 
     const token = authHeader.substring(6) // Remove 'Ghost ' prefix
     
-    console.log('DEBUG: Received token:', JSON.stringify(token))
-    console.log('DEBUG: Token length:', token.length)
+    console.log('DEBUG: Received token length:', token.length)
     
     // Check if it's a JWT token (starts with eyJ)
     if (token.startsWith('eyJ')) {
