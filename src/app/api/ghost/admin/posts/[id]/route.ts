@@ -134,11 +134,28 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       excerpt: post.excerpt || '',
       reading_time: Math.max(1, Math.round((post.content?.length || 0) / 265)),
       access: true,
+      send_email_when_published: false,
       email_segment: 'all',
-      status: post.isPublished ? 'published' : 'draft'
+      status: post.isPublished ? 'published' : 'draft',
+      // Additional fields that might be required for editing
+      meta_title: null,
+      meta_description: null,
+      og_image: null,
+      og_title: null,
+      og_description: null,
+      twitter_image: null,
+      twitter_title: null,
+      twitter_description: null,
+      email_subject: null,
+      frontmatter: null,
+      feature_image_alt: null,
+      feature_image_caption: null
     }
 
     console.log('👻 Returning individual post:', post.title)
+    console.log('👻 Ghost response status:', ghostResponse.status)
+    console.log('👻 Ghost response access:', ghostResponse.access)
+    console.log('👻 Ghost response updated_at:', ghostResponse.updated_at)
 
     return NextResponse.json({
       posts: [ghostResponse]
