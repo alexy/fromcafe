@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ContentSource } from '@prisma/client'
 import { ContentProcessor } from '@/lib/content-processor'
+import { createHash } from 'crypto'
 
 // Ghost-compatible post structure
 interface GhostPost {
@@ -324,12 +325,16 @@ export async function POST(request: NextRequest) {
       // Generate excerpt from processed content
       const excerpt = ghostPost.excerpt || contentProcessor.generateExcerpt(processingResult.processedContent)
 
-      // Update the post with processed content and excerpt
+      // Generate Ghost-compatible ID for this post if not already set
+      const ghostPostId = post.ghostPostId || createHash('sha256').update(post.id).digest('hex').substring(0, 24)
+      
+      // Update the post with processed content, excerpt, and Ghost post ID
       await prisma.post.update({
         where: { id: post.id },
         data: {
           content: processingResult.processedContent,
-          excerpt: excerpt.substring(0, 500) // Limit excerpt length
+          excerpt: excerpt.substring(0, 500), // Limit excerpt length
+          ghostPostId: ghostPostId // Store the Ghost-compatible ID
         }
       })
 
@@ -347,12 +352,18 @@ export async function POST(request: NextRequest) {
       })
 
       // Format response in Ghost format with all required fields
+      // Use the stored Ghost post ID
+      const responseGhostId = updatedPost!.ghostPostId!
+      // Generate proper UUID format
+      const ghostUuid = `${responseGhostId.substring(0, 8)}-${responseGhostId.substring(8, 12)}-${responseGhostId.substring(12, 16)}-${responseGhostId.substring(16, 20)}-${responseGhostId.substring(20, 24)}000000000000`
+      
       const ghostResponse = {
-        id: updatedPost!.id,
-        uuid: updatedPost!.id, // Use same ID as UUID for simplicity
+        id: responseGhostId,
+        uuid: ghostUuid,
         title: updatedPost!.title,
         slug: updatedPost!.slug,
         html: updatedPost!.content,
+        lexical: null, // We're using HTML format, not Lexical
         comment_id: updatedPost!.id,
         plaintext: updatedPost!.excerpt || '',
         feature_image: null,
