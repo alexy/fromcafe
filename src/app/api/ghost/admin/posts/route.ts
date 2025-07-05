@@ -247,9 +247,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse request body
-    const body: GhostPostRequest = await request.json()
-    
-    console.log(`👻 Ghost POST body:`, JSON.stringify(body, null, 2))
+    let body: GhostPostRequest
+    try {
+      body = await request.json()
+      console.log(`👻 Ghost POST body:`, JSON.stringify(body, null, 2))
+    } catch (error) {
+      console.error(`👻 Failed to parse Ghost POST body:`, error)
+      return NextResponse.json(
+        { errors: [{ message: 'Invalid JSON in request body' }] },
+        { status: 400 }
+      )
+    }
     
     if (!body.posts || !Array.isArray(body.posts)) {
       return NextResponse.json(
@@ -488,7 +496,9 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error creating Ghost post:', error)
+    console.error('👻 Error creating Ghost post:', error)
+    console.error('👻 Error details:', error instanceof Error ? error.message : 'Unknown error')
+    console.error('👻 Error stack:', error instanceof Error ? error.stack : 'No stack trace')
     return NextResponse.json(
       { errors: [{ message: 'Internal server error' }] },
       { status: 500 }
