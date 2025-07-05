@@ -103,6 +103,7 @@ model Blog {
   domain              Domain?
   ghostTokens         GhostToken[]
   posts               Post[]
+  tags                Tag[]
 
   @@unique([userId, slug])
   @@map("blogs")
@@ -125,9 +126,37 @@ model Post {
   sourceUpdatedAt DateTime?
   sourceUrl       String?
   blog            Blog          @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  postTags        PostTag[]
 
   @@unique([blogId, slug])
   @@map("posts")
+}
+
+model Tag {
+  id          String    @id @default(cuid())
+  blogId      String
+  name        String
+  slug        String
+  description String?
+  visibility  String    @default("public")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  blog        Blog      @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  postTags    PostTag[]
+
+  @@unique([blogId, slug])
+  @@map("tags")
+}
+
+model PostTag {
+  id     String @id @default(cuid())
+  postId String
+  tagId  String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, tagId])
+  @@map("post_tags")
 }
 
 model Domain {
