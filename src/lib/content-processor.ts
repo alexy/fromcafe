@@ -3,7 +3,7 @@
  */
 
 import { createHash } from 'crypto'
-import { ImageStorageService } from '@/lib/image-storage'
+import { VercelBlobStorageService } from '@/lib/vercel-blob-storage'
 import { EvernoteService, EvernoteNote } from '@/lib/evernote'
 
 export interface ImageProcessingResult {
@@ -13,10 +13,10 @@ export interface ImageProcessingResult {
 }
 
 export class ContentProcessor {
-  private imageStorage: ImageStorageService
+  private imageStorage: VercelBlobStorageService
 
   constructor() {
-    this.imageStorage = new ImageStorageService()
+    this.imageStorage = new VercelBlobStorageService()
   }
 
   /**
