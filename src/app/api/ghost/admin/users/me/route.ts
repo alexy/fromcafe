@@ -14,6 +14,7 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
     const token = authHeader.substring(6) // Remove 'Ghost ' prefix
     
     console.log('DEBUG: Received token length:', token.length)
+    console.log('DEBUG: Token preview:', token.substring(0, 50) + '...')
     
     // Decode the JWT to see its full content
     try {
@@ -37,6 +38,7 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
         const kid = decoded.header.kid
         console.log('DEBUG: JWT kid (Admin API key ID):', kid)
         console.log('DEBUG: JWT algorithm:', decoded.header.alg)
+        console.log('DEBUG: JWT header:', JSON.stringify(decoded.header, null, 2))
         
         // Find the Admin API key by matching the ID part (before colon)
         const allTokens = await prisma.ghostToken.findMany({
@@ -64,6 +66,7 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
         }
         
         console.log('DEBUG: Found matching token in database')
+        console.log('DEBUG: Token from database:', matchingToken.token.substring(0, 30) + '...')
 
         // Check if token has expired
         if (matchingToken.expiresAt < new Date()) {
@@ -79,31 +82,47 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
         console.log('DEBUG: Secret length:', secret.length, 'chars')
         console.log('DEBUG: Secret preview:', secret.substring(0, 10) + '...')
 
-        // Verify JWT with the secret as a string (Ghost standard)
-        try {
-          jwt.verify(token, secret, { algorithms: ['HS256'] })
-          console.log('JWT verified successfully with Admin API key')
-          return {
-            blogId: matchingToken.blogId,
-            userId: matchingToken.userId
-          }
-        } catch (jwtError) {
-          console.log('JWT verification failed:', jwtError)
-          // Try with hex-decoded buffer as fallback
+        // Try different verification approaches
+        const verificationMethods = [
+          { name: 'string secret', secret: secret },
+          { name: 'hex-decoded buffer', secret: Buffer.from(secret, 'hex') },
+          { name: 'base64-decoded buffer', secret: Buffer.from(secret, 'base64') },
+          { name: 'utf8 buffer', secret: Buffer.from(secret, 'utf8') }
+        ]
+
+        for (const method of verificationMethods) {
           try {
-            const secretBuffer = Buffer.from(secret, 'hex')
-            console.log('DEBUG: Trying hex-decoded secret, buffer length:', secretBuffer.length, 'bytes')
-            jwt.verify(token, secretBuffer, { algorithms: ['HS256'] })
-            console.log('JWT verified successfully with hex-decoded secret')
+            console.log(`DEBUG: Trying verification with ${method.name}`)
+            jwt.verify(token, method.secret, { algorithms: ['HS256'] })
+            console.log(`JWT verified successfully with ${method.name}`)
             return {
               blogId: matchingToken.blogId,
               userId: matchingToken.userId
             }
-          } catch (jwtError2) {
-            console.log('JWT verification failed with hex-decoded secret:', jwtError2)
-            return null
+          } catch (jwtError) {
+            console.log(`JWT verification failed with ${method.name}:`, jwtError instanceof Error ? jwtError.message : 'Unknown error')
           }
         }
+
+        // If all methods fail, log the token structure for debugging
+        console.log('All JWT verification methods failed. Token structure:')
+        try {
+          const parts = token.split('.')
+          console.log('JWT parts count:', parts.length)
+          console.log('Header (base64):', parts[0])
+          console.log('Payload (base64):', parts[1])
+          console.log('Signature (base64):', parts[2])
+          
+          // Decode and log each part
+          const header = JSON.parse(Buffer.from(parts[0], 'base64').toString())
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString())
+          console.log('Decoded header:', JSON.stringify(header, null, 2))
+          console.log('Decoded payload:', JSON.stringify(payload, null, 2))
+        } catch (decodeError) {
+          console.log('Failed to decode JWT parts:', decodeError)
+        }
+
+        return null
         
       } catch (error) {
         console.log('Error parsing JWT:', error)
