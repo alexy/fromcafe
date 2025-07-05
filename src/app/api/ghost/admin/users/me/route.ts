@@ -15,6 +15,14 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
     
     console.log('DEBUG: Received token length:', token.length)
     
+    // Decode the JWT to see its full content
+    try {
+      const fullDecoded = jwt.decode(token) as any
+      console.log('DEBUG: JWT payload:', JSON.stringify(fullDecoded, null, 2))
+    } catch (e) {
+      console.log('DEBUG: Could not decode JWT payload')
+    }
+    
     // Check if it's a JWT token (starts with eyJ)
     if (token.startsWith('eyJ')) {
       try {
