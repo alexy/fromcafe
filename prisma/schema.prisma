@@ -122,6 +122,7 @@ model Post {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   contentSource   ContentSource @default(EVERNOTE)
+  contentFormat   ContentFormat @default(HTML)
   ghostPostId     String?
   sourceUpdatedAt DateTime?
   sourceUrl       String?
@@ -201,4 +202,9 @@ enum DomainType {
 enum ContentSource {
   EVERNOTE
   GHOST
+}
+
+enum ContentFormat {
+  HTML
+  MARKDOWN
 }

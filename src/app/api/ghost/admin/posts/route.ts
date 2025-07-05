@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { ContentSource } from '@prisma/client'
+import { ContentSource, ContentFormat } from '@prisma/client'
 import { ContentProcessor } from '@/lib/content-processor'
 import { createHash } from 'crypto'
+import { marked } from 'marked'
 
 // Ghost-compatible post structure
 interface GhostPost {
@@ -12,6 +13,7 @@ interface GhostPost {
   html?: string
   lexical?: string
   mobiledoc?: string
+  markdown?: string // Ulysses sends Markdown XL content
   excerpt?: string
   status?: 'published' | 'draft' | 'scheduled'
   published_at?: string
@@ -262,15 +264,21 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Extract content from different formats
+      // Extract content from different formats - prioritize Markdown from Ulysses
       let content = ''
-      if (ghostPost.html) {
+      let isMarkdownContent = false
+      
+      if (ghostPost.markdown) {
+        // Ulysses sends Markdown XL - store as-is
+        content = ghostPost.markdown
+        isMarkdownContent = true
+      } else if (ghostPost.html) {
         content = ghostPost.html
       } else if (ghostPost.lexical) {
-        // For now, store lexical as-is. In production, you might convert to HTML
+        // Store lexical as-is for now
         content = ghostPost.lexical
       } else if (ghostPost.mobiledoc) {
-        // For now, store mobiledoc as-is. In production, you might convert to HTML
+        // Store mobiledoc as-is for now
         content = ghostPost.mobiledoc
       }
 
@@ -312,6 +320,7 @@ export async function POST(request: NextRequest) {
           isPublished,
           publishedAt,
           contentSource: ContentSource.GHOST,
+          contentFormat: isMarkdownContent ? ContentFormat.MARKDOWN : ContentFormat.HTML,
           ghostPostId: ghostPost.id || undefined, // Use provided ID if available
           sourceUrl: `${request.nextUrl.origin}/api/ghost/admin/posts`, // Reference to our API
           sourceUpdatedAt: new Date()
@@ -320,10 +329,21 @@ export async function POST(request: NextRequest) {
 
       // Process content with unified image handling
       const contentProcessor = new ContentProcessor()
-      const processingResult = await contentProcessor.processGhostContent(content, post.id)
+      let processingResult
       
-      // Generate excerpt from processed content
-      const excerpt = ghostPost.excerpt || contentProcessor.generateExcerpt(processingResult.processedContent)
+      if (isMarkdownContent) {
+        // Convert Markdown to HTML for image processing only
+        const htmlContent = await marked(content)
+        processingResult = await contentProcessor.processGhostContent(htmlContent, post.id)
+        // But store the original Markdown content, not the processed HTML
+        processingResult.processedContent = content
+      } else {
+        processingResult = await contentProcessor.processGhostContent(content, post.id)
+      }
+      
+      // Generate excerpt from content (use HTML version for excerpt generation)
+      const htmlForExcerpt = isMarkdownContent ? await marked(content) : content
+      const excerpt = ghostPost.excerpt || contentProcessor.generateExcerpt(htmlForExcerpt)
 
       // Generate Ghost-compatible ID for this post if not already set
       const ghostPostId = post.ghostPostId || createHash('sha256').update(post.id).digest('hex').substring(0, 24)
@@ -357,13 +377,22 @@ export async function POST(request: NextRequest) {
       // Generate proper UUID format
       const ghostUuid = `${responseGhostId.substring(0, 8)}-${responseGhostId.substring(8, 12)}-${responseGhostId.substring(12, 16)}-${responseGhostId.substring(16, 20)}-${responseGhostId.substring(20, 24)}000000000000`
       
+      // Convert content for response
+      const responseHtml = updatedPost!.contentFormat === ContentFormat.MARKDOWN 
+        ? await marked(updatedPost!.content) 
+        : updatedPost!.content
+      const responseMarkdown = updatedPost!.contentFormat === ContentFormat.MARKDOWN 
+        ? updatedPost!.content 
+        : null
+      
       const ghostResponse = {
         id: responseGhostId,
         uuid: ghostUuid,
         title: updatedPost!.title,
         slug: updatedPost!.slug,
-        html: updatedPost!.content,
-        lexical: null, // We're using HTML format, not Lexical
+        html: responseHtml,
+        lexical: null, // We're using HTML/Markdown format, not Lexical
+        markdown: responseMarkdown, // Return original Markdown if available
         comment_id: updatedPost!.id,
         plaintext: updatedPost!.excerpt || '',
         feature_image: null,
