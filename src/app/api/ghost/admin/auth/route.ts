@@ -190,12 +190,12 @@ export async function GET(request: NextRequest) {
       ? `https://${blog.subdomain}.from.cafe`
       : `https://from.cafe/${blog.user.slug}/${blog.slug}`
 
-    // Generate blog-specific Ghost API endpoint
+    // Generate blog-specific Ghost API base URL (clients will append their own paths)
     const apiEndpoint = blog.customDomain 
-      ? `https://${blog.customDomain}/ghost/api/admin/posts`
+      ? `https://${blog.customDomain}`
       : blog.subdomain
-      ? `https://${blog.subdomain}.from.cafe/ghost/api/admin/posts`
-      : `https://from.cafe/${blog.slug}/ghost/api/admin/posts`
+      ? `https://${blog.subdomain}.from.cafe`
+      : `https://from.cafe/${blog.slug}`
 
     return NextResponse.json({
       blog: {
