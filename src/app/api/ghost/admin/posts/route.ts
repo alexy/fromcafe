@@ -223,6 +223,23 @@ export async function POST(request: NextRequest) {
         ? (ghostPost.published_at ? new Date(ghostPost.published_at) : new Date())
         : null
 
+      // Check for existing Ghost post if ID is provided
+      if (ghostPost.id) {
+        const existingPost = await prisma.post.findFirst({
+          where: {
+            ghostPostId: ghostPost.id,
+            blogId: blog.id
+          }
+        })
+        
+        if (existingPost) {
+          return NextResponse.json(
+            { errors: [{ message: `Post with ID ${ghostPost.id} already exists` }] },
+            { status: 409 }
+          )
+        }
+      }
+
       // Create the post first (we need the post ID for image processing)
       const post = await prisma.post.create({
         data: {
@@ -234,6 +251,7 @@ export async function POST(request: NextRequest) {
           isPublished,
           publishedAt,
           contentSource: ContentSource.GHOST,
+          ghostPostId: ghostPost.id || undefined, // Use provided ID if available
           sourceUrl: `${request.nextUrl.origin}/api/ghost/admin/posts`, // Reference to our API
           sourceUpdatedAt: new Date()
         }

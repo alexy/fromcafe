@@ -144,7 +144,7 @@ model Post {
   
   // Source-specific IDs (only one should be set per post)
   evernoteNoteId String?       @unique
-  ghostPostId    String?       @unique
+  ghostPostId    String?
   
   // Source-specific metadata
   sourceUpdatedAt DateTime?    // When the source was last updated
