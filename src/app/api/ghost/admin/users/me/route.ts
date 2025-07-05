@@ -28,6 +28,7 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
         
         const kid = decoded.header.kid
         console.log('DEBUG: JWT kid (Admin API key ID):', kid)
+        console.log('DEBUG: JWT algorithm:', decoded.header.alg)
         
         // Find the Admin API key by matching the ID part (before colon)
         const allTokens = await prisma.ghostToken.findMany({
@@ -50,8 +51,11 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
 
         if (!matchingToken) {
           console.log('Admin API key not found in database for ID:', kid)
+          console.log('Available token IDs in database:', allTokens.map(t => t.token.split(':')[0]))
           return null
         }
+        
+        console.log('DEBUG: Found matching token in database')
 
         // Check if token has expired
         if (matchingToken.expiresAt < new Date()) {
@@ -64,7 +68,10 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
 
         // Extract the secret part and decode from hex
         const secret = matchingToken.token.split(':')[1]
+        console.log('DEBUG: Secret length:', secret.length, 'chars')
+        console.log('DEBUG: Secret preview:', secret.substring(0, 10) + '...')
         const secretBuffer = Buffer.from(secret, 'hex')
+        console.log('DEBUG: Secret buffer length:', secretBuffer.length, 'bytes')
 
         // Verify JWT with the decoded secret
         try {
