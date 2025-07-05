@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { getAvailableThemes } from '@/lib/themes/registry'
+import GhostConfigSection from '@/components/GhostConfigSection'
 
 interface Blog {
   id: string
@@ -1200,6 +1201,12 @@ export default function BlogSettings() {
                   </div>
                 </div>
               )}
+
+              {/* Ghost Configuration */}
+              <div>
+                <label className="block text-sm font-medium text-black mb-1">Ghost Integration</label>
+                <GhostConfigSection blogId={blogId} />
+              </div>
             </div>
           </div>
         </div>

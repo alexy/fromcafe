@@ -3,6 +3,16 @@ import { prisma } from '@/lib/prisma'
 import { EvernoteService } from '@/lib/evernote'
 import { SyncService } from '@/lib/sync'
 
+// Simple ENML to HTML conversion for webhooks (without image processing)
+function convertEvernoteToHtmlSimple(enmlContent: string): string {
+  return enmlContent
+    .replace(/<\?xml[^>]*\?>/g, '')
+    .replace(/<!DOCTYPE[^>]*>/g, '')
+    .replace(/<en-note[^>]*>/g, '<div>')
+    .replace(/<\/en-note>/g, '</div>')
+    .replace(/<en-media[^>]*\/>/g, '') // Remove media tags (images will be handled by main sync)
+}
+
 interface EvernoteWebhookPayload {
   userId: number
   guid: string
@@ -158,7 +168,7 @@ async function createNewPost(note: { guid: string; title: string; content: strin
       blogId,
       evernoteNoteId: note.guid,
       title: note.title,
-      content: SyncService.convertEvernoteToHtml(note.content),
+      content: convertEvernoteToHtmlSimple(note.content),
       excerpt: SyncService.generateExcerpt(note.content),
       slug,
       isPublished: true,
@@ -174,7 +184,7 @@ async function updateExistingPost(postId: string, note: { title: string; content
     where: { id: postId },
     data: {
       title: note.title,
-      content: SyncService.convertEvernoteToHtml(note.content),
+      content: convertEvernoteToHtmlSimple(note.content),
       excerpt: SyncService.generateExcerpt(note.content),
       isPublished: true,
       publishedAt: new Date(), // Update publish time on update

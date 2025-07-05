@@ -31,6 +31,18 @@ export interface EvernoteNote {
   tagNames: string[]
   created: number
   updated: number
+  resources?: EvernoteResource[]
+}
+
+export interface EvernoteResource {
+  guid: string
+  data: {
+    bodyHash: string
+    size: number
+  }
+  mime: string
+  width?: number
+  height?: number
 }
 
 export interface EvernoteNotebook {
@@ -265,8 +277,8 @@ export class EvernoteService {
             const isLocalWrappedException = isLocal && isWrappedFunction
             
             const fullNote = isLocalWrappedException
-              ? await freshNoteStore.getNote(metadata.guid, true, false, false, false)                    // Local wrapped: no token
-              : await freshNoteStore.getNote(this.accessToken, metadata.guid, true, false, false, false)  // Everything else: use token
+              ? await freshNoteStore.getNote(metadata.guid, true, true, false, false)                    // Local wrapped: no token, include resources
+              : await freshNoteStore.getNote(this.accessToken, metadata.guid, true, true, false, false)  // Everything else: use token, include resources
             
             console.log(`Using ${isLocalWrappedException ? 'local wrapped (no token)' : 'standard (with token)'} getNote logic`)
             
@@ -277,6 +289,7 @@ export class EvernoteService {
               tagNames,
               created: fullNote.created,
               updated: fullNote.updated,
+              resources: fullNote.resources || []
             })
             
             console.log(`Processed published note ${notes.length}: "${fullNote.title}"`)
@@ -366,8 +379,8 @@ export class EvernoteService {
       const isLocalWrappedException = isLocal && isWrappedFunction
       
       const fullNote = isLocalWrappedException
-        ? await freshNoteStore.getNote(noteGuid, true, false, false, false)                    // Local wrapped: no token
-        : await freshNoteStore.getNote(this.accessToken, noteGuid, true, false, false, false)  // Everything else: use token
+        ? await freshNoteStore.getNote(noteGuid, true, true, false, false)                    // Local wrapped: no token, include resources
+        : await freshNoteStore.getNote(this.accessToken, noteGuid, true, true, false, false)  // Everything else: use token, include resources
       
       console.log(`Using ${isLocalWrappedException ? 'local wrapped (no token)' : 'standard (with token)'} getNote logic`)
       const tagNames = await this.getTagNamesWithStore(freshNoteStore, fullNote.tagGuids || [])
@@ -379,6 +392,7 @@ export class EvernoteService {
         tagNames,
         created: fullNote.created,
         updated: fullNote.updated,
+        resources: fullNote.resources || []
       }
     } catch (error) {
       console.error('Error fetching note:', error)
@@ -592,6 +606,47 @@ export class EvernoteService {
 
   isPublished(tagNames: string[]): boolean {
     return tagNames.some(tag => tag.toLowerCase() === 'published')
+  }
+
+  /**
+   * Download resource data (image) from Evernote
+   */
+  async getResourceData(resourceGuid: string): Promise<Buffer | null> {
+    try {
+      // Create a fresh client with the access token
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const EvernoteSDK = require('evernote')
+      const tokenizedClient = new EvernoteSDK.Client({
+        consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
+        consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
+        sandbox: false,
+        token: this.accessToken
+      })
+      
+      // Use stored noteStoreUrl if available to avoid getUserUrls() call
+      const freshNoteStore = this.noteStoreUrl 
+        ? tokenizedClient.getNoteStore(this.noteStoreUrl)
+        : tokenizedClient.getNoteStore()
+
+      // Detect if we're dealing with wrapped functions (local dev) vs normal functions (production)
+      const getResourceDataFunc = (freshNoteStore as { getResourceData: (...args: unknown[]) => unknown }).getResourceData
+      const isWrappedFunction = getResourceDataFunc.length === 0 && 
+        getResourceDataFunc.toString().includes('arguments.length')
+      
+      // SIMPLIFIED LOGIC: Only local wrapped functions are different
+      const isLocal = !process.env.VERCEL && !process.env.VERCEL_ENV
+      const isLocalWrappedException = isLocal && isWrappedFunction
+      
+      const resourceData = isLocalWrappedException
+        ? await (freshNoteStore as { getResourceData: (guid: string) => Promise<Buffer> }).getResourceData(resourceGuid)                                // Local wrapped: no token
+        : await (freshNoteStore as { getResourceData: (token: string, guid: string) => Promise<Buffer> }).getResourceData(this.accessToken, resourceGuid)  // Everything else: use token
+      
+      console.log(`Downloaded resource ${resourceGuid} (${resourceData.length} bytes)`)
+      return resourceData
+    } catch (error) {
+      console.error(`Error downloading resource ${resourceGuid}:`, error)
+      return null
+    }
   }
 
   private async getCurrentEvernoteAccountId(noteStore: unknown): Promise<string | null> {

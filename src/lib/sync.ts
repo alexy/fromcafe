@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { EvernoteService } from '@/lib/evernote'
+import { EvernoteService, EvernoteNote } from '@/lib/evernote'
 import * as cron from 'node-cron'
 
 export interface SyncResult {
@@ -241,7 +241,7 @@ export class SyncService {
 
         if (existingPost) {
           // Check if post actually needs updating by comparing content
-          const newContent = this.convertEvernoteToHtml(note.content)
+          const newContent = await this.convertEvernoteToHtml(note.content, note, existingPost.id, evernoteService)
           const newExcerpt = this.generateExcerpt(note.content)
           const newUpdatedAt = new Date(note.updated)
           const newPublishedAt = isPublished ? (existingPost.publishedAt || new Date()) : null
@@ -364,12 +364,12 @@ export class SyncService {
         } else if (isPublished) {
           // Create new published post
           console.log(`Creating new post for note "${note.title}"`)
-          await prisma.post.create({
+          const newPost = await prisma.post.create({
             data: {
               blogId,
               evernoteNoteId: note.guid,
               title: note.title,
-              content: this.convertEvernoteToHtml(note.content),
+              content: '', // Will be updated below after processing images
               excerpt: this.generateExcerpt(note.content),
               slug,
               isPublished: true,
@@ -377,6 +377,13 @@ export class SyncService {
               createdAt: new Date(note.created),
               updatedAt: new Date(note.updated),
             },
+          })
+          
+          // Process content with images after creating the post (need post ID)
+          const processedContent = await this.convertEvernoteToHtml(note.content, note, newPost.id, evernoteService)
+          await prisma.post.update({
+            where: { id: newPost.id },
+            data: { content: processedContent }
           })
           result.newPosts++
           result.posts.push({
@@ -402,10 +409,25 @@ export class SyncService {
         console.log(`Found ${stillPublishedNoteGuids.size} notes still published in current sync`)
 
         for (const post of currentPosts) {
+          // Only check Evernote posts (skip Ghost posts)
+          if (!post.evernoteNoteId || post.contentSource !== 'EVERNOTE') {
+            continue
+          }
+          
           // Check if this post's note is still in the published notes we fetched
           if (!stillPublishedNoteGuids.has(post.evernoteNoteId)) {
             // Note is no longer published (either deleted or lost "published" tag)
             console.log(`Note "${post.title}" (${post.evernoteNoteId}) no longer published, unpublishing post`)
+            
+            // Clean up images for unpublished posts
+            try {
+              const { ImageStorageService } = await import('@/lib/image-storage')
+              const imageStorage = new ImageStorageService()
+              await imageStorage.deletePostImages(post.id)
+            } catch (error) {
+              console.error(`Error cleaning up images for post ${post.id}:`, error)
+            }
+            
             await prisma.post.update({
               where: { id: post.id },
               data: {
@@ -480,19 +502,96 @@ export class SyncService {
       .replace(/(^-|-$)/g, '')
   }
 
-  static convertEvernoteToHtml(enmlContent: string): string {
-    // Basic ENML to HTML conversion
-    // In a real implementation, you'd use a proper ENML parser
-    return enmlContent
+  static async convertEvernoteToHtml(enmlContent: string, note: EvernoteNote, postId: string, evernoteService: EvernoteService): Promise<string> {
+    const { ImageStorageService } = await import('@/lib/image-storage')
+    const imageStorage = new ImageStorageService()
+    
+    let html = enmlContent
       .replace(/<\?xml[^>]*\?>/g, '')
       .replace(/<!DOCTYPE[^>]*>/g, '')
       .replace(/<en-note[^>]*>/g, '<div>')
       .replace(/<\/en-note>/g, '</div>')
-      .replace(/<en-media[^>]*\/>/g, '') // Remove media for now
+    
+    // Handle <en-media> tags - convert to <img> tags
+    const mediaTagRegex = /<en-media[^>]*hash="([^"]+)"[^>]*\/>/g
+    let match
+    const mediaReplacements: Array<{ tag: string; replacement: string }> = []
+    
+    while ((match = mediaTagRegex.exec(html)) !== null) {
+      const fullTag = match[0]
+      const hash = match[1]
+      
+      // Find the corresponding resource
+      const resource = note.resources?.find(r => r.data.bodyHash === hash)
+      if (!resource) {
+        console.warn(`Resource not found for hash: ${hash}`)
+        // Remove the tag if resource not found
+        mediaReplacements.push({ tag: fullTag, replacement: '' })
+        continue
+      }
+      
+      try {
+        // Check if image already exists
+        let imageUrl = await imageStorage.imageExists(hash, postId)
+        
+        if (!imageUrl) {
+          // Download and store the image
+          const imageData = await evernoteService.getResourceData(resource.guid)
+          if (imageData) {
+            const imageInfo = await imageStorage.storeImage(imageData, hash, resource.mime, postId)
+            imageUrl = imageInfo.url
+            console.log(`Stored image: ${imageInfo.filename} for post ${postId}`)
+          }
+        } else {
+          console.log(`Using existing image: ${imageUrl} for post ${postId}`)
+        }
+        
+        if (imageUrl) {
+          // Extract width and height from the en-media tag if available
+          const widthMatch = fullTag.match(/width="([^"]+)"/)
+          const heightMatch = fullTag.match(/height="([^"]+)"/)
+          
+          let imgAttributes = `src="${imageUrl}" alt="Image"`
+          
+          if (widthMatch && heightMatch) {
+            imgAttributes += ` width="${widthMatch[1]}" height="${heightMatch[1]}"`
+          } else if (resource.width && resource.height) {
+            imgAttributes += ` width="${resource.width}" height="${resource.height}"`
+          }
+          
+          const imgTag = `<img ${imgAttributes} />`
+          mediaReplacements.push({ tag: fullTag, replacement: imgTag })
+        } else {
+          // Failed to process image, remove the tag
+          mediaReplacements.push({ tag: fullTag, replacement: '' })
+        }
+      } catch (error) {
+        console.error(`Error processing image with hash ${hash}:`, error)
+        // Remove the tag if processing failed
+        mediaReplacements.push({ tag: fullTag, replacement: '' })
+      }
+    }
+    
+    // Apply all replacements
+    for (const { tag, replacement } of mediaReplacements) {
+      html = html.replace(tag, replacement)
+    }
+    
+    return html
   }
 
   static generateExcerpt(content: string, maxLength: number = 200): string {
-    const text = content.replace(/<[^>]*>/g, '').trim()
+    // Remove XML/HTML tags and clean up text
+    const text = content
+      .replace(/<\?xml[^>]*\?>/g, '')
+      .replace(/<!DOCTYPE[^>]*>/g, '')
+      .replace(/<en-note[^>]*>/g, '')
+      .replace(/<\/en-note>/g, '')
+      .replace(/<en-media[^>]*\/>/g, '') // Remove media tags from excerpt
+      .replace(/<[^>]*>/g, '') // Remove all HTML tags
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim()
+    
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
   }
 

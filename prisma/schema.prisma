@@ -21,6 +21,10 @@ model User {
   evernotePublishedTagGuid String?  // Cached GUID for "published" tag
   evernoteAccountId      String?   // Track which Evernote account the cache is for
   
+  // Ghost API configuration
+  ghostApiUrl            String?   // Ghost site URL
+  ghostApiToken          String?   // Ghost staff authentication token
+  
   // Tenant properties merged into User
   slug                   String?   @unique  // URL slug for user's blog space
   subdomain              String?   @unique  // Subdomain like user.from.cafe
@@ -36,6 +40,7 @@ model User {
   blogs                  Blog[]
   sessions               Session[]
   domains                Domain[]
+  ghostTokens            GhostToken[]
 
   @@map("users")
 }
@@ -93,8 +98,19 @@ model Blog {
   customDomain        String?   @unique
   subdomain           String?   // Subdomain for this blog (e.g., tech.from.cafe)
   urlFormat           String    @default("path") // "path", "subdomain", or "custom"
+  
+  // Content source configuration
+  contentSources      ContentSource[] @default([EVERNOTE]) // Can be EVERNOTE, GHOST, or both
+  
+  // Evernote-specific fields
   evernoteNotebook    String?
   evernoteWebhookId   String?
+  
+  // Ghost-specific fields
+  ghostSiteUrl        String?   // Ghost site URL for this blog
+  ghostApiToken       String?   // Ghost staff authentication token for this blog
+  ghostLastSyncedAt   DateTime? // Last sync from Ghost
+  
   theme               String    @default("default")
   isPublic            Boolean   @default(true)
   createdAt           DateTime  @default(now())
@@ -102,27 +118,39 @@ model Blog {
   lastSyncedAt        DateTime?
   lastSyncAttemptAt   DateTime?
   lastSyncUpdateCount Int?
-  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   domain              Domain?
   posts               Post[]
+  ghostTokens         GhostToken[]
 
   @@unique([userId, slug])
   @@map("blogs")
 }
 
 model Post {
-  id             String    @id @default(cuid())
+  id             String        @id @default(cuid())
   blogId         String
-  evernoteNoteId String    @unique
   title          String
   content        String
   excerpt        String?
   slug           String
-  isPublished    Boolean   @default(false)
+  isPublished    Boolean       @default(false)
   publishedAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  blog           Blog      @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  
+  // Content source tracking
+  contentSource  ContentSource @default(EVERNOTE)
+  
+  // Source-specific IDs (only one should be set per post)
+  evernoteNoteId String?       @unique
+  ghostPostId    String?       @unique
+  
+  // Source-specific metadata
+  sourceUpdatedAt DateTime?    // When the source was last updated
+  sourceUrl       String?      // URL to original source
+  
+  blog           Blog          @relation(fields: [blogId], references: [id], onDelete: Cascade)
 
   @@unique([blogId, slug])
   @@map("posts")
@@ -146,4 +174,23 @@ model Domain {
 enum DomainType {
   CUSTOM
   SUBDOMAIN
+}
+
+model GhostToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  blogId    String
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  blog      Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("ghost_tokens")
+}
+
+enum ContentSource {
+  EVERNOTE
+  GHOST
 }
