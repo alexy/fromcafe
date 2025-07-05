@@ -6,6 +6,15 @@ export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || ''
   const pathname = request.nextUrl.pathname
   
+  // Handle Ghost admin interface (non-API routes)
+  if (pathname.startsWith('/ghost') && !pathname.startsWith('/ghost/api/')) {
+    console.log('👻 Ghost admin interface request:', pathname)
+    // Redirect to our dashboard instead of Ghost admin
+    const dashboardUrl = new URL('/dashboard', request.url)
+    console.log('🔄 Redirecting Ghost admin to dashboard:', dashboardUrl.toString())
+    return NextResponse.redirect(dashboardUrl)
+  }
+
   // Handle Ghost API routes specially for blog-specific domains
   if (pathname.startsWith('/ghost/api/')) {
     console.log('👻 Ghost API request detected:', pathname, 'on hostname:', hostname)
