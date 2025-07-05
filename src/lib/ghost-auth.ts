@@ -83,23 +83,58 @@ async function parseJWTToken(token: string): Promise<GhostAuthResult | null> {
     
     let matchingToken = null
     
+    // First try to find exact match by token ID
     for (const dbToken of allTokens) {
       const [tokenId] = dbToken.token.split(':')
       console.log('DEBUG: Checking token ID:', tokenId, 'against kid:', kid)
       
       if (tokenId === kid) {
         matchingToken = dbToken
-        console.log('DEBUG: Found matching token for kid:', kid)
+        console.log('DEBUG: Found exact matching token for kid:', kid)
         break
       }
     }
     
+    // If no exact match, try to verify JWT with all available tokens
+    // (Ulysses might generate kid differently than we expect)
     if (!matchingToken) {
-      console.log('No matching Admin API key found for kid:', kid)
+      console.log('No exact kid match found, trying all tokens for JWT verification...')
+      
+      for (const dbToken of allTokens) {
+        // Check if token has expired
+        if (dbToken.expiresAt < new Date()) {
+          continue
+        }
+        
+        const [, secret] = dbToken.token.split(':')
+        
+        // Try different verification approaches
+        const verificationMethods = [
+          { name: 'string secret', secret: secret },
+          { name: 'hex-decoded buffer', secret: Buffer.from(secret, 'hex') }
+        ]
+
+        for (const method of verificationMethods) {
+          try {
+            jwt.verify(token, method.secret, { algorithms: ['HS256'] })
+            console.log(`JWT verified successfully with token ${dbToken.token.substring(0, 24)}... using ${method.name}`)
+            matchingToken = dbToken
+            break
+          } catch {
+            // Continue to next method
+          }
+        }
+        
+        if (matchingToken) break
+      }
+    }
+    
+    if (!matchingToken) {
+      console.log('No matching Admin API key found for kid:', kid, 'and JWT verification failed with all tokens')
       return null
     }
     
-    // Check if token has expired
+    // Check if token has expired (final check)
     if (matchingToken.expiresAt < new Date()) {
       console.log('Token expired, cleaning up')
       await prisma.ghostToken.delete({
@@ -108,34 +143,35 @@ async function parseJWTToken(token: string): Promise<GhostAuthResult | null> {
       return null
     }
     
-    // Use the secret part (after colon) for JWT verification
+    // If we found the token through verification, we're already good
+    // If we found it through exact kid match, verify it now
     const [, secret] = matchingToken.token.split(':')
     
-    console.log('DEBUG: Using secret for verification, length:', secret.length)
-    
-    // Verify JWT with the secret as a string (Ghost standard)
-    try {
-      jwt.verify(token, secret, { algorithms: ['HS256'] })
-      console.log('JWT verified successfully with Admin API key')
-      return {
-        blogId: matchingToken.blogId,
-        userId: matchingToken.userId
-      }
-    } catch (jwtError) {
-      console.log('JWT verification failed:', jwtError)
-      // Try with hex-decoded buffer as fallback
+    if (matchingToken.token.split(':')[0] === kid) {
+      // Found through exact kid match, need to verify
+      console.log('DEBUG: Using secret for verification, length:', secret.length)
+      
+      // Verify JWT with the secret as a string (Ghost standard)
       try {
-        const secretBuffer = Buffer.from(secret, 'hex')
-        jwt.verify(token, secretBuffer, { algorithms: ['HS256'] })
-        console.log('JWT verified successfully with hex-decoded secret')
-        return {
-          blogId: matchingToken.blogId,
-          userId: matchingToken.userId
+        jwt.verify(token, secret, { algorithms: ['HS256'] })
+        console.log('JWT verified successfully with Admin API key')
+      } catch (jwtError) {
+        console.log('JWT verification failed:', jwtError)
+        // Try with hex-decoded buffer as fallback
+        try {
+          const secretBuffer = Buffer.from(secret, 'hex')
+          jwt.verify(token, secretBuffer, { algorithms: ['HS256'] })
+          console.log('JWT verified successfully with hex-decoded secret')
+        } catch (jwtError2) {
+          console.log('JWT verification failed with hex-decoded secret:', jwtError2)
+          return null
         }
-      } catch (jwtError2) {
-        console.log('JWT verification failed with hex-decoded secret:', jwtError2)
-        return null
       }
+    }
+    
+    return {
+      blogId: matchingToken.blogId,
+      userId: matchingToken.userId
     }
   } catch (error) {
     console.error('Error processing JWT:', error)
