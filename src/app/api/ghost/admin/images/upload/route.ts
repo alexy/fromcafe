@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ImageStorageService } from '@/lib/image-storage'
+import { VercelBlobStorageService } from '@/lib/vercel-blob-storage'
 import { createHash } from 'crypto'
 
 /**
@@ -26,12 +26,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate file size (Vercel has 4.5MB limit for serverless functions)
+    const maxSize = 4 * 1024 * 1024 // 4MB to be safe
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        { errors: [{ message: `File too large. Maximum size is ${maxSize / 1024 / 1024}MB` }] },
+        { status: 400 }
+      )
+    }
+
     // Convert file to buffer
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // Use our unified image storage service
-    const imageStorage = new ImageStorageService()
+    // Use Vercel Blob storage service
+    const imageStorage = new VercelBlobStorageService()
     
     // Generate a hash for the file content to avoid duplicates
     const fileHash = createHash('sha256').update(buffer).digest('hex').substring(0, 16)
@@ -53,7 +62,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       images: [{
         url: imageInfo.url,
-        ref: imageInfo.filename.split('/').pop() // Just the filename for ref
+        ref: imageInfo.filename
       }]
     })
 

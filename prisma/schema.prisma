@@ -159,6 +159,7 @@ model PostTag {
   @@map("post_tags")
 }
 
+
 model Domain {
   id         String     @id @default(cuid())
   domain     String     @unique
