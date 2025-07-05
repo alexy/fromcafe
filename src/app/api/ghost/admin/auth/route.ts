@@ -23,11 +23,15 @@ interface GhostTokenResponse {
  * Generate a Ghost-compatible Admin API key (id:secret format)
  */
 function generateGhostAdminKey(blogId: string, userId: string): string {
-  // Generate 24-character ID
-  const idData = `${blogId}${userId}`
-  const id = createHash('sha256').update(idData).digest('hex').substring(0, 24)
+  // Generate 24-character ObjectId-like ID (matching Ghost format)
+  // Use timestamp (8 chars) + machine id (6 chars) + process id (4 chars) + counter (6 chars)
+  const timestamp = Math.floor(Date.now() / 1000).toString(16).padStart(8, '0')
+  const machineId = createHash('sha256').update(blogId).digest('hex').substring(0, 6)
+  const processId = createHash('sha256').update(userId).digest('hex').substring(0, 4)
+  const counter = Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')
+  const id = timestamp + machineId + processId + counter
   
-  // Generate 64-character hex secret
+  // Generate 64-character hex secret (same as before)
   const secretData = `${blogId}:${userId}:${Date.now()}:${Math.random()}`
   const secret = createHash('sha256').update(secretData).digest('hex')
   
