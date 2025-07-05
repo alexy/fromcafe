@@ -20,20 +20,19 @@ interface GhostTokenResponse {
 }
 
 /**
- * Generate a Ghost-compatible staff token for API access (format: 24-char-id:64-char-hex)
+ * Generate a Ghost-compatible Admin API key (id:secret format)
  */
-function generateGhostToken(blogId: string, userId: string): string {
-  // Generate a Ghost staff token format: [24-char-id]:[64-char-hex]
-  // Create a 24-character ID from blog/user info
+function generateGhostAdminKey(blogId: string, userId: string): string {
+  // Generate 24-character ID
   const idData = `${blogId}${userId}`
-  const userIdHash = createHash('sha256').update(idData).digest('hex').substring(0, 24)
+  const id = createHash('sha256').update(idData).digest('hex').substring(0, 24)
   
-  // Create a 64-character hex key
-  const keyData = `${blogId}:${userId}:${Date.now()}:${Math.random()}`
-  const keyHash = createHash('sha256').update(keyData).digest('hex')
+  // Generate 64-character hex secret
+  const secretData = `${blogId}:${userId}:${Date.now()}:${Math.random()}`
+  const secret = createHash('sha256').update(secretData).digest('hex')
   
-  // Format: 24-char-id:64-char-hex (like real Ghost staff tokens)
-  return `${userIdHash}:${keyHash}`
+  // Format: id:secret (like real Ghost Admin API keys)
+  return `${id}:${secret}`
 }
 
 /**
@@ -95,8 +94,8 @@ export async function POST(request: NextRequest) {
 
     const expiresAtDate = new Date(Date.now() + expirationMs)
 
-    // Generate token
-    const token = generateGhostToken(blogId, session.user.id)
+    // Generate Admin API key
+    const token = generateGhostAdminKey(blogId, session.user.id)
     
     // Store token in database
     await prisma.ghostToken.create({

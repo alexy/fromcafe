@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import jwt from 'jsonwebtoken'
 
 /**
  * Parse Ghost token and look up associated blog/user
@@ -14,11 +15,79 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
     
     console.log('DEBUG: Received token:', JSON.stringify(token))
     console.log('DEBUG: Token length:', token.length)
-    console.log('DEBUG: Full auth header:', JSON.stringify(authHeader))
     
-    // Check if it's our staff token format: 24-char-id:64-char-hex
+    // Check if it's a JWT token (starts with eyJ)
+    if (token.startsWith('eyJ')) {
+      try {
+        // Decode JWT without verification to get the kid (key ID)
+        const decoded = jwt.decode(token, { complete: true }) as any
+        
+        if (!decoded || !decoded.header || !decoded.header.kid) {
+          console.log('Invalid JWT: missing kid in header')
+          return null
+        }
+        
+        const kid = decoded.header.kid
+        console.log('DEBUG: JWT kid (Admin API key ID):', kid)
+        
+        // Find the Admin API key by matching the ID part (before colon)
+        const allTokens = await prisma.ghostToken.findMany({
+          select: {
+            token: true,
+            blogId: true,
+            userId: true,
+            expiresAt: true
+          }
+        })
+
+        let matchingToken = null
+        for (const tokenRecord of allTokens) {
+          const [tokenId, tokenSecret] = tokenRecord.token.split(':')
+          if (tokenId === kid) {
+            matchingToken = tokenRecord
+            break
+          }
+        }
+
+        if (!matchingToken) {
+          console.log('Admin API key not found in database for ID:', kid)
+          return null
+        }
+
+        // Check if token has expired
+        if (matchingToken.expiresAt < new Date()) {
+          console.log('Admin API key expired')
+          await prisma.ghostToken.delete({
+            where: { token: matchingToken.token }
+          })
+          return null
+        }
+
+        // Extract the secret part and decode from hex
+        const [_, secret] = matchingToken.token.split(':')
+        const secretBuffer = Buffer.from(secret, 'hex')
+
+        // Verify JWT with the decoded secret
+        try {
+          jwt.verify(token, secretBuffer, { algorithms: ['HS256'] })
+          console.log('JWT verified successfully with Admin API key')
+          return {
+            blogId: matchingToken.blogId,
+            userId: matchingToken.userId
+          }
+        } catch (jwtError) {
+          console.log('JWT verification failed:', jwtError)
+          return null
+        }
+        
+      } catch (error) {
+        console.log('Error parsing JWT:', error)
+        return null
+      }
+    }
+    
+    // Check if it's a direct Admin API key (id:secret format)
     if (/^[a-f0-9]{24}:[a-f0-9]{64}$/.test(token)) {
-      // Look up the token in our database
       const ghostToken = await prisma.ghostToken.findUnique({
         where: { token },
         select: {
@@ -32,9 +101,7 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
         return null
       }
 
-      // Check if token has expired
       if (ghostToken.expiresAt < new Date()) {
-        // Token expired, clean it up
         await prisma.ghostToken.delete({
           where: { token }
         })
@@ -45,12 +112,6 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
         blogId: ghostToken.blogId,
         userId: ghostToken.userId
       }
-    }
-    
-    // If it's a JWT token (longer format), try to decode it as JWT
-    if (token.length > 100) {
-      console.log('Received JWT token format:', token.length, 'chars - not supported')
-      return null
     }
     
     console.log('Invalid token format:', token.length, 'chars')
