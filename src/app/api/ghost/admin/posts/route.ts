@@ -28,19 +28,17 @@ interface GhostPostRequest {
 }
 
 interface GhostPostResponse {
-  posts: Array<{
-    id: string
-    uuid: string
-    title: string
-    slug: string
-    html: string
-    excerpt: string
-    status: string
-    created_at: string
-    updated_at: string
-    published_at: string | null
-    url: string
-  }>
+  posts: Array<Record<string, unknown>>
+  meta?: {
+    pagination: {
+      page: number
+      limit: number
+      pages: number
+      total: number
+      next: null | number
+      prev: null | number
+    }
+  }
 }
 
 /**
@@ -348,27 +346,86 @@ export async function POST(request: NextRequest) {
         where: { id: post.id }
       })
 
-      // Format response in Ghost format
+      // Format response in Ghost format with all required fields
       const ghostResponse = {
         id: updatedPost!.id,
         uuid: updatedPost!.id, // Use same ID as UUID for simplicity
         title: updatedPost!.title,
         slug: updatedPost!.slug,
         html: updatedPost!.content,
-        excerpt: updatedPost!.excerpt || '',
-        status: updatedPost!.isPublished ? 'published' : 'draft',
+        comment_id: updatedPost!.id,
+        plaintext: updatedPost!.excerpt || '',
+        feature_image: null,
+        featured: false,
+        visibility: 'public',
+        email_recipient_filter: 'none',
         created_at: updatedPost!.createdAt.toISOString(),
         updated_at: updatedPost!.updatedAt.toISOString(),
         published_at: updatedPost!.publishedAt?.toISOString() || null,
-        url: `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${updatedPost!.slug}`
+        custom_excerpt: updatedPost!.excerpt || '',
+        codeinjection_head: null,
+        codeinjection_foot: null,
+        custom_template: null,
+        canonical_url: null,
+        tags: [],
+        authors: [{
+          id: tokenData.userId,
+          name: 'Author',
+          slug: 'author',
+          email: null,
+          profile_image: null,
+          cover_image: null,
+          bio: null,
+          website: null,
+          location: null,
+          facebook: null,
+          twitter: null,
+          accessibility: null,
+          status: 'active',
+          meta_title: null,
+          meta_description: null,
+          tour: null,
+          last_seen: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          roles: [{
+            id: 'owner',
+            name: 'Owner',
+            description: 'Blog owner',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }]
+        }],
+        primary_author: {
+          id: tokenData.userId,
+          name: 'Author',
+          slug: 'author'
+        },
+        primary_tag: null,
+        url: `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${updatedPost!.slug}`,
+        excerpt: updatedPost!.excerpt || '',
+        reading_time: Math.max(1, Math.round((updatedPost!.content?.length || 0) / 265)), // Estimate reading time
+        access: true,
+        email_segment: 'all',
+        status: updatedPost!.isPublished ? 'published' : 'draft'
       }
 
       createdPosts.push(ghostResponse)
     }
 
-    // Return Ghost-compatible response
+    // Return Ghost-compatible response with metadata
     const response: GhostPostResponse = {
-      posts: createdPosts
+      posts: createdPosts,
+      meta: {
+        pagination: {
+          page: 1,
+          limit: createdPosts.length,
+          pages: 1,
+          total: createdPosts.length,
+          next: null,
+          prev: null
+        }
+      }
     }
 
     return NextResponse.json(response, { 
