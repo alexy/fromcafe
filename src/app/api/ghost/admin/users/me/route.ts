@@ -12,39 +12,49 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
 
     const token = authHeader.substring(6) // Remove 'Ghost ' prefix
     
-    // Validate token format: 24-char-id:64-char-hex
-    if (!/^[a-f0-9]{24}:[a-f0-9]{64}$/.test(token)) {
-      console.log('Invalid token format:', token.length, 'chars')
+    console.log('DEBUG: Received token:', JSON.stringify(token))
+    console.log('DEBUG: Token length:', token.length)
+    console.log('DEBUG: Full auth header:', JSON.stringify(authHeader))
+    
+    // Check if it's our staff token format: 24-char-id:64-char-hex
+    if (/^[a-f0-9]{24}:[a-f0-9]{64}$/.test(token)) {
+      // Look up the token in our database
+      const ghostToken = await prisma.ghostToken.findUnique({
+        where: { token },
+        select: {
+          blogId: true,
+          userId: true,
+          expiresAt: true
+        }
+      })
+
+      if (!ghostToken) {
+        return null
+      }
+
+      // Check if token has expired
+      if (ghostToken.expiresAt < new Date()) {
+        // Token expired, clean it up
+        await prisma.ghostToken.delete({
+          where: { token }
+        })
+        return null
+      }
+
+      return {
+        blogId: ghostToken.blogId,
+        userId: ghostToken.userId
+      }
+    }
+    
+    // If it's a JWT token (longer format), try to decode it as JWT
+    if (token.length > 100) {
+      console.log('Received JWT token format:', token.length, 'chars - not supported')
       return null
     }
     
-    // Look up the token in our database
-    const ghostToken = await prisma.ghostToken.findUnique({
-      where: { token },
-      select: {
-        blogId: true,
-        userId: true,
-        expiresAt: true
-      }
-    })
-
-    if (!ghostToken) {
-      return null
-    }
-
-    // Check if token has expired
-    if (ghostToken.expiresAt < new Date()) {
-      // Token expired, clean it up
-      await prisma.ghostToken.delete({
-        where: { token }
-      })
-      return null
-    }
-
-    return {
-      blogId: ghostToken.blogId,
-      userId: ghostToken.userId
-    }
+    console.log('Invalid token format:', token.length, 'chars')
+    return null
   } catch (error) {
     console.error('Error parsing Ghost token:', error)
     return null
