@@ -80,6 +80,7 @@ async function parseJWTToken(token: string): Promise<GhostAuthResult | null> {
     })
     
     console.log('DEBUG: Found', allTokens.length, 'tokens in database')
+    console.log('DEBUG: All token IDs:', allTokens.map(t => t.token.split(':')[0]))
     
     let matchingToken = null
     
@@ -94,6 +95,8 @@ async function parseJWTToken(token: string): Promise<GhostAuthResult | null> {
         break
       }
     }
+    
+    console.log('DEBUG: Exact match result:', matchingToken ? 'found' : 'not found')
     
     // If no exact match, try to verify JWT with all available tokens
     // (Ulysses might generate kid differently than we expect)
