@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ContentSource, ContentFormat } from '@prisma/client'
 import { marked } from 'marked'
+import jwt from 'jsonwebtoken'
 
 /**
- * Parse Ghost token and look up associated blog/user
+ * Parse Ghost token and look up associated blog/user - JWT version
  */
 async function parseGhostToken(authHeader: string): Promise<{ blogId: string; userId: string } | null> {
   try {
@@ -14,7 +15,98 @@ async function parseGhostToken(authHeader: string): Promise<{ blogId: string; us
 
     const token = authHeader.substring(6) // Remove 'Ghost ' prefix
     
-    // Validate token format: 24-char-id:64-char-hex
+    console.log('DEBUG: Received token length:', token.length)
+    
+    // Check if it's a JWT token (starts with eyJ)
+    if (token.startsWith('eyJ')) {
+      try {
+        // Decode JWT without verification to get the kid (key ID)
+        const decoded = jwt.decode(token, { complete: true }) as { header: { kid: string; alg: string } } | null
+        
+        if (!decoded || !decoded.header || !decoded.header.kid) {
+          console.log('Invalid JWT: missing kid in header')
+          return null
+        }
+        
+        const kid = decoded.header.kid
+        console.log('DEBUG: JWT kid (Admin API key ID):', kid)
+        
+        // Find the Admin API key by matching the ID part (before colon)
+        const allTokens = await prisma.ghostToken.findMany({
+          select: {
+            token: true,
+            blogId: true,
+            userId: true,
+            expiresAt: true
+          }
+        })
+        
+        console.log('DEBUG: Found', allTokens.length, 'tokens in database')
+        
+        let matchingToken = null
+        
+        for (const dbToken of allTokens) {
+          const [tokenId] = dbToken.token.split(':')
+          console.log('DEBUG: Checking token ID:', tokenId, 'against kid:', kid)
+          
+          if (tokenId === kid) {
+            matchingToken = dbToken
+            console.log('DEBUG: Found matching token for kid:', kid)
+            break
+          }
+        }
+        
+        if (!matchingToken) {
+          console.log('No matching Admin API key found for kid:', kid)
+          return null
+        }
+        
+        // Check if token has expired
+        if (matchingToken.expiresAt < new Date()) {
+          console.log('Token expired, cleaning up')
+          await prisma.ghostToken.delete({
+            where: { token: matchingToken.token }
+          })
+          return null
+        }
+        
+        // Use the secret part (after colon) for JWT verification
+        const [, secret] = matchingToken.token.split(':')
+        
+        console.log('DEBUG: Using secret for verification, length:', secret.length)
+        
+        // Verify JWT with the secret as a string (Ghost standard)
+        try {
+          jwt.verify(token, secret, { algorithms: ['HS256'] })
+          console.log('JWT verified successfully with Admin API key')
+          return {
+            blogId: matchingToken.blogId,
+            userId: matchingToken.userId
+          }
+        } catch (jwtError) {
+          console.log('JWT verification failed:', jwtError)
+          // Try with hex-decoded buffer as fallback
+          try {
+            const secretBuffer = Buffer.from(secret, 'hex')
+            jwt.verify(token, secretBuffer, { algorithms: ['HS256'] })
+            console.log('JWT verified successfully with hex-decoded secret')
+            return {
+              blogId: matchingToken.blogId,
+              userId: matchingToken.userId
+            }
+          } catch (jwtError2) {
+            console.log('JWT verification failed with hex-decoded secret:', jwtError2)
+            return null
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error processing JWT:', error)
+        return null
+      }
+    }
+    
+    // Fallback to simple token format validation for non-JWT tokens
     if (!/^[a-f0-9]{24}:[a-f0-9]{64}$/.test(token)) {
       console.log('Invalid token format:', token.length, 'chars')
       return null
