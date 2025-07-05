@@ -180,6 +180,7 @@ async function ensureUniqueSlug(baseSlug: string, blogId: string, excludePostId?
  * POST /api/ghost/admin/posts - Create posts (Ghost Admin API compatible)
  */
 export async function POST(request: NextRequest) {
+  console.log('👻 POST /api/ghost/admin/posts handler called!')
   try {
     // Check for required headers
     const acceptVersion = request.headers.get('accept-version')

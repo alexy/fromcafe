@@ -16,7 +16,8 @@ export async function middleware(request: NextRequest) {
       url.pathname = pathname.replace('/ghost/api/v4/admin/', '/api/ghost/admin/')
       url.pathname = url.pathname.replace('/ghost/api/admin/', '/api/ghost/admin/')
       url.searchParams.set('domain', hostname)
-      console.log('🔄 Rewriting custom domain Ghost API:', pathname, '→', url.pathname)
+      console.log('🔄 Rewriting custom domain Ghost API:', pathname, '→', url.pathname, 'with search params:', url.searchParams.toString())
+      console.log('👻 Final rewrite URL:', url.toString())
       return NextResponse.rewrite(url)
     }
     
