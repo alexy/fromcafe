@@ -13,11 +13,16 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   console.log('👻 GET /api/ghost/admin/posts/[id] handler called for ID:', params.id)
   
   try {
-    // Get blog identifier from query parameters (set by middleware)
+    // Get blog identifier and other query parameters (set by middleware)
     const { searchParams } = new URL(request.url)
     const domain = searchParams.get('domain')
     const subdomain = searchParams.get('subdomain')
     const blogSlug = searchParams.get('blogSlug')
+    const formats = searchParams.get('formats')
+    const include = searchParams.get('include')
+    
+    console.log('👻 GET query params:', { domain, subdomain, blogSlug, formats, include })
+    console.log('👻 Full request URL:', request.url)
 
     // Validate authentication and find blog
     const authResult = await validateGhostAuth(request, domain || undefined, subdomain || undefined, blogSlug || undefined)
@@ -137,6 +142,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
 
     return NextResponse.json({
       posts: [ghostResponse]
+    }, {
+      headers: {
+        'Allow': 'GET, PUT, DELETE',
+        'Content-Type': 'application/json',
+        'X-Ghost-Version': '5.0.0'
+      }
     })
 
   } catch (error) {
@@ -216,6 +227,8 @@ async function ensureUniqueSlug(baseSlug: string, blogId: string, excludePostId?
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const params = await context.params
   console.log('👻 PUT /api/ghost/admin/posts/[id] handler called for ID:', params.id)
+  console.log('👻 PUT request headers:', Object.fromEntries(request.headers.entries()))
+  console.log('👻 PUT request URL:', request.url)
   
   try {
     // Check for required headers
@@ -449,4 +462,24 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       { status: 500 }
     )
   }
+}
+
+/**
+ * OPTIONS /api/ghost/admin/posts/{id} - Handle CORS preflight requests
+ */
+export async function OPTIONS(request: NextRequest) {
+  console.log('👻 OPTIONS /api/ghost/admin/posts/[id] handler called')
+  console.log('👻 OPTIONS request headers:', Object.fromEntries(request.headers.entries()))
+  
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Allow': 'GET, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept-Version',
+      'Content-Type': 'application/json',
+      'X-Ghost-Version': '5.0.0'
+    }
+  })
 }
