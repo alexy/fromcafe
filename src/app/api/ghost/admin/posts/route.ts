@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ContentSource } from '@prisma/client'
+import { ContentProcessor } from '@/lib/content-processor'
 
 // Ghost-compatible post structure
 interface GhostPost {
@@ -129,16 +130,6 @@ async function ensureUniqueSlug(baseSlug: string, blogId: string, excludePostId?
   }
 }
 
-/**
- * Convert HTML content to plain text for excerpt
- */
-function htmlToText(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .substring(0, 300)
-}
 
 /**
  * POST /api/ghost/admin/posts - Create posts (Ghost Admin API compatible)
@@ -226,22 +217,19 @@ export async function POST(request: NextRequest) {
       const baseSlug = ghostPost.slug || generateSlug(ghostPost.title)
       const uniqueSlug = await ensureUniqueSlug(baseSlug, blog.id)
 
-      // Generate excerpt
-      const excerpt = ghostPost.excerpt || (content ? htmlToText(content) : '')
-
       // Determine publication status
       const isPublished = ghostPost.status === 'published'
       const publishedAt = isPublished 
         ? (ghostPost.published_at ? new Date(ghostPost.published_at) : new Date())
         : null
 
-      // Create the post
+      // Create the post first (we need the post ID for image processing)
       const post = await prisma.post.create({
         data: {
           blogId: blog.id,
           title: ghostPost.title,
-          content,
-          excerpt: excerpt.substring(0, 500), // Limit excerpt length
+          content: '', // Will be updated after image processing
+          excerpt: '', // Will be updated after processing
           slug: uniqueSlug,
           isPublished,
           publishedAt,
@@ -251,19 +239,48 @@ export async function POST(request: NextRequest) {
         }
       })
 
+      // Process content with unified image handling
+      const contentProcessor = new ContentProcessor()
+      const processingResult = await contentProcessor.processGhostContent(content, post.id)
+      
+      // Generate excerpt from processed content
+      const excerpt = ghostPost.excerpt || contentProcessor.generateExcerpt(processingResult.processedContent)
+
+      // Update the post with processed content and excerpt
+      await prisma.post.update({
+        where: { id: post.id },
+        data: {
+          content: processingResult.processedContent,
+          excerpt: excerpt.substring(0, 500) // Limit excerpt length
+        }
+      })
+
+      // Log image processing results
+      if (processingResult.imageCount > 0) {
+        console.log(`Processed ${processingResult.imageCount} images for Ghost post "${ghostPost.title}"`)
+      }
+      if (processingResult.errors.length > 0) {
+        console.warn(`Image processing errors for Ghost post ${post.id}:`, processingResult.errors)
+      }
+
+      // Get the updated post with processed content
+      const updatedPost = await prisma.post.findUnique({
+        where: { id: post.id }
+      })
+
       // Format response in Ghost format
       const ghostResponse = {
-        id: post.id,
-        uuid: post.id, // Use same ID as UUID for simplicity
-        title: post.title,
-        slug: post.slug,
-        html: post.content,
-        excerpt: post.excerpt || '',
-        status: post.isPublished ? 'published' : 'draft',
-        created_at: post.createdAt.toISOString(),
-        updated_at: post.updatedAt.toISOString(),
-        published_at: post.publishedAt?.toISOString() || null,
-        url: `${request.nextUrl.origin}/${blog.user.slug || 'blog'}/${blog.slug}/${post.slug}`
+        id: updatedPost!.id,
+        uuid: updatedPost!.id, // Use same ID as UUID for simplicity
+        title: updatedPost!.title,
+        slug: updatedPost!.slug,
+        html: updatedPost!.content,
+        excerpt: updatedPost!.excerpt || '',
+        status: updatedPost!.isPublished ? 'published' : 'draft',
+        created_at: updatedPost!.createdAt.toISOString(),
+        updated_at: updatedPost!.updatedAt.toISOString(),
+        published_at: updatedPost!.publishedAt?.toISOString() || null,
+        url: `${request.nextUrl.origin}/${blog.user.slug || 'blog'}/${blog.slug}/${updatedPost!.slug}`
       }
 
       createdPosts.push(ghostResponse)

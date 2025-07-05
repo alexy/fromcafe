@@ -25,22 +25,38 @@ export class ImageStorageService {
   }
 
   /**
-   * Store an image from Evernote resource data
+   * Store an image with optional title for meaningful filename
    */
   async storeImage(
     imageData: Buffer,
     originalHash: string,
     mimeType: string,
-    postId: string
+    postId: string,
+    title?: string
   ): Promise<ImageInfo> {
     try {
       // Ensure the directory exists
       await this.ensureDirectoryExists()
 
-      // Generate filename based on content hash and post ID
+      // Generate filename based on title (if available) or hash
       const contentHash = createHash('sha256').update(imageData).digest('hex').substring(0, 16)
       const extension = this.getExtensionFromMimeType(mimeType)
-      const filename = `${postId}_${contentHash}_${originalHash.substring(0, 8)}.${extension}`
+      
+      let filename: string
+      if (title && title.trim()) {
+        // Use title as filename with sanitization
+        const sanitizedTitle = this.sanitizeFilename(title.trim())
+        if (sanitizedTitle) {
+          // Include short hash to avoid filename conflicts
+          filename = `${postId}_${sanitizedTitle}_${contentHash.substring(0, 8)}.${extension}`
+        } else {
+          // Fallback to hash if title becomes empty after sanitization
+          filename = `${postId}_${contentHash}_${originalHash.substring(0, 8)}.${extension}`
+        }
+      } else {
+        // No title, use hash-based naming
+        filename = `${postId}_${contentHash}_${originalHash.substring(0, 8)}.${extension}`
+      }
       
       const filePath = join(this.baseDir, filename)
       const publicUrl = `${this.baseUrl}/${filename}`
@@ -71,16 +87,28 @@ export class ImageStorageService {
     try {
       await this.ensureDirectoryExists()
       
-      // Look for files that match the pattern: postId_*_originalHash.ext
+      // Look for files that match the pattern: postId_*_[contentHash|originalHash].ext
       const { readdir } = await import('fs/promises')
       const files = await readdir(this.baseDir)
       
       const hashPrefix = originalHash.substring(0, 8)
-      const pattern = new RegExp(`^${postId}_[a-f0-9]+_${hashPrefix}\\.(jpg|jpeg|png|gif|webp)$`)
+      // Updated pattern to handle both title-based and hash-based filenames
+      // Pattern: postId_[title|hash]_8-char-hash.ext
+      const pattern = new RegExp(`^${postId}_.*_[a-f0-9]{8}\\.(jpg|jpeg|png|gif|webp|bmp|tiff)$`)
       
-      const existingFile = files.find(file => pattern.test(file))
+      // Find files that start with our post ID and check if they contain our hash
+      const candidateFiles = files.filter(file => {
+        if (!pattern.test(file)) return false
+        // Check if the file contains our original hash (for legacy files)
+        if (file.includes(hashPrefix)) return true
+        // For new files, we'd need to check content hash, but since we're generating
+        // content hash from the same data, we'll rely on the more specific search below
+        return false
+      })
       
-      if (existingFile) {
+      // If we found candidate files, return the first one
+      if (candidateFiles.length > 0) {
+        const existingFile = candidateFiles[0]
         const publicUrl = `${this.baseUrl}/${existingFile}`
         console.log(`Image already exists: ${existingFile}`)
         return publicUrl
@@ -117,6 +145,28 @@ export class ImageStorageService {
       console.error(`Error deleting images for post ${postId}:`, error)
       // Don't throw - image cleanup is not critical
     }
+  }
+
+  /**
+   * Sanitize filename to remove invalid characters and limit length
+   */
+  private sanitizeFilename(title: string): string {
+    let sanitized = title.toLowerCase()
+    
+    // Remove file extension if present (we'll add our own)
+    sanitized = sanitized.replace(/\.(jpg|jpeg|png|gif|webp|bmp|tiff)$/i, '')
+    
+    return sanitized
+      // Replace spaces and special characters with hyphens
+      .replace(/[^a-z0-9\-_.]/g, '-')
+      // Remove multiple consecutive hyphens
+      .replace(/-+/g, '-')
+      // Remove leading/trailing hyphens
+      .replace(/^-+|-+$/g, '')
+      // Limit length to reasonable size (50 chars)
+      .substring(0, 50)
+      // Remove trailing hyphens again after truncation
+      .replace(/-+$/, '')
   }
 
   /**

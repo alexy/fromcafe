@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { EvernoteService } from '@/lib/evernote'
 import { SyncService } from '@/lib/sync'
+import { ContentProcessor } from '@/lib/content-processor'
 
 // Simple ENML to HTML conversion for webhooks (without image processing)
 function convertEvernoteToHtmlSimple(enmlContent: string): string {
@@ -169,7 +170,7 @@ async function createNewPost(note: { guid: string; title: string; content: strin
       evernoteNoteId: note.guid,
       title: note.title,
       content: convertEvernoteToHtmlSimple(note.content),
-      excerpt: SyncService.generateExcerpt(note.content),
+      excerpt: new ContentProcessor().generateExcerpt(note.content),
       slug,
       isPublished: true,
       publishedAt: new Date(),
@@ -185,7 +186,7 @@ async function updateExistingPost(postId: string, note: { title: string; content
     data: {
       title: note.title,
       content: convertEvernoteToHtmlSimple(note.content),
-      excerpt: SyncService.generateExcerpt(note.content),
+      excerpt: new ContentProcessor().generateExcerpt(note.content),
       isPublished: true,
       publishedAt: new Date(), // Update publish time on update
       updatedAt: new Date(note.updated),
