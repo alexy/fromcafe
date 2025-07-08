@@ -18,7 +18,7 @@ export interface PostQuery extends BlogQuery {
 }
 
 // Shared blog data fetching
-export async function fetchBlogData(query: BlogQuery) {
+export async function fetchBlogData(query: BlogQuery, tagSlug?: string) {
   const whereClause: {
     isPublic: boolean
     subdomain?: string
@@ -51,8 +51,26 @@ export async function fetchBlogData(query: BlogQuery) {
     include: {
       user: true,
       posts: {
-        where: { isPublished: true },
-        orderBy: { publishedAt: 'desc' }
+        where: {
+          isPublished: true,
+          ...(tagSlug && tagSlug !== 'all' ? {
+            postTags: {
+              some: {
+                tag: {
+                  slug: tagSlug
+                }
+              }
+            }
+          } : {})
+        },
+        orderBy: { publishedAt: 'desc' },
+        include: {
+          postTags: {
+            include: {
+              tag: true
+            }
+          }
+        }
       }
     }
   })
@@ -111,7 +129,12 @@ export async function fetchPostData(query: PostQuery) {
     include: { 
       blog: { 
         include: { user: true } 
-      } 
+      },
+      postTags: {
+        include: {
+          tag: true
+        }
+      }
     }
   })
 
@@ -179,6 +202,13 @@ interface BlogWithPosts {
     publishedAt: Date | null
     createdAt: Date
     updatedAt: Date
+    postTags: Array<{
+      tag: {
+        id: string
+        name: string
+        slug: string
+      }
+    }>
   }>
 }
 
@@ -192,6 +222,13 @@ interface PostWithBlog {
   publishedAt: Date | null
   createdAt: Date
   updatedAt: Date
+  postTags: Array<{
+    tag: {
+      id: string
+      name: string
+      slug: string
+    }
+  }>
   blog: {
     id: string
     title: string
@@ -213,6 +250,7 @@ interface PostWithBlog {
 interface BlogRendererProps {
   blog: BlogWithPosts
   hostname: string
+  currentTag?: string
 }
 
 interface PostRendererProps {
@@ -220,7 +258,7 @@ interface PostRendererProps {
   hostname: string
 }
 
-export function BlogRenderer({ blog, hostname }: BlogRendererProps) {
+export function BlogRenderer({ blog, hostname, currentTag }: BlogRendererProps) {
   // Get theme component
   const ThemeComponent = themes[blog.theme as keyof typeof themes]?.components.BlogLayout || themes.default.components.BlogLayout
 
@@ -250,7 +288,12 @@ export function BlogRenderer({ blog, hostname }: BlogRendererProps) {
     createdAt: post.createdAt,
     updatedAt: post.updatedAt,
     blogSlug: blog.slug,
-    userSlug: blog.user.slug ?? undefined
+    userSlug: blog.user.slug ?? undefined,
+    tags: post.postTags.map(pt => ({
+      id: pt.tag.id,
+      name: pt.tag.name,
+      slug: pt.tag.slug
+    }))
   }))
 
   return (
@@ -258,6 +301,7 @@ export function BlogRenderer({ blog, hostname }: BlogRendererProps) {
       blog={blogProps}
       posts={postsProps}
       hostname={hostname}
+      currentTag={currentTag}
     />
   )
 }
@@ -278,7 +322,12 @@ export function PostRenderer({ post, hostname }: PostRendererProps) {
     createdAt: post.createdAt,
     updatedAt: post.updatedAt,
     blogSlug: post.blog.slug,
-    userSlug: post.blog.user.slug ?? undefined
+    userSlug: post.blog.user.slug ?? undefined,
+    tags: post.postTags.map(pt => ({
+      id: pt.tag.id,
+      name: pt.tag.name,
+      slug: pt.tag.slug
+    }))
   }
 
   const blogProps = {

@@ -25,6 +25,11 @@ export interface PostData {
   updatedAt: Date
   blogSlug: string
   userSlug?: string
+  tags?: Array<{
+    id: string
+    name: string
+    slug: string
+  }>
 }
 
 export interface ThemeProps {
@@ -37,6 +42,7 @@ export interface BlogThemeProps {
   blog: Omit<BlogData, 'posts'>
   posts: PostData[]
   hostname?: string
+  currentTag?: string
 }
 
 export interface PostThemeProps {

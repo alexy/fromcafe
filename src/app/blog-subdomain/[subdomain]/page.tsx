@@ -5,6 +5,7 @@ import { fetchBlogData, generateBlogMetadata, BlogRenderer } from '@/lib/blog/re
 
 interface SubdomainBlogPageProps {
   params: Promise<{ subdomain: string }>
+  searchParams: Promise<{ tag?: string }>
 }
 
 export async function generateMetadata({ params }: SubdomainBlogPageProps): Promise<Metadata> {
@@ -20,18 +21,19 @@ export async function generateMetadata({ params }: SubdomainBlogPageProps): Prom
   return generateBlogMetadata(blog)
 }
 
-export default async function SubdomainBlogPage({ params }: SubdomainBlogPageProps) {
+export default async function SubdomainBlogPage({ params, searchParams }: SubdomainBlogPageProps) {
   const { subdomain } = await params
+  const { tag } = await searchParams
   const headersList = await headers()
   const hostname = headersList.get('host') || ''
   
   const blog = await fetchBlogData({
     subdomain: subdomain
-  })
+  }, tag)
 
   if (!blog) {
     notFound()
   }
 
-  return <BlogRenderer blog={blog} hostname={hostname} />
+  return <BlogRenderer blog={blog} hostname={hostname} currentTag={tag} />
 }
