@@ -278,7 +278,7 @@ export class EvernoteService {
             // CRITICAL DEBUG: Log what resources we got from getNote
             console.log(`🚨 CRITICAL: Note "${fullNote.title}" resources from getNote:`, {
               resourceCount: fullNote.resources?.length || 0,
-              resources: fullNote.resources?.map((r: any) => ({
+              resources: fullNote.resources?.map((r) => ({
                 guid: r.guid,
                 hash: r.data?.bodyHash,
                 mime: r.mime,
