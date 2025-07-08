@@ -10,6 +10,8 @@ export interface GhostSyncResult {
   success: boolean
   newPosts: number
   updatedPosts: number
+  publishedPosts: number
+  unpublishedPosts: number
   errors: string[]
   lastSyncedAt: Date
 }
@@ -29,6 +31,8 @@ export async function syncGhostPosts(options: GhostSyncOptions): Promise<GhostSy
     success: false,
     newPosts: 0,
     updatedPosts: 0,
+    publishedPosts: 0,
+    unpublishedPosts: 0,
     errors: [],
     lastSyncedAt: new Date()
   }
@@ -101,7 +105,7 @@ export async function syncGhostPosts(options: GhostSyncOptions): Promise<GhostSy
     })
 
     result.success = result.errors.length === 0
-    console.log(`Ghost sync completed: ${result.newPosts} new, ${result.updatedPosts} updated, ${result.errors.length} errors`)
+    console.log(`Ghost sync completed: ${result.newPosts} new, ${result.updatedPosts} updated, ${result.publishedPosts} published, ${result.unpublishedPosts} unpublished, ${result.errors.length} errors`)
 
   } catch (error) {
     console.error('Ghost sync failed:', error)
@@ -115,10 +119,8 @@ export async function syncGhostPosts(options: GhostSyncOptions): Promise<GhostSy
  * Process a single Ghost post
  */
 async function processGhostPost(ghostPost: GhostPost, blogId: string, result: GhostSyncResult): Promise<void> {
-  // Only process published posts
-  if (ghostPost.status !== 'published') {
-    return
-  }
+  // Process all post statuses: published, draft, and scheduled
+  console.log(`Processing Ghost post: ${ghostPost.title} (status: ${ghostPost.status})`)
 
   // Check if post already exists
   const existingPost = await prisma.post.findFirst({
@@ -131,13 +133,21 @@ async function processGhostPost(ghostPost: GhostPost, blogId: string, result: Gh
   // Generate unique slug
   const slug = await generateUniqueSlug(ghostPost.slug, blogId, existingPost?.id)
   
+  // Determine publication status based on Ghost status
+  const isPublished = ghostPost.status === 'published'
+  const publishedAt = ghostPost.status === 'published' && ghostPost.published_at 
+    ? new Date(ghostPost.published_at) 
+    : ghostPost.status === 'published' 
+      ? new Date(ghostPost.created_at)
+      : null
+  
   const postData = {
     title: ghostPost.title,
     content: ghostPost.html || ghostPost.plaintext || '',
     excerpt: ghostPost.excerpt || null,
     slug,
-    isPublished: true,
-    publishedAt: ghostPost.published_at ? new Date(ghostPost.published_at) : new Date(ghostPost.created_at),
+    isPublished,
+    publishedAt,
     contentSource: ContentSource.GHOST,
     ghostPostId: ghostPost.id,
     sourceUpdatedAt: new Date(ghostPost.updated_at),
@@ -148,14 +158,27 @@ async function processGhostPost(ghostPost: GhostPost, blogId: string, result: Gh
     // Update existing post if it has been modified
     const sourceUpdated = new Date(ghostPost.updated_at)
     const lastUpdated = existingPost.sourceUpdatedAt || existingPost.updatedAt
+    const statusChanged = existingPost.isPublished !== isPublished
 
-    if (sourceUpdated > lastUpdated) {
+    if (sourceUpdated > lastUpdated || statusChanged) {
       await prisma.post.update({
         where: { id: existingPost.id },
         data: postData
       })
       result.updatedPosts++
-      console.log(`Updated post: ${ghostPost.title}`)
+      
+      // Track publication status changes
+      if (statusChanged) {
+        if (isPublished && !existingPost.isPublished) {
+          result.publishedPosts++
+          console.log(`Published post: ${ghostPost.title} (draft → published)`)
+        } else if (!isPublished && existingPost.isPublished) {
+          result.unpublishedPosts++
+          console.log(`Unpublished post: ${ghostPost.title} (published → draft)`)
+        }
+      } else {
+        console.log(`Updated post: ${ghostPost.title}`)
+      }
     }
   } else {
     // Create new post
@@ -166,7 +189,7 @@ async function processGhostPost(ghostPost: GhostPost, blogId: string, result: Gh
       }
     })
     result.newPosts++
-    console.log(`Created new post: ${ghostPost.title}`)
+    console.log(`Created new post: ${ghostPost.title} (status: ${ghostPost.status})`)
   }
 }
 

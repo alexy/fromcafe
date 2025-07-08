@@ -49,14 +49,14 @@ export class GhostApiClient {
   }
 
   /**
-   * Fetch all published posts from Ghost
+   * Fetch all posts from Ghost (published, draft, and scheduled)
    */
   async fetchPosts(): Promise<GhostPost[]> {
     try {
       const posts = await this.client.posts.browse({
         include: ['authors', 'tags'],
-        filter: 'status:published',
-        order: 'published_at DESC',
+        filter: 'status:[published,draft,scheduled]',
+        order: 'updated_at DESC',
         limit: 'all'
       })
       return posts as GhostPost[]
@@ -91,7 +91,7 @@ export class GhostApiClient {
       const isoDate = since.toISOString()
       const posts = await this.client.posts.browse({
         include: ['authors', 'tags'],
-        filter: `status:published+updated_at:>'${isoDate}'`,
+        filter: `status:[published,draft,scheduled]+updated_at:>'${isoDate}'`,
         order: 'updated_at DESC',
         limit: 'all'
       })

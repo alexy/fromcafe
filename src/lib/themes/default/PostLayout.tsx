@@ -1,5 +1,6 @@
 import { PostThemeProps } from '../types'
 import { getBlogUrl } from '../../utils/urls'
+import PostImageGallery from '../../../components/PostImageGallery'
 
 export default function DefaultPostLayout({ blog, post, hostname }: PostThemeProps) {
 
@@ -31,6 +32,7 @@ export default function DefaultPostLayout({ blog, post, hostname }: PostThemePro
             className="prose prose-lg max-w-none"
             dangerouslySetInnerHTML={{ __html: post.content }}
           />
+          <PostImageGallery postContentSelector=".prose" />
         </article>
       </main>
     </div>

@@ -1,5 +1,6 @@
 import { PostThemeProps } from '../types'
 import { getBlogUrl } from '../../utils/urls'
+import PostImageGallery from '../../../components/PostImageGallery'
 
 export default function MinimalPostLayout({ blog, post, hostname }: PostThemeProps) {
 
@@ -39,6 +40,7 @@ export default function MinimalPostLayout({ blog, post, hostname }: PostThemePro
               className="leading-relaxed"
               dangerouslySetInnerHTML={{ __html: post.content }}
             />
+            <PostImageGallery postContentSelector=".prose" />
           </article>
         </main>
       </div>

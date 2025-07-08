@@ -6,6 +6,11 @@ export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || ''
   const pathname = request.nextUrl.pathname
   
+  // Early return for static assets to reduce processing
+  if (pathname.match(/\.(css|js|png|jpg|jpeg|gif|svg|woff|woff2|ttf|ico|webp)$/)) {
+    return NextResponse.next()
+  }
+  
   // Handle Ghost admin interface (non-API routes)
   if (pathname.startsWith('/ghost') && !pathname.startsWith('/ghost/api/')) {
     console.log('👻 Ghost admin interface request:', pathname)
@@ -149,11 +154,17 @@ export async function middleware(request: NextRequest) {
   }
   
   // Subdomain detected - could be user subdomain or blog subdomain
-  console.log('🌐 Subdomain detected:', subdomain, 'for path:', pathname, 'from hostname:', hostname)
+  // Only log for actual page requests (not assets)
+  if (!pathname.match(/\.(css|js|png|jpg|jpeg|gif|svg|woff|woff2|ttf|ico|webp)$/)) {
+    console.log('🌐 Subdomain detected:', subdomain, 'for path:', pathname, 'from hostname:', hostname)
+  }
   
   // Check if the path already includes the subdomain (to avoid double-rewriting)
   if (pathname.startsWith(`/${subdomain}/`) || pathname === `/${subdomain}`) {
-    console.log('🔄 Path already includes subdomain, passing through:', pathname)
+    // Only log for actual page requests (not assets)
+    if (!pathname.match(/\.(css|js|png|jpg|jpeg|gif|svg|woff|woff2|ttf|ico|webp)$/)) {
+      console.log('🔄 Path already includes subdomain, passing through:', pathname)
+    }
     return NextResponse.next()
   }
   
@@ -200,7 +211,8 @@ function getSubdomain(hostname: string): string | null {
 
 export const config = {
   matcher: [
-    // Exclude API routes, static files, and images from middleware
+    // Exclude API routes, static files, images, and common assets from middleware
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    // Note: File extension filtering is now handled in the middleware code itself
   ],
 }

@@ -1,5 +1,6 @@
 import { PostThemeProps } from '../types'
 import { getBlogUrl } from '../../utils/urls'
+import PostImageGallery from '../../../components/PostImageGallery'
 
 export default function ModernPostLayout({ blog, post, hostname }: PostThemeProps) {
 
@@ -49,6 +50,7 @@ export default function ModernPostLayout({ blog, post, hostname }: PostThemeProp
               className="prose prose-lg prose-blue max-w-none leading-relaxed"
               dangerouslySetInnerHTML={{ __html: post.content }}
             />
+            <PostImageGallery postContentSelector=".prose" />
           </main>
         </article>
       </div>

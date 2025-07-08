@@ -1,5 +1,6 @@
 import { PostThemeProps } from '../types'
 import { getBlogUrl } from '../../utils/urls'
+import PostImageGallery from '../../../components/PostImageGallery'
 
 export default function VintagePostLayout({ blog, post, hostname }: PostThemeProps) {
   return (
@@ -157,6 +158,9 @@ export default function VintagePostLayout({ blog, post, hostname }: PostThemePro
                 columnCount: 2,
                 columnGap: '3rem',
                 columnRule: '2px dotted #92400e', // amber-800
+                columnFill: 'balance',
+                orphans: 3,
+                widows: 3,
               }}
             >
               <style>{`
@@ -211,7 +215,13 @@ export default function VintagePostLayout({ blog, post, hostname }: PostThemePro
                   border-radius: 4px;
                   box-shadow: 4px 4px 8px rgba(139, 69, 19, 0.3);
                   break-inside: avoid;
+                  page-break-inside: avoid;
                   margin: 1.5rem auto;
+                  max-width: 100%;
+                  height: auto;
+                  display: block;
+                  max-height: 70vh;
+                  width: auto;
                 }
                 
                 @media (max-width: 768px) {
@@ -223,6 +233,7 @@ export default function VintagePostLayout({ blog, post, hostname }: PostThemePro
               
               <div dangerouslySetInnerHTML={{ __html: post.content }} />
             </div>
+            <PostImageGallery postContentSelector=".vintage-prose" />
           </div>
 
           {/* Vignette Effects */}
