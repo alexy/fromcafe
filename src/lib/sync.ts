@@ -211,6 +211,7 @@ export class SyncService {
       
       // Determine if this is an incremental sync or full sync
       // Only do incremental sync if we have a successful previous sync
+      // NOTE: During incremental syncs, we preserve images for unpublished posts to optimize republishing
       const isIncrementalSync = hasSuccessfulPreviousSync && currentSyncState.updateCount !== -1 && 
                                currentSyncState.updateCount > blog.lastSyncUpdateCount!
       
@@ -255,18 +256,29 @@ export class SyncService {
           const contentChanged = existingPost.content !== newContent
           const excerptChanged = existingPost.excerpt !== newExcerpt
           
-          const hasContentChanges = titleChanged || contentChanged || excerptChanged
+          // For republished posts, always force content processing to ensure images are handled
+          const isRepublishing = !existingPost.isPublished && isPublished
+          const hasContentChanges = titleChanged || contentChanged || excerptChanged || isRepublishing
           
           // EMERGENCY DEBUG: Always log content comparison for republished posts
-          if (!existingPost.isPublished && isPublished) {
-            console.log(`🔍 REPUBLISHED POST DEBUG: "${note.title}" - titleChanged=${titleChanged}, contentChanged=${contentChanged}, excerptChanged=${excerptChanged}, hasContentChanges=${hasContentChanges}`)
+          if (isRepublishing) {
+            console.log(`🔍 REPUBLISHED POST DEBUG: "${note.title}" - titleChanged=${titleChanged}, contentChanged=${contentChanged}, excerptChanged=${excerptChanged}`)
             console.log(`📏 CONTENT LENGTHS: old=${existingPost.content?.length || 0}, new=${newContent.length}, timeSinceUpdate=${Math.round((Date.now() - note.updated) / 1000)}s`)
+            console.log(`🔄 FORCING content update for republished post to re-process images`)
             
             // Show actual content comparison if lengths differ
             if (existingPost.content && newContent && existingPost.content.length !== newContent.length) {
               console.log(`📝 CONTENT DIFFERS: "${existingPost.content.substring(0, 100)}" vs "${newContent.substring(0, 100)}"`)
             } else if (existingPost.content && newContent) {
               console.log(`⚠️ SAME LENGTH BUT CHECK CONTENT: "${existingPost.content.substring(0, 100)}" vs "${newContent.substring(0, 100)}"`)
+            }
+            
+            // Log processing results for republished posts
+            if (processingResult.errors.length > 0) {
+              console.log(`🖼️ Image processing errors for republished post:`, processingResult.errors)
+            }
+            if (processingResult.imageCount > 0) {
+              console.log(`🖼️ Processed ${processingResult.imageCount} images for republished post`)
             }
             
             // RACE CONDITION DETECTION
@@ -298,9 +310,6 @@ export class SyncService {
           const hasAnyChanges = hasContentChanges || hasPublicationChanges
           
           if (hasAnyChanges) {
-            // Detect republishing scenarios
-            const isRepublishing = !existingPost.isPublished && isPublished
-            
             console.log(`Processing post "${note.title}": isRepublishing=${isRepublishing}, hasContentChanges=${hasContentChanges}, hasPublicationChanges=${hasPublicationChanges}`)
             
             // Only update if there are actual changes
@@ -429,12 +438,17 @@ export class SyncService {
             // Note is no longer published (either deleted or lost "published" tag)
             console.log(`Note "${post.title}" (${post.evernoteNoteId}) no longer published, unpublishing post`)
             
-            // Clean up images for unpublished posts
-            try {
-              const contentProcessor = new ContentProcessor()
-              await contentProcessor.cleanupPostImages(post.id)
-            } catch (error) {
-              console.error(`Error cleaning up images for post ${post.id}:`, error)
+            // Clean up images for unpublished posts (only during full sync to preserve images for potential republishing)
+            if (!isIncrementalSync) {
+              console.log(`Full sync: Cleaning up images for unpublished post "${post.title}"`)
+              try {
+                const contentProcessor = new ContentProcessor()
+                await contentProcessor.cleanupPostImages(post.id)
+              } catch (error) {
+                console.error(`Error cleaning up images for post ${post.id}:`, error)
+              }
+            } else {
+              console.log(`Incremental sync: Preserving images for unpublished post "${post.title}" (images will be cleaned up during next full sync)`)
             }
             
             await prisma.post.update({

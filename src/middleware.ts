@@ -15,6 +15,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(dashboardUrl)
   }
 
+  // Handle Ghost admin dashboard editor requests (with hash fragments)
+  if (pathname === '/dashboard' && request.headers.get('referer')?.includes('ulysses-ghost://')) {
+    console.log('👻 Dashboard access from Ulysses Ghost admin context')
+    // Allow the request to proceed to dashboard
+    return NextResponse.next()
+  }
+
   // Handle Ghost API routes specially for blog-specific domains
   if (pathname.startsWith('/ghost/api/')) {
     console.log('👻 Ghost API request detected:', request.method, pathname, 'on hostname:', hostname)

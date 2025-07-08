@@ -28,6 +28,21 @@ export class ContentProcessor {
     postId: string, 
     evernoteService: EvernoteService
   ): Promise<ImageProcessingResult> {
+    console.log(`🖼️ Processing Evernote content for post ${postId}, note: "${note.title}"`)
+    console.log(`📄 ENML content length: ${enmlContent.length}`)
+    console.log(`📄 ENML preview: ${enmlContent.substring(0, 200)}...`)
+    console.log(`🔗 Note resources count: ${note.resources?.length || 0}`)
+    
+    // CRITICAL DEBUG: Force logging of resources information
+    if (note.resources && note.resources.length > 0) {
+      console.log(`🔗 CRITICAL: Available resources in note:`)
+      note.resources.forEach((r, i) => {
+        console.log(`  Resource ${i + 1}: GUID=${r.guid}, hash=${r.data.bodyHash}, mime=${r.mime}, size=${r.data.size}`)
+      })
+    } else {
+      console.log(`🚨 CRITICAL: NO RESOURCES FOUND IN NOTE - this explains missing images!`)
+    }
+    
     const errors: string[] = []
     let imageCount = 0
 
@@ -42,18 +57,48 @@ export class ContentProcessor {
     let match
     const mediaReplacements: Array<{ tag: string; replacement: string }> = []
     
+    // First, find all en-media tags in the content
+    const allMatches = [...html.matchAll(mediaTagRegex)]
+    console.log(`🔍 Found ${allMatches.length} en-media tags in ENML`)
+    allMatches.forEach((m, i) => {
+      console.log(`  📎 Media tag ${i + 1}: hash="${m[1]}", full tag: ${m[0]}`)
+    })
+    
+    // Reset regex for processing
+    mediaTagRegex.lastIndex = 0
+    
     while ((match = mediaTagRegex.exec(html)) !== null) {
       const fullTag = match[0]
       const hash = match[1]
+      console.log(`🔄 CRITICAL: Processing en-media tag with hash: ${hash}`)
       
       // Find the corresponding resource
       const resource = note.resources?.find(r => r.data.bodyHash === hash)
       if (!resource) {
-        console.warn(`Resource not found for hash: ${hash}`)
-        errors.push(`Image resource not found: ${hash}`)
-        mediaReplacements.push({ tag: fullTag, replacement: '' })
+        console.log(`🚨 CRITICAL: Resource not found for hash: ${hash}`)
+        console.log(`📋 CRITICAL: Searching through ${note.resources?.length || 0} available resources:`)
+        if (note.resources && note.resources.length > 0) {
+          note.resources.forEach((r, i) => {
+            console.log(`  Resource ${i + 1}: hash=${r.data.bodyHash} (looking for ${hash})`)
+          })
+        } else {
+          console.log(`  NO RESOURCES AVAILABLE IN NOTE!`)
+        }
+        
+        // Create a placeholder for missing images instead of removing them completely
+        const placeholderText = `[Missing Image: ${hash.substring(0, 8)}...]`
+        const placeholderHtml = `<div class="missing-image" style="border: 2px dashed #ccc; padding: 20px; margin: 10px 0; text-align: center; color: #666; background: #f9f9f9;">
+          <p>📷 ${placeholderText}</p>
+          <small>Image resource not found in Evernote. Hash: ${hash}</small>
+        </div>`
+        
+        errors.push(`Image resource not found: ${hash} - showing placeholder`)
+        mediaReplacements.push({ tag: fullTag, replacement: placeholderHtml })
+        console.log(`🔄 CRITICAL: Replaced missing image with placeholder: ${placeholderText}`)
         continue
       }
+      
+      console.log(`✅ CRITICAL: Found matching resource for hash ${hash}: GUID=${resource.guid}, mime=${resource.mime}, size=${resource.data.size}`)
       
       try {
         // Check if image already exists

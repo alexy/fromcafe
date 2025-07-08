@@ -23,14 +23,17 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     
     console.log('👻 GET query params:', { domain, subdomain, blogSlug, formats, include })
     console.log('👻 Full request URL:', request.url)
+    console.log('👻 Starting authentication...')
 
     // Validate authentication and find blog
     const authResult = await validateGhostAuth(request, domain || undefined, subdomain || undefined, blogSlug || undefined)
     if ('error' in authResult) {
+      console.log('👻 Authentication failed')
       return authResult.error
     }
     
     const { tokenData, blog } = authResult
+    console.log('👻 Authentication successful, blog ID:', blog.id)
 
     // Get full blog details
     const fullBlog = await prisma.blog.findUnique({
@@ -39,11 +42,13 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     })
 
     if (!fullBlog) {
+      console.log('👻 Blog not found in database')
       return NextResponse.json(
         { errors: [{ message: 'Blog not found' }] },
         { status: 404 }
       )
     }
+    console.log('👻 Found blog:', fullBlog.title)
 
     // Find the post by Ghost post ID
     const post = await prisma.post.findFirst({
@@ -55,11 +60,13 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     })
 
     if (!post) {
+      console.log('👻 Post not found with Ghost ID:', params.id)
       return NextResponse.json(
         { errors: [{ message: 'Post not found' }] },
         { status: 404 }
       )
     }
+    console.log('👻 Found post:', post.title)
 
     // Convert content for response
     const responseHtml = post.contentFormat === ContentFormat.MARKDOWN 
@@ -72,14 +79,39 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     // Generate proper UUID format
     const ghostUuid = `${params.id.substring(0, 8)}-${params.id.substring(8, 12)}-${params.id.substring(12, 16)}-${params.id.substring(16, 20)}-${params.id.substring(20, 24)}000000000000`
 
-    // Format response in Ghost format
+    // Format response in Ghost format with all required fields for editing
     const ghostResponse = {
       id: params.id,
       uuid: ghostUuid,
       title: post.title,
       slug: post.slug,
       html: responseHtml,
-      lexical: null,
+      lexical: responseMarkdown ? JSON.stringify({
+        root: {
+          children: [{
+            children: [{
+              detail: 0,
+              format: 0,
+              mode: "normal",
+              style: "",
+              text: responseMarkdown,
+              type: "extended-text",
+              version: 1
+            }],
+            direction: "ltr",
+            format: "",
+            indent: 0,
+            type: "paragraph",
+            version: 1
+          }],
+          direction: "ltr",
+          format: "",
+          indent: 0,
+          type: "root",
+          version: 1
+        }
+      }) : null,
+      mobiledoc: null,
       markdown: responseMarkdown,
       comment_id: post.id,
       plaintext: post.excerpt || '',
@@ -117,7 +149,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         roles: [{
-          id: 'owner',
+          id: '1',
           name: 'Owner',
           description: 'Blog owner',
           created_at: new Date().toISOString(),
@@ -137,7 +169,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       send_email_when_published: false,
       email_segment: 'all',
       status: post.isPublished ? 'published' : 'draft',
-      // Additional fields that might be required for editing
+      // Critical fields for Ghost API compatibility
       meta_title: null,
       meta_description: null,
       og_image: null,
@@ -149,13 +181,23 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       email_subject: null,
       frontmatter: null,
       feature_image_alt: null,
-      feature_image_caption: null
+      feature_image_caption: null,
+      // Additional fields that Ghost includes for editing
+      email_only: false,
+      newsletter_id: null,
+      show_title_and_feature_image: true,
+      type: 'post'
     }
 
     console.log('👻 Returning individual post:', post.title)
     console.log('👻 Ghost response status:', ghostResponse.status)
     console.log('👻 Ghost response access:', ghostResponse.access)
     console.log('👻 Ghost response updated_at:', ghostResponse.updated_at)
+    console.log('👻 Ghost response type:', ghostResponse.type)
+    console.log('👻 Ghost response has lexical:', !!ghostResponse.lexical)
+    console.log('👻 Ghost response fields count:', Object.keys(ghostResponse).length)
+    console.log('👻 Ghost response author roles:', JSON.stringify(ghostResponse.authors[0].roles))
+    console.log('👻 ABOUT TO SEND RESPONSE TO ULYSSES')
 
     return NextResponse.json({
       posts: [ghostResponse]
@@ -248,14 +290,11 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   console.log('👻 PUT request URL:', request.url)
   
   try {
-    // Check for required headers
+    console.log('👻 PUT: Starting request processing...')
+    
+    // Accept-Version header is optional - Ulysses doesn't always send it
     const acceptVersion = request.headers.get('accept-version')
-    if (!acceptVersion) {
-      return NextResponse.json(
-        { errors: [{ message: 'Accept-Version header is required' }] },
-        { status: 400 }
-      )
-    }
+    console.log('👻 PUT: Accept-Version header:', acceptVersion || 'not provided')
 
     // Get blog identifier from query parameters (set by middleware)
     const { searchParams } = new URL(request.url)
@@ -285,9 +324,13 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     }
 
     // Parse request body
+    console.log('👻 PUT: Parsing request body...')
     const body: GhostPostRequest = await request.json()
+    console.log('👻 PUT: Request body parsed, posts count:', body.posts?.length)
+    console.log('👻 PUT: Request body:', JSON.stringify(body, null, 2))
     
     if (!body.posts || !Array.isArray(body.posts) || body.posts.length === 0) {
+      console.log('👻 PUT: Invalid request format - no posts array')
       return NextResponse.json(
         { errors: [{ message: 'Invalid request format. Expected posts array.' }] },
         { status: 400 }
@@ -295,8 +338,10 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     }
 
     const ghostPost = body.posts[0] // Update first post in array
+    console.log('👻 PUT: Processing post update for title:', ghostPost.title)
 
     // Find the existing post
+    console.log('👻 PUT: Finding existing post with ID:', params.id)
     const existingPost = await prisma.post.findFirst({
       where: {
         ghostPostId: params.id,
@@ -304,6 +349,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
         contentSource: ContentSource.GHOST
       }
     })
+    console.log('👻 PUT: Found existing post:', existingPost ? existingPost.title : 'NOT FOUND')
 
     if (!existingPost) {
       return NextResponse.json(
@@ -362,6 +408,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     const excerpt = ghostPost.excerpt || contentProcessor.generateExcerpt(htmlForExcerpt)
 
     // Update the post
+    console.log('👻 PUT: Updating post in database...')
     const updatedPost = await prisma.post.update({
       where: { id: existingPost.id },
       data: {
@@ -375,6 +422,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
         sourceUpdatedAt: new Date()
       }
     })
+    console.log('👻 PUT: Post updated successfully in database')
 
     // Log image processing results
     if (processingResult.imageCount > 0) {
@@ -395,14 +443,39 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     // Generate proper UUID format
     const ghostUuid = `${params.id.substring(0, 8)}-${params.id.substring(8, 12)}-${params.id.substring(12, 16)}-${params.id.substring(16, 20)}-${params.id.substring(20, 24)}000000000000`
 
-    // Format response in Ghost format
+    // Format response in Ghost format with all required fields for editing
     const ghostResponse = {
       id: params.id,
       uuid: ghostUuid,
       title: updatedPost.title,
       slug: updatedPost.slug,
       html: responseHtml,
-      lexical: null,
+      lexical: responseMarkdown ? JSON.stringify({
+        root: {
+          children: [{
+            children: [{
+              detail: 0,
+              format: 0,
+              mode: "normal",
+              style: "",
+              text: responseMarkdown,
+              type: "extended-text",
+              version: 1
+            }],
+            direction: "ltr",
+            format: "",
+            indent: 0,
+            type: "paragraph",
+            version: 1
+          }],
+          direction: "ltr",
+          format: "",
+          indent: 0,
+          type: "root",
+          version: 1
+        }
+      }) : null,
+      mobiledoc: null,
       markdown: responseMarkdown,
       comment_id: updatedPost.id,
       plaintext: updatedPost.excerpt || '',
@@ -440,7 +513,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         roles: [{
-          id: 'owner',
+          id: '1',
           name: 'Owner',
           description: 'Blog owner',
           created_at: new Date().toISOString(),
@@ -457,11 +530,31 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       excerpt: updatedPost.excerpt || '',
       reading_time: Math.max(1, Math.round((updatedPost.content?.length || 0) / 265)),
       access: true,
+      send_email_when_published: false,
       email_segment: 'all',
-      status: updatedPost.isPublished ? 'published' : 'draft'
+      status: updatedPost.isPublished ? 'published' : 'draft',
+      // Critical fields for Ghost API compatibility
+      meta_title: null,
+      meta_description: null,
+      og_image: null,
+      og_title: null,
+      og_description: null,
+      twitter_image: null,
+      twitter_title: null,
+      twitter_description: null,
+      email_subject: null,
+      frontmatter: null,
+      feature_image_alt: null,
+      feature_image_caption: null,
+      // Additional fields that Ghost includes for editing
+      email_only: false,
+      newsletter_id: null,
+      show_title_and_feature_image: true,
+      type: 'post'
     }
 
     console.log('👻 Successfully updated post:', updatedPost.title)
+    console.log('👻 PUT: Sending successful response')
 
     return NextResponse.json({
       posts: [ghostResponse]
@@ -474,6 +567,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
 
   } catch (error) {
     console.error('👻 Error updating Ghost post:', error)
+    console.error('👻 PUT: Full error details:', JSON.stringify(error, null, 2))
     return NextResponse.json(
       { errors: [{ message: 'Internal server error' }] },
       { status: 500 }

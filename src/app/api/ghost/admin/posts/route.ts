@@ -89,15 +89,13 @@ async function ensureUniqueSlug(baseSlug: string, blogId: string, excludePostId?
  * POST /api/ghost/admin/posts - Create posts (Ghost Admin API compatible)
  */
 export async function POST(request: NextRequest) {
+  console.log('👻 POST /api/ghost/admin/posts handler called')
+  console.log('👻 POST request headers:', Object.fromEntries(request.headers.entries()))
+  
   try {
-    // Check for required headers
+    // Accept-Version header is optional - Ulysses doesn't always send it
     const acceptVersion = request.headers.get('accept-version')
-    if (!acceptVersion) {
-      return NextResponse.json(
-        { errors: [{ message: 'Accept-Version header is required' }] },
-        { status: 400 }
-      )
-    }
+    console.log('👻 POST: Accept-Version header:', acceptVersion || 'not provided')
 
     // Get blog identifier from query parameters (set by middleware)
     const { searchParams } = new URL(request.url)
@@ -229,7 +227,8 @@ export async function POST(request: NextRequest) {
       const excerpt = ghostPost.excerpt || contentProcessor.generateExcerpt(htmlForExcerpt)
 
       // Generate Ghost-compatible ID for this post if not already set
-      const ghostPostId = post.ghostPostId || createHash('sha256').update(post.id).digest('hex').substring(0, 24)
+      // Use provided ID if available, otherwise generate one
+      const ghostPostId = post.ghostPostId || ghostPost.id || createHash('sha256').update(post.id).digest('hex').substring(0, 24)
       
       // Update the post with processed content, excerpt, and Ghost post ID
       await prisma.post.update({
