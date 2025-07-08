@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PostRenderer, generatePostMetadata } from '@/lib/blog/renderer'
+import { getPrimaryDomain } from '@/config/domains'
 
 interface SubdomainPostPreviewPageProps {
   params: Promise<{ subdomain: string; postId: string }>
@@ -53,7 +54,7 @@ export default async function SubdomainPostPreviewPage({ params }: SubdomainPost
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
     // Redirect to authentication on main domain, then back to subdomain preview
-    redirect(`https://from.cafe/auth/signin?callbackUrl=${encodeURIComponent(`https://${subdomain}.from.cafe/preview/${postId}`)}`)
+    redirect(`https://${getPrimaryDomain()}/auth/signin?callbackUrl=${encodeURIComponent(`https://${subdomain}.${getPrimaryDomain()}/preview/${postId}`)}`)
   }
 
   // Find post by Ghost post ID or database ID, but only for posts owned by the current user
@@ -93,7 +94,7 @@ export default async function SubdomainPostPreviewPage({ params }: SubdomainPost
               <span className="text-yellow-600 text-sm">Only you can see this post</span>
             </div>
             <a
-              href={`https://from.cafe/dashboard/blogs/${post.blog.id}`}
+              href={`https://${getPrimaryDomain()}/dashboard/blogs/${post.blog.id}`}
               className="text-yellow-800 hover:text-yellow-900 text-sm font-medium underline"
             >
               Edit in Dashboard
