@@ -160,7 +160,9 @@ export class SyncService {
         select: { 
           lastSyncUpdateCount: true, 
           lastSyncedAt: true,
-          lastSyncAttemptAt: true 
+          lastSyncAttemptAt: true,
+          evernoteNotebook: true,
+          evernoteNotebookName: true
         }
       })
       
@@ -214,6 +216,29 @@ export class SyncService {
       // NOTE: During incremental syncs, we preserve images for unpublished posts to optimize republishing
       const isIncrementalSync = hasSuccessfulPreviousSync && currentSyncState.updateCount !== -1 && 
                                currentSyncState.updateCount > blog.lastSyncUpdateCount!
+      
+      // During full sync, refresh notebook name in case it was changed in Evernote
+      if (!isIncrementalSync && blog?.evernoteNotebook) {
+        console.log('Full sync: Refreshing notebook name for', blog.evernoteNotebook)
+        try {
+          const notebooks = await evernoteService.listNotebooks()
+          const currentNotebook = notebooks.find(nb => nb.guid === blog.evernoteNotebook)
+          if (currentNotebook && currentNotebook.name !== blog.evernoteNotebookName) {
+            console.log(`Notebook name changed: "${blog.evernoteNotebookName}" → "${currentNotebook.name}"`)
+            await prisma.blog.update({
+              where: { id: blogId },
+              data: { evernoteNotebookName: currentNotebook.name }
+            })
+          } else if (currentNotebook) {
+            console.log(`Notebook name unchanged: "${currentNotebook.name}"`)
+          } else {
+            console.warn(`Notebook ${blog.evernoteNotebook} not found - may have been deleted`)
+          }
+        } catch (error) {
+          console.error('Failed to refresh notebook name during full sync:', error)
+          // Don't fail the entire sync if notebook name refresh fails
+        }
+      }
       
       let notes: import('@/lib/evernote').EvernoteNote[]
       if (isIncrementalSync && blog?.lastSyncedAt) {
