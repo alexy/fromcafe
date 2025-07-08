@@ -9,8 +9,7 @@ interface SubdomainSignInPageProps {
   searchParams: Promise<{ callbackUrl?: string }>
 }
 
-export default async function SubdomainSignInPage({ params, searchParams }: SubdomainSignInPageProps) {
-  const { subdomain } = await params
+export default async function SubdomainSignInPage({ searchParams }: SubdomainSignInPageProps) {
   const { callbackUrl } = await searchParams
   const headersList = await headers()
   const hostname = headersList.get('host') || ''
