@@ -442,7 +442,7 @@ export default function AdminPage() {
                             <dt className="text-sm font-medium text-green-600">Successfully Tagged</dt>
                             <dd className="text-2xl font-bold text-green-900">{tagResults.summary.totalTagged}</dd>
                           </div>
-                          {tagResults.summary.errorCount > 0 && (
+                          {tagResults.summary.errorCount && tagResults.summary.errorCount > 0 && (
                             <div className="bg-red-50 p-3 rounded">
                               <dt className="text-sm font-medium text-red-600">Errors</dt>
                               <dd className="text-2xl font-bold text-red-900">{tagResults.summary.errorCount}</dd>
