@@ -210,18 +210,40 @@ export default function VintagePostLayout({ blog, post, hostname }: PostThemePro
                   break-inside: avoid;
                 }
                 
+                .vintage-prose p img {
+                  margin: 1.5rem auto;
+                }
+                
+                .vintage-prose p:only-child img {
+                  break-inside: avoid !important;
+                  page-break-inside: avoid !important;
+                  -webkit-column-break-inside: avoid !important;
+                  column-break-inside: avoid !important;
+                }
+                
+                .vintage-prose div img, .vintage-prose figure {
+                  break-inside: avoid !important;
+                  page-break-inside: avoid !important;
+                  -webkit-column-break-inside: avoid !important;
+                  column-break-inside: avoid !important;
+                }
+                
                 .vintage-prose img {
                   border: 3px solid #92400e;
                   border-radius: 4px;
                   box-shadow: 4px 4px 8px rgba(139, 69, 19, 0.3);
-                  break-inside: avoid;
-                  page-break-inside: avoid;
+                  break-inside: avoid !important;
+                  page-break-inside: avoid !important;
+                  -webkit-column-break-inside: avoid !important;
+                  column-break-inside: avoid !important;
                   margin: 1.5rem auto;
                   max-width: 100%;
                   height: auto;
                   display: block;
-                  max-height: 70vh;
+                  max-height: 60vh;
                   width: auto;
+                  box-sizing: border-box;
+                  column-span: all;
                 }
                 
                 @media (max-width: 768px) {
