@@ -282,7 +282,7 @@ export class EvernoteService {
               resourceCount: fullNote.resources?.length || 0,
               resources: fullNote.resources?.map((r: Evernote.Resource) => ({
                 guid: r.guid,
-                hash: r.data?.bodyHash,
+                hash: Buffer.isBuffer(r.data?.bodyHash) ? r.data.bodyHash.toString('hex') : r.data?.bodyHash,
                 mime: r.mime,
                 hasData: !!r.data?.body,
                 size: r.data?.size

@@ -72,14 +72,23 @@ export class ContentProcessor {
       const hash = match[1]
       console.log(`🔄 CRITICAL: Processing en-media tag with hash: ${hash}`)
       
-      // Find the corresponding resource
-      const resource = note.resources?.find(r => r.data.bodyHash === hash)
+      // Find the corresponding resource - convert Buffer hash to hex string for comparison
+      const resource = note.resources?.find(r => {
+        const resourceHash = Buffer.isBuffer(r.data.bodyHash) 
+          ? r.data.bodyHash.toString('hex')
+          : r.data.bodyHash
+        return resourceHash === hash
+      })
+      
       if (!resource) {
         console.log(`🚨 CRITICAL: Resource not found for hash: ${hash}`)
         console.log(`📋 CRITICAL: Searching through ${note.resources?.length || 0} available resources:`)
         if (note.resources && note.resources.length > 0) {
           note.resources.forEach((r, i) => {
-            console.log(`  Resource ${i + 1}: hash=${r.data.bodyHash} (looking for ${hash})`)
+            const resourceHash = Buffer.isBuffer(r.data.bodyHash) 
+              ? r.data.bodyHash.toString('hex')
+              : r.data.bodyHash
+            console.log(`  Resource ${i + 1}: hash=${resourceHash} (looking for ${hash})`)
           })
         } else {
           console.log(`  NO RESOURCES AVAILABLE IN NOTE!`)
