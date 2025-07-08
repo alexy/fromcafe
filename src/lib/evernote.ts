@@ -269,6 +269,8 @@ export class EvernoteService {
             const isLocal = !process.env.VERCEL && !process.env.VERCEL_ENV
             const isLocalWrappedException = isLocal && isWrappedFunction
             
+            console.log(`🚨 CRITICAL-START: About to call getNote for "${metadata.title}"`)
+            
             const fullNote = isLocalWrappedException
               ? await freshNoteStore.getNote(metadata.guid, true, true, false, false)                    // Local wrapped: no token, include resources
               : await freshNoteStore.getNote(this.accessToken, metadata.guid, true, true, false, false)  // Everything else: use token, include resources
@@ -314,6 +316,8 @@ export class EvernoteService {
             } else {
               console.log(`🚨 CRITICAL: Note has NO RESOURCES at all - this explains missing images!`)
             }
+            
+            console.log(`🚨 CRITICAL-END: Finished processing resources for "${fullNote.title}"`)
             
             notes.push({
               guid: fullNote.guid,
