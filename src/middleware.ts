@@ -81,7 +81,7 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
-    pathname.startsWith('/p/') || // Skip preview routes
+    pathname.startsWith('/preview/') || // Skip preview routes
     pathname.startsWith('/favicon.ico') ||
     pathname.startsWith('/apple-touch-icon') ||
     pathname === '/sitemap.xml' ||

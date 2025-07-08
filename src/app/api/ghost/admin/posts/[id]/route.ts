@@ -168,7 +168,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       primary_tag: null,
       url: post.isPublished 
         ? `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${post.slug}`
-        : `${request.nextUrl.origin}/p/${params.id}`,
+        : `${request.nextUrl.origin}/preview/${params.id}`,
       excerpt: post.excerpt || '',
       reading_time: Math.max(1, Math.round((post.content?.length || 0) / 265)),
       access: true,
@@ -594,7 +594,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       url: (() => {
         const url = updatedPost.isPublished 
           ? `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${updatedPost.slug}`
-          : `${request.nextUrl.origin}/p/${params.id}`
+          : `${request.nextUrl.origin}/preview/${params.id}`
         console.log('👻 PUT: Generated URL for response:', url)
         return url
       })(),

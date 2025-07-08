@@ -104,6 +104,7 @@ export const authOptions = {
         sameSite: process.env.VERCEL ? 'none' : 'lax', // 'none' for cross-site OAuth on Vercel
         path: '/',
         secure: !!process.env.VERCEL,
+        // Don't set domain to avoid cross-domain cookie issues
       },
     },
   },

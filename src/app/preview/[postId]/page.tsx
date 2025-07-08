@@ -52,7 +52,8 @@ export default async function PostPreviewPage({ params }: PostPreviewPageProps) 
   // Get session for authorization
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
-    redirect('/auth/signin?callbackUrl=' + encodeURIComponent(`/p/${postId}`))
+    // Redirect to authentication on main domain
+    redirect(`/auth/signin?callbackUrl=${encodeURIComponent(`/preview/${postId}`)}`)
   }
 
   // Find post by Ghost post ID or database ID, but only for posts owned by the current user
