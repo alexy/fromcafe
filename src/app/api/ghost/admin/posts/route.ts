@@ -169,6 +169,7 @@ export async function POST(request: NextRequest) {
 
       // Determine publication status
       const isPublished = ghostPost.status === 'published'
+      // For new posts, only set publishedAt if being published
       const publishedAt = isPublished 
         ? (ghostPost.published_at ? new Date(ghostPost.published_at) : new Date())
         : null

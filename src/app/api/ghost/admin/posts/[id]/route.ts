@@ -430,9 +430,10 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
 
     // Determine publication status
     const isPublished = ghostPost.status === 'published'
+    // Ghost CMS preserves published_at timestamp when unpublishing (unlike our previous implementation)
     const publishedAt = isPublished 
       ? (ghostPost.published_at ? new Date(ghostPost.published_at) : new Date())
-      : null
+      : existingPost.publishedAt // Preserve original timestamp when unpublishing
     
     // Debug publication status changes
     console.log('👻 PUT: Publication status analysis:')
@@ -441,12 +442,13 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     console.log('  - New isPublished:', isPublished)
     console.log('  - Previous publishedAt:', existingPost.publishedAt)
     console.log('  - New publishedAt:', publishedAt)
+    console.log('  - Ghost CMS behavior: Published timestamp preserved on unpublish')
     
     if (existingPost.isPublished !== isPublished) {
       if (isPublished) {
         console.log('🟢 POST IS BEING PUBLISHED (draft → published)')
       } else {
-        console.log('🔴 POST IS BEING UNPUBLISHED (published → draft)')
+        console.log('🔴 POST IS BEING UNPUBLISHED (published → draft) - preserving published_at timestamp')
       }
     } else {
       console.log('📝 POST STATUS UNCHANGED (' + (isPublished ? 'published' : 'draft') + ')')
