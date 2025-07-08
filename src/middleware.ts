@@ -31,7 +31,14 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/ghost/api/')) {
     console.log('👻 Ghost API request detected:', request.method, pathname, 'on hostname:', hostname)
     console.log('👻 Original request URL:', request.url)
-    console.log('👻 Request headers:', Object.fromEntries(request.headers.entries()))
+    console.log('👻 Request content-length:', request.headers.get('content-length') || 'NOT SET')
+    
+    // Special logging for PUT requests to debug the image update issue
+    if (request.method === 'PUT') {
+      console.log('🚨 MIDDLEWARE: PUT request detected to Ghost API')
+      console.log('🚨 MIDDLEWARE: PUT pathname:', pathname)
+      console.log('🚨 MIDDLEWARE: PUT headers:', Object.fromEntries(request.headers.entries()))
+    }
     
     if (isCustomDomain(hostname)) {
       // Custom domain Ghost API: customdomain.com/ghost/api/v4/admin/site → /api/ghost/admin/site?domain=customdomain.com

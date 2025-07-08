@@ -5,6 +5,10 @@ import { marked } from 'marked'
 import { validateGhostAuth } from '@/lib/ghost-auth'
 import { ContentProcessor } from '@/lib/content-processor'
 
+// Configure route for handling larger payloads and longer processing times
+export const maxDuration = 60 // Allow up to 60 seconds for large image processing
+export const runtime = 'nodejs' // Use Node.js runtime for better performance with large payloads
+
 /**
  * GET /api/ghost/admin/posts/{id} - Get specific post (Ghost Admin API compatible)
  */
@@ -284,13 +288,31 @@ async function ensureUniqueSlug(baseSlug: string, blogId: string, excludePostId?
  * PUT /api/ghost/admin/posts/{id} - Update specific post (Ghost Admin API compatible)
  */
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  // Log immediately to confirm the handler is reached
+  console.log('🚨 PUT HANDLER REACHED - timestamp:', new Date().toISOString())
+  
   const params = await context.params
   console.log('👻 PUT /api/ghost/admin/posts/[id] handler called for ID:', params.id)
   console.log('👻 PUT request headers:', Object.fromEntries(request.headers.entries()))
   console.log('👻 PUT request URL:', request.url)
+  console.log('👻 PUT request method:', request.method)
+  console.log('👻 PUT request body available:', request.body ? 'YES' : 'NO')
+  console.log('👻 PUT content-length header:', request.headers.get('content-length') || 'NOT SET')
   
   try {
     console.log('👻 PUT: Starting request processing...')
+    
+    // Check if we can read the body size before parsing
+    const contentLength = request.headers.get('content-length')
+    if (contentLength) {
+      const sizeInMB = parseInt(contentLength) / (1024 * 1024)
+      console.log(`👻 PUT: Request size: ${contentLength} bytes (${sizeInMB.toFixed(2)} MB)`)
+      
+      // Warn if approaching Vercel's 4.5MB limit
+      if (sizeInMB > 4) {
+        console.warn(`👻 PUT: Large request detected (${sizeInMB.toFixed(2)} MB) - may hit Vercel limits`)
+      }
+    }
     
     // Accept-Version header is optional - Ulysses doesn't always send it
     const acceptVersion = request.headers.get('accept-version')
@@ -324,10 +346,29 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     }
 
     // Parse request body
-    console.log('👻 PUT: Parsing request body...')
-    const body: GhostPostRequest = await request.json()
-    console.log('👻 PUT: Request body parsed, posts count:', body.posts?.length)
-    console.log('👻 PUT: Request body:', JSON.stringify(body, null, 2))
+    console.log('👻 PUT: About to parse request body...')
+    let body: GhostPostRequest
+    try {
+      body = await request.json()
+      console.log('👻 PUT: Request body parsed successfully, posts count:', body.posts?.length)
+      console.log('👻 PUT: First post title:', body.posts?.[0]?.title || 'No title')
+      console.log('👻 PUT: First post content length:', body.posts?.[0]?.markdown?.length || body.posts?.[0]?.html?.length || 0)
+      // Don't log full body for large requests to avoid log spam
+      if (contentLength && parseInt(contentLength) > 100000) {
+        console.log('👻 PUT: Large request body - skipping full log')
+      } else {
+        console.log('👻 PUT: Request body:', JSON.stringify(body, null, 2))
+      }
+    } catch (parseError) {
+      console.error('👻 PUT: Failed to parse request body:', parseError)
+      console.error('👻 PUT: Parse error type:', parseError instanceof Error ? parseError.constructor.name : typeof parseError)
+      console.error('👻 PUT: Parse error message:', parseError instanceof Error ? parseError.message : String(parseError))
+      
+      return NextResponse.json(
+        { errors: [{ message: `Failed to parse request body: ${parseError instanceof Error ? parseError.message : 'Unknown error'}` }] },
+        { status: 400 }
+      )
+    }
     
     if (!body.posts || !Array.isArray(body.posts) || body.posts.length === 0) {
       console.log('👻 PUT: Invalid request format - no posts array')
