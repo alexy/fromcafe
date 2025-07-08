@@ -1,18 +1,16 @@
 import { notFound, redirect } from 'next/navigation'
 import { Metadata } from 'next'
-import { headers } from 'next/headers'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PostRenderer, generatePostMetadata } from '@/lib/blog/renderer'
-import { getPrimaryDomain } from '@/config/domains'
 import { normalizePostId } from '@/lib/ghost-utils'
 
-interface CustomDomainPostPreviewPageProps {
+interface PostPreviewPageProps {
   params: Promise<{ postId: string }>
 }
 
-export async function generateMetadata({ params }: CustomDomainPostPreviewPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: PostPreviewPageProps): Promise<Metadata> {
   const { postId } = await params
   const normalizedPostId = normalizePostId(postId)
   
@@ -41,23 +39,20 @@ export async function generateMetadata({ params }: CustomDomainPostPreviewPagePr
   })
 
   if (!post) {
-    return { title: 'Preview Not Found' }
+    return { title: 'Post Not Found' }
   }
 
   return generatePostMetadata(post)
 }
 
-export default async function CustomDomainPostPreviewPage({ params }: CustomDomainPostPreviewPageProps) {
+export default async function PostPreviewPage({ params }: PostPreviewPageProps) {
   const { postId } = await params
   const normalizedPostId = normalizePostId(postId)
-  const headersList = await headers()
-  const hostname = headersList.get('host') || ''
   
   // Get session for authorization
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
-    // Redirect to authentication on main domain, then back to custom domain preview
-    redirect(`https://${getPrimaryDomain()}/auth/signin?callbackUrl=${encodeURIComponent(`https://${hostname}/p/${postId}`)}`)
+    redirect(`/auth/signin?callbackUrl=${encodeURIComponent(`/p/${postId}`)}`)
   }
 
   // Find post by Ghost post ID or database ID, but only for posts owned by the current user
@@ -68,8 +63,7 @@ export default async function CustomDomainPostPreviewPage({ params }: CustomDoma
         { id: normalizedPostId }
       ],
       blog: {
-        userId: session.user.id,
-        customDomain: hostname
+        userId: session.user.id
       }
     },
     include: { 
@@ -97,7 +91,7 @@ export default async function CustomDomainPostPreviewPage({ params }: CustomDoma
               <span className="text-yellow-600 text-sm">Only you can see this post</span>
             </div>
             <a
-              href={`https://${getPrimaryDomain()}/dashboard/blogs/${post.blog.id}`}
+              href={`/dashboard/blogs/${post.blog.id}`}
               className="text-yellow-800 hover:text-yellow-900 text-sm font-medium underline"
             >
               Edit in Dashboard
@@ -105,7 +99,7 @@ export default async function CustomDomainPostPreviewPage({ params }: CustomDoma
           </div>
         </div>
       )}
-      <PostRenderer post={post} hostname={hostname} />
+      <PostRenderer post={post} hostname="from.cafe" />
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PostRenderer, generatePostMetadata } from '@/lib/blog/renderer'
 import { getPrimaryDomain } from '@/config/domains'
+import { normalizePostId } from '@/lib/ghost-utils'
 
 interface SubdomainPostPreviewPageProps {
   params: Promise<{ subdomain: string; postId: string }>
@@ -13,6 +14,7 @@ interface SubdomainPostPreviewPageProps {
 
 export async function generateMetadata({ params }: SubdomainPostPreviewPageProps): Promise<Metadata> {
   const { postId } = await params
+  const normalizedPostId = normalizePostId(postId)
   
   // Get session for authorization
   const session = await getServerSession(authOptions)
@@ -24,8 +26,8 @@ export async function generateMetadata({ params }: SubdomainPostPreviewPageProps
   const post = await prisma.post.findFirst({
     where: {
       OR: [
-        { ghostPostId: postId },
-        { id: postId }
+        { ghostPostId: normalizedPostId },
+        { id: normalizedPostId }
       ],
       blog: {
         userId: session.user.id
@@ -47,6 +49,7 @@ export async function generateMetadata({ params }: SubdomainPostPreviewPageProps
 
 export default async function SubdomainPostPreviewPage({ params }: SubdomainPostPreviewPageProps) {
   const { subdomain, postId } = await params
+  const normalizedPostId = normalizePostId(postId)
   const headersList = await headers()
   const hostname = headersList.get('host') || ''
   
@@ -61,8 +64,8 @@ export default async function SubdomainPostPreviewPage({ params }: SubdomainPost
   const post = await prisma.post.findFirst({
     where: {
       OR: [
-        { ghostPostId: postId },
-        { id: postId }
+        { ghostPostId: normalizedPostId },
+        { id: normalizedPostId }
       ],
       blog: {
         userId: session.user.id,
