@@ -647,6 +647,12 @@ export class EvernoteService {
       // Get current user info to identify the Evernote account
       // Detect if we're dealing with wrapped functions (local dev) vs normal functions (production)
       const getUserFunc = (noteStore as { getUser: (...args: unknown[]) => unknown }).getUser
+      
+      if (!getUserFunc) {
+        console.error('getCurrentEvernoteAccountId: getUser method not found on noteStore')
+        return null
+      }
+      
       const isWrappedFunction = getUserFunc.length === 0 && 
         getUserFunc.toString().includes('arguments.length')
       
@@ -661,7 +667,9 @@ export class EvernoteService {
       console.log(`Using ${isLocalWrappedException ? 'local wrapped (no token)' : 'standard (with token)'} getUser logic`)
       return user.id.toString()
     } catch (error) {
-      console.warn('Failed to get Evernote account ID:', error)
+      console.error('Failed to get Evernote account ID:', error)
+      console.error('Error details:', error instanceof Error ? error.message : 'Unknown error')
+      console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
       return null
     }
   }
