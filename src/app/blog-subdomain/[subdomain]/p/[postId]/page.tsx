@@ -55,7 +55,16 @@ export default async function SubdomainPostPreviewPage({ params }: SubdomainPost
   
   // Get session for authorization
   const session = await getServerSession(authOptions)
+  console.log('👥 Preview page - Session check:', { 
+    hasSession: !!session, 
+    hasUser: !!session?.user, 
+    userId: session?.user?.id,
+    hostname,
+    postId 
+  })
+  
   if (!session?.user?.id) {
+    console.log('👥 Preview page - No session, redirecting to auth')
     // Stay on current subdomain for authentication
     redirect(`/auth/signin?callbackUrl=${encodeURIComponent(`/p/${postId}`)}`)
   }
