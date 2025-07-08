@@ -1326,12 +1326,12 @@ export default function BlogSettings() {
                   </div>
                   <div className="bg-purple-50 p-3 rounded">
                     <div className="text-purple-800 font-medium">Republished Posts</div>
-                    <div className="text-purple-600 text-lg">{syncResults.totalRepublishedPosts || 0}</div>
+                    <div className="text-purple-600 text-lg">{(syncResults.totalRepublishedPosts || 0) + (syncResults.totalRepublishedUpdatedPosts || 0)}</div>
                   </div>
                 </div>
               </div>
 
-              {syncResults.results.map((result: { blogId: string; blogTitle: string; notesFound: number; totalPublishedPosts: number; posts: { isNew: boolean; isUpdated: boolean; isUnpublished: boolean; isRepublished?: boolean; title: string }[] }) => {
+              {syncResults.results.map((result: { blogId: string; blogTitle: string; notesFound: number; totalPublishedPosts: number; posts: { isNew: boolean; isUpdated: boolean; isUnpublished: boolean; isRepublished?: boolean; isRepublishedUpdated?: boolean; title: string }[] }) => {
                 const blogResult = result.blogId === blogId ? result : null
                 if (!blogResult) return null
                 
@@ -1344,11 +1344,12 @@ export default function BlogSettings() {
                     
                     {result.posts.length > 0 && (
                       <div className="space-y-2">
-                        {result.posts.map((post: { isNew: boolean; isUpdated: boolean; isUnpublished: boolean; isRepublished?: boolean; title: string }, index: number) => (
+                        {result.posts.map((post: { isNew: boolean; isUpdated: boolean; isUnpublished: boolean; isRepublished?: boolean; isRepublishedUpdated?: boolean; title: string }, index: number) => (
                           <div key={index} className="flex items-center space-x-2 text-sm">
                             {post.isNew && <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">NEW</span>}
                             {post.isUpdated && <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">UPDATED</span>}
-                            {post.isRepublished && <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">REPUBLISHED</span>}
+                            {post.isRepublishedUpdated && <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">REPUBLISHED+UPDATED</span>}
+                            {post.isRepublished && !post.isRepublishedUpdated && <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">REPUBLISHED</span>}
                             {post.isUnpublished && <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">UNPUBLISHED</span>}
                             {post.title.startsWith('Error:') && <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">ERROR</span>}
                             {post.title.startsWith('Sync failed:') && <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">FAILED</span>}

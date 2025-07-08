@@ -369,6 +369,7 @@ export class SyncService {
                 isRepublished: true,
                 isRepublishedUpdated: true
               })
+              console.log(`📊 COUNTER: republishedUpdatedPosts = ${result.republishedUpdatedPosts}`)
               console.log(`Re-published and updated post "${note.title}" - was unpublished, now published with content changes`)
               console.log(`  DEBUG: Content updated in DB: title="${note.title}", contentLength=${newContent.length}, excerpt="${newExcerpt}"`)
             } else if (isRepublishing) {
@@ -381,6 +382,7 @@ export class SyncService {
                 isUnpublished: false,
                 isRepublished: true
               })
+              console.log(`📊 COUNTER: republishedPosts = ${result.republishedPosts}`)
               console.log(`Re-published post "${note.title}" - was unpublished, now published (no content changes detected)`)
               console.log(`  DEBUG: Content lengths: old=${existingPost.content?.length || 0}, new=${newContent.length}`)
               console.log(`  NOTE: Content from Evernote was still saved to database even if no changes detected`)
@@ -393,6 +395,7 @@ export class SyncService {
                 isUpdated: true,
                 isUnpublished: false
               })
+              console.log(`📊 COUNTER: updatedPosts = ${result.updatedPosts}`)
               console.log(`Updated post "${note.title}" - content changes detected`)
             }
           } else {
@@ -512,9 +515,11 @@ export class SyncService {
         newPosts: result.newPosts,
         updatedPosts: result.updatedPosts,
         unpublishedPosts: result.unpublishedPosts,
-        republishedPosts: result.republishedPosts,
-        totalChanges: result.newPosts + result.updatedPosts + result.unpublishedPosts + (result.republishedPosts || 0),
-        postsDetails: result.posts.map(p => ({ title: p.title, isNew: p.isNew, isUpdated: p.isUpdated, isUnpublished: p.isUnpublished, isRepublished: p.isRepublished }))
+        republishedPosts: result.republishedPosts || 0,
+        republishedUpdatedPosts: result.republishedUpdatedPosts || 0,
+        totalRepublished: (result.republishedPosts || 0) + (result.republishedUpdatedPosts || 0),
+        totalChanges: result.newPosts + result.updatedPosts + result.unpublishedPosts + (result.republishedPosts || 0) + (result.republishedUpdatedPosts || 0),
+        postsDetails: result.posts.map(p => ({ title: p.title, isNew: p.isNew, isUpdated: p.isUpdated, isUnpublished: p.isUnpublished, isRepublished: p.isRepublished, isRepublishedUpdated: p.isRepublishedUpdated }))
       })
 
       // Update the blog's last synced time, clear attempt time (since sync succeeded), and sync state
