@@ -41,6 +41,23 @@ export default function MinimalPostLayout({ blog, post, hostname }: PostThemePro
               dangerouslySetInnerHTML={{ __html: post.content }}
             />
             <PostImageGallery postContentSelector=".prose" />
+            
+            {/* Post Tags */}
+            {post.tags && post.tags.length > 0 && (
+              <div className="mt-12 pt-8 border-t border-gray-200">
+                <div className="flex flex-wrap gap-2">
+                  {post.tags.map((tag) => (
+                    <a
+                      key={tag.id}
+                      href={`${getBlogUrl(blog.userSlug, blog.slug, hostname)}?tag=${tag.slug}`}
+                      className="inline-flex items-center px-3 py-1 text-sm font-light text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      #{tag.name}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </article>
         </main>
       </div>

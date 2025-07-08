@@ -1,7 +1,7 @@
 import { BlogThemeProps } from '../types'
-import { getPostUrl } from '../../utils/urls'
+import { getPostUrl, getBlogUrl } from '../../utils/urls'
 
-export default function ModernBlogLayout({ blog, posts, hostname }: BlogThemeProps) {
+export default function ModernBlogLayout({ blog, posts, hostname, currentTag }: BlogThemeProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="max-w-4xl mx-auto px-4 py-12">
@@ -75,6 +75,47 @@ export default function ModernBlogLayout({ blog, posts, hostname }: BlogThemePro
             </div>
           )}
         </main>
+        
+        {/* Tag Filter Footer */}
+        <footer className="mt-12">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="text-center">
+              <p className="text-sm text-gray-600 mb-4">Filter by tag:</p>
+              <div className="flex justify-center gap-3">
+                <a
+                  href={getBlogUrl(blog.userSlug, blog.slug, hostname)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    !currentTag || currentTag === 'all' 
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  all
+                </a>
+                <a
+                  href={`${getBlogUrl(blog.userSlug, blog.slug, hostname)}?tag=evernote`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    currentTag === 'evernote' 
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  evernote
+                </a>
+                <a
+                  href={`${getBlogUrl(blog.userSlug, blog.slug, hostname)}?tag=ghost`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    currentTag === 'ghost' 
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  ghost
+                </a>
+              </div>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   )

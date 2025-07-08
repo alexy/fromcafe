@@ -51,6 +51,23 @@ export default function ModernPostLayout({ blog, post, hostname }: PostThemeProp
               dangerouslySetInnerHTML={{ __html: post.content }}
             />
             <PostImageGallery postContentSelector=".prose" />
+            
+            {/* Post Tags */}
+            {post.tags && post.tags.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-gray-100">
+                <div className="flex flex-wrap gap-2">
+                  {post.tags.map((tag) => (
+                    <a
+                      key={tag.id}
+                      href={`${getBlogUrl(blog.userSlug, blog.slug, hostname)}?tag=${tag.slug}`}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 hover:from-blue-100 hover:to-purple-100 transition-colors"
+                    >
+                      #{tag.name}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </main>
         </article>
       </div>
