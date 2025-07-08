@@ -36,7 +36,12 @@ export async function generateMetadata({ params }: CustomDomainPostPreviewPagePr
     include: { 
       blog: { 
         include: { user: true } 
-      } 
+      },
+      postTags: {
+        include: {
+          tag: true
+        }
+      }
     }
   })
 
@@ -75,7 +80,12 @@ export default async function CustomDomainPostPreviewPage({ params }: CustomDoma
     include: { 
       blog: { 
         include: { user: true } 
-      } 
+      },
+      postTags: {
+        include: {
+          tag: true
+        }
+      }
     }
   })
 

@@ -36,7 +36,12 @@ export async function generateMetadata({ params }: SubdomainPostPreviewPageProps
     include: { 
       blog: { 
         include: { user: true } 
-      } 
+      },
+      postTags: {
+        include: {
+          tag: true
+        }
+      }
     }
   })
 
@@ -84,7 +89,12 @@ export default async function SubdomainPostPreviewPage({ params }: SubdomainPost
     include: { 
       blog: { 
         include: { user: true } 
-      } 
+      },
+      postTags: {
+        include: {
+          tag: true
+        }
+      }
     }
   })
 

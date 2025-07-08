@@ -33,7 +33,12 @@ export async function generateMetadata({ params }: PostPreviewPageProps): Promis
     include: { 
       blog: { 
         include: { user: true } 
-      } 
+      },
+      postTags: {
+        include: {
+          tag: true
+        }
+      }
     }
   })
 
@@ -70,7 +75,12 @@ export default async function PostPreviewPage({ params }: PostPreviewPageProps) 
     include: { 
       blog: { 
         include: { user: true } 
-      } 
+      },
+      postTags: {
+        include: {
+          tag: true
+        }
+      }
     }
   })
 
