@@ -256,6 +256,46 @@ export default function VintagePostLayout({ blog, post, hostname }: PostThemePro
               <div dangerouslySetInnerHTML={{ __html: post.content }} />
             </div>
             <PostImageGallery postContentSelector=".vintage-prose" />
+            
+            {/* Post Tags */}
+            {post.tags && post.tags.length > 0 && (
+              <div className="mt-8 pt-6 border-t-2 border-amber-700 border-dotted">
+                <div className="text-center">
+                  <div className="flex justify-center mb-4">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-8 h-0.5 bg-amber-800"></div>
+                      <div className="w-2 h-2 bg-amber-800 rounded-full"></div>
+                      <div className="w-4 h-4 border-2 border-amber-800 rotate-45"></div>
+                      <div className="w-2 h-2 bg-amber-800 rounded-full"></div>
+                      <div className="w-8 h-0.5 bg-amber-800"></div>
+                    </div>
+                  </div>
+                  <p className="text-amber-700 text-sm mb-3" style={{
+                    fontFamily: 'Georgia, "Times New Roman", serif',
+                    letterSpacing: '0.1em'
+                  }}>
+                    ~ CATEGORIES ~
+                  </p>
+                  <div className="flex justify-center flex-wrap gap-3">
+                    {post.tags.map((tag) => (
+                      <a
+                        key={tag.id}
+                        href={`${getBlogUrl(blog.userSlug, blog.slug, hostname)}?tag=${tag.slug}`}
+                        className="inline-flex items-center px-4 py-2 bg-amber-100 border-2 border-amber-800 text-amber-800 hover:bg-amber-200 hover:text-amber-900 transition-colors shadow-sm"
+                        style={{
+                          fontFamily: 'Georgia, "Times New Roman", serif',
+                          fontSize: '0.875rem',
+                          fontWeight: 'bold',
+                          letterSpacing: '0.05em'
+                        }}
+                      >
+                        #{tag.name}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Vignette Effects */}

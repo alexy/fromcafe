@@ -1,7 +1,7 @@
 import { BlogThemeProps } from '../types'
-import { getPostUrl } from '../../utils/urls'
+import { getPostUrl, getBlogUrl } from '../../utils/urls'
 
-export default function VintageBlogLayout({ blog, posts, hostname }: BlogThemeProps) {
+export default function VintageBlogLayout({ blog, posts, hostname, currentTag }: BlogThemeProps) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-yellow-50" style={{
       backgroundImage: `
@@ -197,6 +197,61 @@ export default function VintageBlogLayout({ blog, posts, hostname }: BlogThemePr
               <div className="w-12 h-0.5 bg-amber-800"></div>
             </div>
           </div>
+          
+          {/* Tag Filter Section */}
+          <div className="mb-6">
+            <p className="text-amber-700 text-sm mb-4" style={{
+              fontFamily: 'Georgia, "Times New Roman", serif',
+              letterSpacing: '0.1em'
+            }}>
+              ~ FILTER BY CATEGORY ~
+            </p>
+            <div className="flex justify-center gap-4">
+              <a
+                href={getBlogUrl(blog.userSlug, blog.slug, hostname)}
+                className={`px-6 py-3 border-2 border-amber-800 font-bold text-sm transition-colors shadow-sm ${
+                  !currentTag || currentTag === 'all' 
+                    ? 'bg-amber-800 text-yellow-50' 
+                    : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                }`}
+                style={{
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                  letterSpacing: '0.1em'
+                }}
+              >
+                ALL
+              </a>
+              <a
+                href={`${getBlogUrl(blog.userSlug, blog.slug, hostname)}?tag=evernote`}
+                className={`px-6 py-3 border-2 border-amber-800 font-bold text-sm transition-colors shadow-sm ${
+                  currentTag === 'evernote' 
+                    ? 'bg-amber-800 text-yellow-50' 
+                    : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                }`}
+                style={{
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                  letterSpacing: '0.1em'
+                }}
+              >
+                EVERNOTE
+              </a>
+              <a
+                href={`${getBlogUrl(blog.userSlug, blog.slug, hostname)}?tag=ghost`}
+                className={`px-6 py-3 border-2 border-amber-800 font-bold text-sm transition-colors shadow-sm ${
+                  currentTag === 'ghost' 
+                    ? 'bg-amber-800 text-yellow-50' 
+                    : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                }`}
+                style={{
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                  letterSpacing: '0.1em'
+                }}
+              >
+                GHOST
+              </a>
+            </div>
+          </div>
+          
           <p className="text-amber-700 text-sm" style={{
             fontFamily: 'Georgia, "Times New Roman", serif',
             letterSpacing: '0.1em'
