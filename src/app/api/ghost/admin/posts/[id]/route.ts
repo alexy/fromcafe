@@ -204,6 +204,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     console.log('👻 Ghost response fields count:', Object.keys(ghostResponse).length)
     console.log('👻 Ghost response author roles:', JSON.stringify(ghostResponse.authors[0].roles))
     console.log('👻 ABOUT TO SEND RESPONSE TO ULYSSES')
+    console.log('👻 GET: URL being returned:', ghostResponse.url)
+    console.log('👻 GET: Post status being returned:', ghostResponse.status)
 
     return NextResponse.json({
       posts: [ghostResponse]
@@ -625,6 +627,8 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     }
 
     console.log('👻 Successfully updated post:', updatedPost.title)
+    console.log('👻 PUT: Final URL being returned:', ghostResponse.url)
+    console.log('👻 PUT: Final status being returned:', ghostResponse.status)
     console.log('👻 PUT: Sending successful response')
 
     return NextResponse.json({
