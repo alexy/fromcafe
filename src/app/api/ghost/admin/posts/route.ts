@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ContentSource, ContentFormat } from '@prisma/client'
 import { ContentProcessor } from '@/lib/content-processor'
+import { tagPostBySource } from '@/lib/blog/tags'
 import { createHash } from 'crypto'
 import { marked } from 'marked'
 import { validateGhostAuth } from '@/lib/ghost-auth'
@@ -240,6 +241,9 @@ export async function POST(request: NextRequest) {
           ghostPostId: ghostPostId // Store the Ghost-compatible ID
         }
       })
+
+      // Tag the post as coming from Ghost
+      await tagPostBySource(post.id, ContentSource.GHOST)
 
       // Log image processing results
       if (processingResult.imageCount > 0) {

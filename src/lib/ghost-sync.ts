@@ -4,6 +4,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { createGhostClient, GhostPost, validateGhostConfig } from '@/lib/ghost-api'
+import { tagPostBySource } from '@/lib/blog/tags'
 import { ContentSource } from '@prisma/client'
 
 export interface GhostSyncResult {
@@ -182,12 +183,16 @@ async function processGhostPost(ghostPost: GhostPost, blogId: string, result: Gh
     }
   } else {
     // Create new post
-    await prisma.post.create({
+    const newPost = await prisma.post.create({
       data: {
         ...postData,
         blogId
       }
     })
+    
+    // Tag the post as coming from Ghost
+    await tagPostBySource(newPost.id, ContentSource.GHOST)
+    
     result.newPosts++
     console.log(`Created new post: ${ghostPost.title} (status: ${ghostPost.status})`)
   }

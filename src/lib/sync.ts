@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { EvernoteService } from '@/lib/evernote'
 import { ContentProcessor } from '@/lib/content-processor'
+import { tagPostBySource } from '@/lib/blog/tags'
+import { ContentSource } from '@prisma/client'
 import * as cron from 'node-cron'
 
 export interface SyncResult {
@@ -432,6 +434,10 @@ export class SyncService {
             console.warn(`Image processing errors for post ${newPost.id}:`, processingResult.errors)
           }
           console.log(`Processed ${processingResult.imageCount} images for new post "${note.title}"`)
+          
+          // Tag the post as coming from Evernote
+          await tagPostBySource(newPost.id, ContentSource.EVERNOTE)
+          
           result.newPosts++
           result.posts.push({
             title: note.title,
