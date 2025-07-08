@@ -1,23 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { tagPostBySource } from '@/lib/blog/tags'
 import { ContentSource } from '@prisma/client'
 
-async function checkAuth(request: NextRequest) {
-  // Simple authentication check - only allow in development or with secret
-  const isDev = process.env.NODE_ENV === 'development'
-  const secret = request.headers.get('x-admin-secret')
-  const validSecret = process.env.ADMIN_SECRET
+async function checkAuth() {
+  // Check if user is authenticated and has admin access
+  const session = await getServerSession(authOptions)
   
-  if (!isDev && (!secret || !validSecret || secret !== validSecret)) {
+  if (!session?.user?.id) {
     return false
   }
-  return true
+  
+  // Get user from database to check admin status
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true }
+  })
+  
+  return user?.role === 'ADMIN'
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    if (!await checkAuth(request)) {
+    if (!await checkAuth()) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -72,9 +79,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    if (!await checkAuth(request)) {
+    if (!await checkAuth()) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
