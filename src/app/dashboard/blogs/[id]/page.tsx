@@ -1311,7 +1311,7 @@ export default function BlogSettings() {
               
               <div className="mb-4">
                 <h4 className="font-medium text-black mb-2">Summary</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-3 gap-4 text-sm">
                   <div className="bg-green-50 p-3 rounded">
                     <div className="text-green-800 font-medium">New Posts</div>
                     <div className="text-green-600 text-lg">{syncResults.totalNewPosts}</div>
@@ -1319,6 +1319,10 @@ export default function BlogSettings() {
                   <div className="bg-blue-50 p-3 rounded">
                     <div className="text-blue-800 font-medium">Updated Posts</div>
                     <div className="text-blue-600 text-lg">{syncResults.totalUpdatedPosts}</div>
+                  </div>
+                  <div className="bg-red-50 p-3 rounded">
+                    <div className="text-red-800 font-medium">Unpublished Posts</div>
+                    <div className="text-red-600 text-lg">{syncResults.totalUnpublishedPosts}</div>
                   </div>
                 </div>
               </div>
