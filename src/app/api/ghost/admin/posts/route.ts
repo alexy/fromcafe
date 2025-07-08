@@ -324,7 +324,9 @@ export async function POST(request: NextRequest) {
           slug: 'author'
         },
         primary_tag: null,
-        url: `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${updatedPost!.slug}`,
+        url: updatedPost!.isPublished 
+          ? `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${updatedPost!.slug}`
+          : `${request.nextUrl.origin}/p/${responseGhostId}`,
         excerpt: updatedPost!.excerpt || '',
         reading_time: Math.max(1, Math.round((updatedPost!.content?.length || 0) / 265)), // Estimate reading time
         access: true,
@@ -416,19 +418,25 @@ export async function GET(request: NextRequest) {
     })
 
     // Format posts in Ghost format
-    const ghostPosts = posts.map(post => ({
-      id: post.id,
-      uuid: post.id,
-      title: post.title,
-      slug: post.slug,
-      html: post.content,
-      excerpt: post.excerpt || '',
-      status: post.isPublished ? 'published' : 'draft',
-      created_at: post.createdAt.toISOString(),
-      updated_at: post.updatedAt.toISOString(),
-      published_at: post.publishedAt?.toISOString() || null,
-      url: `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${post.slug}`
-    }))
+    const ghostPosts = posts.map(post => {
+      // Use Ghost post ID if available, otherwise generate from database ID
+      const ghostId = post.ghostPostId || createHash('sha256').update(post.id).digest('hex').substring(0, 24)
+      return {
+        id: ghostId,
+        uuid: ghostId,
+        title: post.title,
+        slug: post.slug,
+        html: post.content,
+        excerpt: post.excerpt || '',
+        status: post.isPublished ? 'published' : 'draft',
+        created_at: post.createdAt.toISOString(),
+        updated_at: post.updatedAt.toISOString(),
+        published_at: post.publishedAt?.toISOString() || null,
+        url: post.isPublished 
+          ? `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${post.slug}`
+          : `${request.nextUrl.origin}/p/${ghostId}`
+      }
+    })
 
     return NextResponse.json({
       posts: ghostPosts,

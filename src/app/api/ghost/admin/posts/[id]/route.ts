@@ -166,7 +166,9 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         slug: 'author'
       },
       primary_tag: null,
-      url: `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${post.slug}`,
+      url: post.isPublished 
+        ? `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${post.slug}`
+        : `${request.nextUrl.origin}/p/${params.id}`,
       excerpt: post.excerpt || '',
       reading_time: Math.max(1, Math.round((post.content?.length || 0) / 265)),
       access: true,
@@ -567,7 +569,9 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
         slug: 'author'
       },
       primary_tag: null,
-      url: `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${updatedPost.slug}`,
+      url: updatedPost.isPublished 
+        ? `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${updatedPost.slug}`
+        : `${request.nextUrl.origin}/p/${params.id}`,
       excerpt: updatedPost.excerpt || '',
       reading_time: Math.max(1, Math.round((updatedPost.content?.length || 0) / 265)),
       access: true,
