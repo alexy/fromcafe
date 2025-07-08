@@ -79,7 +79,17 @@ export async function tagPostBySource(postId: string, contentSource: ContentSour
 }
 
 export async function getPostsByTag(blogId: string, tagSlug?: string) {
-  const whereClause: any = {
+  const whereClause: {
+    blogId: string
+    isPublished: boolean
+    postTags?: {
+      some: {
+        tag: {
+          slug: string
+        }
+      }
+    }
+  } = {
     blogId,
     isPublished: true
   }
