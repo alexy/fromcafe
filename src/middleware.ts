@@ -77,10 +77,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Skip middleware for other API routes, static files, and special Next.js routes
+  // Skip middleware for other API routes, static files, preview routes, and special Next.js routes
   if (
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
+    pathname.startsWith('/p/') || // Skip preview routes
     pathname.startsWith('/favicon.ico') ||
     pathname.startsWith('/apple-touch-icon') ||
     pathname === '/sitemap.xml' ||
