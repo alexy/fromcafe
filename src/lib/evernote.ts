@@ -275,6 +275,46 @@ export class EvernoteService {
             
             console.log(`Using ${isLocalWrappedException ? 'local wrapped (no token)' : 'standard (with token)'} getNote logic`)
             
+            // CRITICAL DEBUG: Log what resources we got from getNote
+            console.log(`🚨 CRITICAL: Note "${fullNote.title}" resources from getNote:`, {
+              resourceCount: fullNote.resources?.length || 0,
+              resources: fullNote.resources?.map(r => ({
+                guid: r.guid,
+                hash: r.data?.bodyHash,
+                mime: r.mime,
+                hasData: !!r.data?.body,
+                size: r.data?.size
+              })) || []
+            })
+            
+            // FALLBACK: If resources are missing or don't have data, try to fetch them separately
+            if (fullNote.resources && fullNote.resources.length > 0) {
+              console.log(`🔄 CRITICAL: Checking if resources need separate data fetching...`)
+              
+              for (let i = 0; i < fullNote.resources.length; i++) {
+                const resource = fullNote.resources[i]
+                if (!resource.data?.body) {
+                  console.log(`🔄 CRITICAL: Resource ${resource.guid} missing data, attempting separate fetch...`)
+                  try {
+                    const resourceWithData = isLocalWrappedException
+                      ? await freshNoteStore.getResource(resource.guid, true, false, false, false)
+                      : await freshNoteStore.getResource(this.accessToken, resource.guid, true, false, false, false)
+                    
+                    if (resourceWithData.data?.body) {
+                      fullNote.resources[i] = resourceWithData
+                      console.log(`✅ CRITICAL: Successfully fetched resource data for ${resource.guid}`)
+                    } else {
+                      console.log(`❌ CRITICAL: Resource ${resource.guid} still missing data after separate fetch`)
+                    }
+                  } catch (resourceError) {
+                    console.error(`🚨 CRITICAL: Failed to fetch resource ${resource.guid} separately:`, resourceError)
+                  }
+                }
+              }
+            } else {
+              console.log(`🚨 CRITICAL: Note has NO RESOURCES at all - this explains missing images!`)
+            }
+            
             notes.push({
               guid: fullNote.guid,
               title: fullNote.title,
