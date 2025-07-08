@@ -353,6 +353,12 @@ export default function BlogSettings() {
   }
 
   const syncNow = async () => {
+    // Prevent multiple concurrent syncs
+    if (syncing) {
+      console.log('Sync already in progress, ignoring click')
+      return
+    }
+    
     setSyncing(true)
     setShowSyncResults(false)
     try {
@@ -365,12 +371,20 @@ export default function BlogSettings() {
           results: [{
             blogId: blogId,
             blogTitle: blog?.title || '',
-            notesFound: data.result.newPosts + data.result.updatedPosts,
-            totalPublishedPosts: data.result.newPosts + data.result.updatedPosts,
-            posts: []
+            notesFound: data.result.notesFound || 0,
+            newPosts: data.result.newPosts || 0,
+            updatedPosts: data.result.updatedPosts || 0,
+            unpublishedPosts: data.result.unpublishedPosts || 0,
+            republishedPosts: data.result.republishedPosts || 0,
+            republishedUpdatedPosts: data.result.republishedUpdatedPosts || 0,
+            totalPublishedPosts: data.result.totalPublishedPosts || 0,
+            posts: data.result.posts || []
           }],
-          totalNewPosts: data.result.newPosts,
-          totalUpdatedPosts: data.result.updatedPosts
+          totalNewPosts: data.result.newPosts || 0,
+          totalUpdatedPosts: data.result.updatedPosts || 0,
+          totalUnpublishedPosts: data.result.unpublishedPosts || 0,
+          totalRepublishedPosts: data.result.republishedPosts || 0,
+          totalRepublishedUpdatedPosts: data.result.republishedUpdatedPosts || 0
         })
         setShowSyncResults(true)
         // Refresh blog data to show updated post count
