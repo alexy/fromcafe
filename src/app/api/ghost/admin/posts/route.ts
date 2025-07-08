@@ -326,7 +326,7 @@ export async function POST(request: NextRequest) {
         primary_tag: null,
         url: updatedPost!.isPublished 
           ? `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${updatedPost!.slug}`
-          : `${request.nextUrl.origin}/preview/${responseGhostId}`,
+          : `${request.nextUrl.origin}/p/${responseGhostId}`,
         excerpt: updatedPost!.excerpt || '',
         reading_time: Math.max(1, Math.round((updatedPost!.content?.length || 0) / 265)), // Estimate reading time
         access: true,
@@ -434,7 +434,7 @@ export async function GET(request: NextRequest) {
         published_at: post.publishedAt?.toISOString() || null,
         url: post.isPublished 
           ? `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${post.slug}`
-          : `${request.nextUrl.origin}/preview/${ghostId}`
+          : `${request.nextUrl.origin}/p/${ghostId}`
       }
     })
 

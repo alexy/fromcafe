@@ -54,7 +54,7 @@ export default async function CustomDomainPostPreviewPage({ params }: CustomDoma
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
     // Redirect to authentication on main domain, then back to custom domain preview
-    redirect(`https://${getPrimaryDomain()}/auth/signin?callbackUrl=${encodeURIComponent(`https://${hostname}/preview/${postId}`)}`)
+    redirect(`https://${getPrimaryDomain()}/auth/signin?callbackUrl=${encodeURIComponent(`https://${hostname}/p/${postId}`)}`)
   }
 
   // Find post by Ghost post ID or database ID, but only for posts owned by the current user

@@ -54,7 +54,7 @@ export default async function SubdomainPostPreviewPage({ params }: SubdomainPost
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
     // Redirect to authentication on main domain, then back to subdomain preview
-    redirect(`https://${getPrimaryDomain()}/auth/signin?callbackUrl=${encodeURIComponent(`https://${subdomain}.${getPrimaryDomain()}/preview/${postId}`)}`)
+    redirect(`https://${getPrimaryDomain()}/auth/signin?callbackUrl=${encodeURIComponent(`https://${subdomain}.${getPrimaryDomain()}/p/${postId}`)}`)
   }
 
   // Find post by Ghost post ID or database ID, but only for posts owned by the current user
