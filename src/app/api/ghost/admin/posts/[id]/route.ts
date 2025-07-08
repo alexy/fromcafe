@@ -431,6 +431,24 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     const publishedAt = isPublished 
       ? (ghostPost.published_at ? new Date(ghostPost.published_at) : new Date())
       : null
+    
+    // Debug publication status changes
+    console.log('👻 PUT: Publication status analysis:')
+    console.log('  - Incoming status:', ghostPost.status)
+    console.log('  - Previous isPublished:', existingPost.isPublished)
+    console.log('  - New isPublished:', isPublished)
+    console.log('  - Previous publishedAt:', existingPost.publishedAt)
+    console.log('  - New publishedAt:', publishedAt)
+    
+    if (existingPost.isPublished !== isPublished) {
+      if (isPublished) {
+        console.log('🟢 POST IS BEING PUBLISHED (draft → published)')
+      } else {
+        console.log('🔴 POST IS BEING UNPUBLISHED (published → draft)')
+      }
+    } else {
+      console.log('📝 POST STATUS UNCHANGED (' + (isPublished ? 'published' : 'draft') + ')')
+    }
 
     // Process content with unified image handling
     const contentProcessor = new ContentProcessor()
@@ -466,6 +484,10 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       }
     })
     console.log('👻 PUT: Post updated successfully in database')
+    console.log('👻 PUT: Database update confirmation:')
+    console.log('  - Final isPublished in DB:', updatedPost.isPublished)
+    console.log('  - Final publishedAt in DB:', updatedPost.publishedAt)
+    console.log('  - Final status for response:', updatedPost.isPublished ? 'published' : 'draft')
 
     // Log image processing results
     if (processingResult.imageCount > 0) {
@@ -569,9 +591,13 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
         slug: 'author'
       },
       primary_tag: null,
-      url: updatedPost.isPublished 
-        ? `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${updatedPost.slug}`
-        : `${request.nextUrl.origin}/p/${params.id}`,
+      url: (() => {
+        const url = updatedPost.isPublished 
+          ? `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${updatedPost.slug}`
+          : `${request.nextUrl.origin}/p/${params.id}`
+        console.log('👻 PUT: Generated URL for response:', url)
+        return url
+      })(),
       excerpt: updatedPost.excerpt || '',
       reading_time: Math.max(1, Math.round((updatedPost.content?.length || 0) / 265)),
       access: true,
