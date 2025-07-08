@@ -51,7 +51,7 @@ export async function PUT(
   try {
     const resolvedParams = await params
     const body = await request.json()
-    const { title, description, author, isPublic, evernoteNotebook, theme, urlFormat, subdomain, customDomain } = body
+    const { title, description, author, isPublic, evernoteNotebook, evernoteNotebookName, theme, urlFormat, subdomain, customDomain } = body
     
     // Build update object with only provided fields
     const updateData: { 
@@ -60,6 +60,7 @@ export async function PUT(
       author?: string;
       isPublic?: boolean; 
       evernoteNotebook?: string | null;
+      evernoteNotebookName?: string | null;
       evernoteWebhookId?: string | null;
       theme?: string;
       urlFormat?: string;
@@ -72,6 +73,7 @@ export async function PUT(
     if (author !== undefined) updateData.author = author
     if (isPublic !== undefined) updateData.isPublic = isPublic
     if (evernoteNotebook !== undefined) updateData.evernoteNotebook = evernoteNotebook
+    if (evernoteNotebookName !== undefined) updateData.evernoteNotebookName = evernoteNotebookName
     if (theme !== undefined) updateData.theme = theme
     if (urlFormat !== undefined) updateData.urlFormat = urlFormat
     if (subdomain !== undefined) updateData.subdomain = subdomain
@@ -156,6 +158,51 @@ export async function PUT(
     })
 
     return NextResponse.json({ blog: updatedBlog })
+  } catch (error) {
+    console.error('Error updating blog:', error)
+    return NextResponse.json({ error: 'Failed to update blog' }, { status: 500 })
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions)
+  
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const resolvedParams = await params
+    const body = await request.json()
+    
+    // PATCH allows partial updates - only update provided fields
+    const updateData: Record<string, any> = {}
+    
+    // Allow any valid blog field to be updated
+    const allowedFields = ['title', 'description', 'author', 'isPublic', 'evernoteNotebook', 'evernoteNotebookName', 'theme', 'urlFormat', 'subdomain', 'customDomain']
+    
+    for (const [key, value] of Object.entries(body)) {
+      if (allowedFields.includes(key)) {
+        updateData[key] = value
+      }
+    }
+
+    const blog = await prisma.blog.updateMany({
+      where: { 
+        id: resolvedParams.id,
+        userId: session.user.id 
+      },
+      data: updateData,
+    })
+
+    if (blog.count === 0) {
+      return NextResponse.json({ error: 'Blog not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true, message: 'Blog updated successfully' })
   } catch (error) {
     console.error('Error updating blog:', error)
     return NextResponse.json({ error: 'Failed to update blog' }, { status: 500 })

@@ -132,7 +132,12 @@ export default function BlogSettings() {
         // If notebook is connected, fetch the notebook name
         if (data.blog.evernoteNotebook) {
           console.log('Blog has evernoteNotebook:', data.blog.evernoteNotebook)
-          fetchNotebookName(data.blog.evernoteNotebook)
+          // Use stored notebook name if available, otherwise fetch it once
+          if (data.blog.evernoteNotebookName) {
+            setNotebookName(data.blog.evernoteNotebookName)
+          } else {
+            fetchNotebookName(data.blog.evernoteNotebook)
+          }
         } else {
           console.log('Blog has no evernoteNotebook')
         }
@@ -242,6 +247,18 @@ export default function BlogSettings() {
         console.log('Found notebook:', notebook)
         if (notebook) {
           setNotebookName(notebook.name)
+          
+          // Store the notebook name in database to avoid future API calls
+          try {
+            await fetch(`/api/blogs/${blogId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ evernoteNotebookName: notebook.name })
+            })
+            console.log('Stored notebook name in database')
+          } catch (storeError) {
+            console.error('Failed to store notebook name:', storeError)
+          }
         } else {
           console.log('Notebook not found in list')
         }

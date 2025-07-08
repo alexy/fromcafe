@@ -84,6 +84,7 @@ model Blog {
   slug                String
   customDomain        String?         @unique
   evernoteNotebook    String?
+  evernoteNotebookName String?
   evernoteWebhookId   String?
   theme               String          @default("default")
   isPublic            Boolean         @default(true)
