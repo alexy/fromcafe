@@ -221,8 +221,8 @@ export class SyncService {
       if (!isIncrementalSync && blog?.evernoteNotebook) {
         console.log('Full sync: Refreshing notebook name for', blog.evernoteNotebook)
         try {
-          const notebooks = await evernoteService.listNotebooks()
-          const currentNotebook = notebooks.find(nb => nb.guid === blog.evernoteNotebook)
+          const notebooks = await evernoteService.getNotebooks()
+          const currentNotebook = notebooks.find((nb: { guid: string; name: string }) => nb.guid === blog.evernoteNotebook)
           if (currentNotebook && currentNotebook.name !== blog.evernoteNotebookName) {
             console.log(`Notebook name changed: "${blog.evernoteNotebookName}" → "${currentNotebook.name}"`)
             await prisma.blog.update({

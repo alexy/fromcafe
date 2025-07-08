@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { getAvailableThemes } from '@/lib/themes/registry'
 import GhostConfigSection from '@/components/GhostConfigSection'
+import type { UserSyncResult } from '@/lib/sync'
 
 interface Blog {
   id: string
@@ -83,7 +84,7 @@ export default function BlogSettings() {
   const [showNotebooks, setShowNotebooks] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [notebookName, setNotebookName] = useState<string | null>(null)
-  const [syncResults, setSyncResults] = useState<{ success: boolean; results: { blogId: string; blogTitle: string; notesFound: number; totalPublishedPosts: number; posts: { isNew: boolean; isUpdated: boolean; isUnpublished: boolean; title: string }[] }[]; totalNewPosts: number; totalUpdatedPosts: number } | null>(null)
+  const [syncResults, setSyncResults] = useState<UserSyncResult | null>(null)
   const [showSyncResults, setShowSyncResults] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [resettingSync, setResettingSync] = useState(false)
@@ -100,6 +101,40 @@ export default function BlogSettings() {
     recommendations?: string[];
   } | null>(null)
   const [showVerificationReport, setShowVerificationReport] = useState(false)
+
+  const fetchNotebookName = useCallback(async (notebookGuid: string) => {
+    try {
+      console.log('Fetching notebook name for GUID:', notebookGuid)
+      const response = await fetch('/api/evernote/notebooks')
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Available notebooks:', data.notebooks)
+        const notebook = data.notebooks.find((nb: { guid: string; name: string }) => nb.guid === notebookGuid)
+        console.log('Found notebook:', notebook)
+        if (notebook) {
+          setNotebookName(notebook.name)
+          
+          // Store the notebook name in database to avoid future API calls
+          try {
+            await fetch(`/api/blogs/${blogId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ evernoteNotebookName: notebook.name })
+            })
+            console.log('Stored notebook name in database')
+          } catch (storeError) {
+            console.error('Failed to store notebook name:', storeError)
+          }
+        } else {
+          console.log('Notebook not found in list')
+        }
+      } else {
+        console.log('Failed to fetch notebooks:', response.status)
+      }
+    } catch (error) {
+      console.error('Error fetching notebook name:', error)
+    }
+  }, [blogId])
 
   const fetchBlog = useCallback(async () => {
     try {
@@ -152,7 +187,7 @@ export default function BlogSettings() {
     } finally {
       setLoading(false)
     }
-  }, [blogId, router])
+  }, [blogId, router, fetchNotebookName])
 
   const fetchUserBlogSpace = useCallback(async () => {
     try {
@@ -233,40 +268,6 @@ export default function BlogSettings() {
     } catch (error) {
       console.error('Error fetching notebooks:', error)
       alert('Failed to fetch notebooks.')
-    }
-  }
-
-  const fetchNotebookName = async (notebookGuid: string) => {
-    try {
-      console.log('Fetching notebook name for GUID:', notebookGuid)
-      const response = await fetch('/api/evernote/notebooks')
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Available notebooks:', data.notebooks)
-        const notebook = data.notebooks.find((nb: { guid: string; name: string }) => nb.guid === notebookGuid)
-        console.log('Found notebook:', notebook)
-        if (notebook) {
-          setNotebookName(notebook.name)
-          
-          // Store the notebook name in database to avoid future API calls
-          try {
-            await fetch(`/api/blogs/${blogId}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ evernoteNotebookName: notebook.name })
-            })
-            console.log('Stored notebook name in database')
-          } catch (storeError) {
-            console.error('Failed to store notebook name:', storeError)
-          }
-        } else {
-          console.log('Notebook not found in list')
-        }
-      } else {
-        console.log('Failed to fetch notebooks:', response.status)
-      }
-    } catch (error) {
-      console.error('Error fetching notebook name:', error)
     }
   }
 

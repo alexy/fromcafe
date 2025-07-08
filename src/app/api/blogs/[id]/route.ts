@@ -179,13 +179,13 @@ export async function PATCH(
     const body = await request.json()
     
     // PATCH allows partial updates - only update provided fields
-    const updateData: Record<string, any> = {}
+    const updateData: Record<string, string | boolean | null> = {}
     
     // Allow any valid blog field to be updated
     const allowedFields = ['title', 'description', 'author', 'isPublic', 'evernoteNotebook', 'evernoteNotebookName', 'theme', 'urlFormat', 'subdomain', 'customDomain']
     
     for (const [key, value] of Object.entries(body)) {
-      if (allowedFields.includes(key)) {
+      if (allowedFields.includes(key) && (typeof value === 'string' || typeof value === 'boolean' || value === null)) {
         updateData[key] = value
       }
     }
