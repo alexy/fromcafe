@@ -426,17 +426,24 @@ export class SyncService {
         // OPTIMIZATION: Create a set of note GUIDs that are still published (from our main sync)
         const stillPublishedNoteGuids = new Set(notes.map(note => note.guid))
         console.log(`Found ${stillPublishedNoteGuids.size} notes still published in current sync`)
+        console.log(`🔍 SYNC-DEBUG: Still published note GUIDs:`, Array.from(stillPublishedNoteGuids))
 
         for (const post of currentPosts) {
+          console.log(`🔍 SYNC-DEBUG: Checking post "${post.title}" (${post.evernoteNoteId}) - contentSource: ${post.contentSource}`)
+          
           // Only check Evernote posts (skip Ghost posts)
           if (!post.evernoteNoteId || post.contentSource !== 'EVERNOTE') {
+            console.log(`🔍 SYNC-DEBUG: Skipping post "${post.title}" - not Evernote post`)
             continue
           }
           
           // Check if this post's note is still in the published notes we fetched
-          if (!stillPublishedNoteGuids.has(post.evernoteNoteId)) {
+          const stillPublished = stillPublishedNoteGuids.has(post.evernoteNoteId)
+          console.log(`🔍 SYNC-DEBUG: Post "${post.title}" still published: ${stillPublished}`)
+          
+          if (!stillPublished) {
             // Note is no longer published (either deleted or lost "published" tag)
-            console.log(`Note "${post.title}" (${post.evernoteNoteId}) no longer published, unpublishing post`)
+            console.log(`🚨 UNPUBLISHING: Note "${post.title}" (${post.evernoteNoteId}) no longer published, unpublishing post`)
             
             // Clean up images for unpublished posts (only during full sync to preserve images for potential republishing)
             if (!isIncrementalSync) {
@@ -474,6 +481,16 @@ export class SyncService {
         where: { blogId, isPublished: true }
       })
       result.totalPublishedPosts = finalPublishedCount
+
+      // SYNC-DEBUG: Log final results before returning
+      console.log(`🚨 SYNC-RESULT: Final sync results:`, {
+        newPosts: result.newPosts,
+        updatedPosts: result.updatedPosts,
+        unpublishedPosts: result.unpublishedPosts,
+        republishedPosts: result.republishedPosts,
+        totalChanges: result.newPosts + result.updatedPosts + result.unpublishedPosts + (result.republishedPosts || 0),
+        postsDetails: result.posts.map(p => ({ title: p.title, isNew: p.isNew, isUpdated: p.isUpdated, isUnpublished: p.isUnpublished, isRepublished: p.isRepublished }))
+      })
 
       // Update the blog's last synced time, clear attempt time (since sync succeeded), and sync state
       await prisma.blog.update({
