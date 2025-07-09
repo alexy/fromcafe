@@ -23,13 +23,13 @@ export async function POST(request: NextRequest) {
     let fixedContent = post.content
 
     // Pattern to match nested figures: <figure><figure>...</figure><figcaption></figcaption></figure>
-    const nestedFigurePattern = /<figure>\s*<figure>\s*(.*?)\s*<\/figure>\s*<figcaption><\/figcaption>\s*<\/figure>/gs
+    const nestedFigurePattern = /<figure>\s*<figure>\s*([\s\S]*?)\s*<\/figure>\s*<figcaption><\/figcaption>\s*<\/figure>/g
 
     // Replace nested figures with single figures
     fixedContent = fixedContent.replace(nestedFigurePattern, '<figure>$1</figure>')
 
     // Also handle cases where the inner figure doesn't have a figcaption but outer does
-    const nestedFigurePattern2 = /<figure>\s*<figure>\s*(.*?)\s*<\/figure>\s*<figcaption>(.*?)<\/figcaption>\s*<\/figure>/gs
+    const nestedFigurePattern2 = /<figure>\s*<figure>\s*([\s\S]*?)\s*<\/figure>\s*<figcaption>([\s\S]*?)<\/figcaption>\s*<\/figure>/g
     fixedContent = fixedContent.replace(nestedFigurePattern2, '<figure>$1<figcaption>$2</figcaption></figure>')
 
     // Count how many fixes were made
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
     const figureCount = (post.content.match(/<figure>/g) || []).length
     
     // Extract nested figure examples
-    const nestedFigureMatches = post.content.match(/<figure>\s*<figure>.*?<\/figure>\s*<figcaption>.*?<\/figcaption>\s*<\/figure>/gs) || []
+    const nestedFigureMatches = post.content.match(/<figure>\s*<figure>[\s\S]*?<\/figure>\s*<figcaption>[\s\S]*?<\/figcaption>\s*<\/figure>/g) || []
 
     return NextResponse.json({
       postId: post.id,
