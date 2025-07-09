@@ -44,3 +44,41 @@ input, textarea, select {
     color: #000000; /* Keep dark text on light inputs */
   }
 }
+
+/* Figure and figcaption styling for image captions */
+figure {
+  margin: 1rem 0;
+  text-align: center;
+}
+
+figure img {
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+figcaption {
+  text-align: center;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.4;
+}
+
+figcaption small {
+  font-size: 0.8rem;
+  color: #888;
+  display: block;
+  margin-top: 0.25rem;
+}
+
+/* Dark mode figure caption styling */
+@media (prefers-color-scheme: dark) {
+  figcaption {
+    color: #aaa;
+  }
+  
+  figcaption small {
+    color: #888;
+  }
+}
