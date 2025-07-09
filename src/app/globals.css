@@ -55,14 +55,17 @@ figure img {
   max-width: 100%;
   height: auto;
   margin: 0 auto;
+  display: block;
 }
 
 figcaption {
-  text-align: center;
+  text-align: center !important;
   margin-top: 0.5rem;
   font-size: 0.9rem;
   color: #666;
   line-height: 1.4;
+  width: 100%;
+  display: block;
 }
 
 figcaption small {
@@ -70,6 +73,39 @@ figcaption small {
   color: #888;
   display: block;
   margin-top: 0.25rem;
+  text-align: center !important;
+}
+
+/* Handle nested figure tags that might be causing issues */
+figure figure {
+  margin: 0;
+  text-align: center;
+}
+
+figure figure figcaption {
+  text-align: center !important;
+  margin-top: 0.5rem;
+}
+
+/* Ensure all figure elements center their content */
+figure, figure figure {
+  display: block;
+  text-align: center;
+}
+
+/* Override any theme-specific figure styling */
+.vintage-prose figure,
+.minimal-prose figure,
+.modern-prose figure,
+.default-prose figure {
+  text-align: center !important;
+}
+
+.vintage-prose figcaption,
+.minimal-prose figcaption,
+.modern-prose figcaption,
+.default-prose figcaption {
+  text-align: center !important;
 }
 
 /* Dark mode figure caption styling */
