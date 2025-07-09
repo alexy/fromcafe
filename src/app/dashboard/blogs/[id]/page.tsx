@@ -98,6 +98,13 @@ export default function BlogSettings() {
   const [resettingSync, setResettingSync] = useState(false)
   const [userBlogSpace, setUserBlogSpace] = useState<{slug: string; subdomain?: string; useSubdomain?: boolean} | null>(null)
   const [domainStatus, setDomainStatus] = useState<{verified: boolean; checking: boolean; error?: string} | null>(null)
+  const [postStats, setPostStats] = useState<{
+    published: number
+    unpublished: number
+    evernoteCount: number
+    ghostCount: number
+    totalCount: number
+  } | null>(null)
   
   // Debounce timers for text inputs
   const debounceTimersRef = useRef<Record<string, NodeJS.Timeout>>({})
@@ -265,6 +272,9 @@ export default function BlogSettings() {
         } else {
           console.log('Blog has no evernoteNotebook')
         }
+        
+        // Fetch detailed post statistics
+        fetchPostStats()
       } else {
         alert('Blog not found')
         router.push('/dashboard')
@@ -277,6 +287,18 @@ export default function BlogSettings() {
       setLoading(false)
     }
   }, [blogId, router, fetchNotebookName])
+
+  const fetchPostStats = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/blogs/${blogId}/stats`)
+      if (response.ok) {
+        const data = await response.json()
+        setPostStats(data)
+      }
+    } catch (error) {
+      console.error('Error fetching post stats:', error)
+    }
+  }, [blogId])
 
   const fetchUserBlogSpace = useCallback(async () => {
     try {
@@ -447,6 +469,7 @@ export default function BlogSettings() {
       
       if (response.ok && data.success) {
         await fetchBlog() // Refresh blog data
+        fetchPostStats() // Refresh post statistics
         alert('Sync state reset successfully. Next sync will be a fresh full sync.')
       } else {
         alert(data.error || 'Failed to reset sync state')
@@ -1423,7 +1446,42 @@ export default function BlogSettings() {
 
               <div>
                 <label className="block text-sm font-medium text-black mb-1">Posts</label>
-                <p className="text-black">{blog._count.posts} published posts</p>
+                {postStats ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-green-50 p-3 rounded">
+                        <div className="text-lg font-bold text-green-900">{postStats.published}</div>
+                        <div className="text-sm text-green-700">Published</div>
+                      </div>
+                      <div className="bg-gray-50 p-3 rounded">
+                        <div className="text-lg font-bold text-gray-900">{postStats.unpublished}</div>
+                        <div className="text-sm text-gray-700">Unpublished</div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-sm text-gray-600 mt-2">
+                      <div className="flex justify-between">
+                        <span>Evernote posts:</span>
+                        <span>{postStats.publishedEvernoteCount} published, {postStats.unpublishedEvernoteCount} unpublished</span>
+                      </div>
+                      {postStats.ghostCount > 0 && (
+                        <div className="flex justify-between mt-1">
+                          <span>Ghost posts:</span>
+                          <span>{postStats.publishedGhostCount} published, {postStats.unpublishedGhostCount} unpublished</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between mt-1 font-medium">
+                        <span>Total posts:</span>
+                        <span>{postStats.totalCount}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                    <span className="text-gray-600">Loading post statistics...</span>
+                  </div>
+                )}
               </div>
 
               <div>

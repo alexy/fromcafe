@@ -116,6 +116,7 @@ export class VercelBlobStorageService {
       console.log(`Stored image in Vercel Blob: ${filename} (${imageData.length} bytes)`)
 
       // Record naming decision in database
+      console.log(`Recording naming decision for ${originalHash} in post ${postId}`)
       await this.recordNamingDecision(
         postId,
         originalHash,
