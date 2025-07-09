@@ -1,14 +1,5 @@
 import { Theme, ThemeRegistry } from './types'
-
-// Import theme components
-import DefaultBlogLayout from './default/BlogLayout'
-import DefaultPostLayout from './default/PostLayout'
-import MinimalBlogLayout from './minimal/BlogLayout'
-import MinimalPostLayout from './minimal/PostLayout'
-import ModernBlogLayout from './modern/BlogLayout'
-import ModernPostLayout from './modern/PostLayout'
-import VintageBlogLayout from './vintage/BlogLayout'
-import VintagePostLayout from './vintage/PostLayout'
+import { getThemeComponents } from './factory'
 
 export const themes: ThemeRegistry = {
   default: {
@@ -16,10 +7,7 @@ export const themes: ThemeRegistry = {
     name: 'Classic',
     description: 'A clean, professional blog design with dark headers',
     preview: '/themes/default-preview.jpg',
-    components: {
-      BlogLayout: DefaultBlogLayout,
-      PostLayout: DefaultPostLayout,
-    },
+    components: getThemeComponents('default'),
     config: {
       colors: {
         primary: '#1f2937',
@@ -34,10 +22,7 @@ export const themes: ThemeRegistry = {
     name: 'Minimal',
     description: 'Clean typography and lots of white space for distraction-free reading',
     preview: '/themes/minimal-preview.jpg',
-    components: {
-      BlogLayout: MinimalBlogLayout,
-      PostLayout: MinimalPostLayout,
-    },
+    components: getThemeComponents('minimal'),
     config: {
       colors: {
         primary: '#374151',
@@ -52,10 +37,7 @@ export const themes: ThemeRegistry = {
     name: 'Modern',
     description: 'Contemporary design with gradients, cards, and smooth animations',
     preview: '/themes/modern-preview.jpg',
-    components: {
-      BlogLayout: ModernBlogLayout,
-      PostLayout: ModernPostLayout,
-    },
+    components: getThemeComponents('modern'),
     config: {
       colors: {
         primary: '#3b82f6',
@@ -70,10 +52,7 @@ export const themes: ThemeRegistry = {
     name: 'Vintage Newspaper',
     description: 'Old-fashioned newspaper style with two columns, ornate borders, and classic typography',
     preview: '/themes/vintage-preview.jpg',
-    components: {
-      BlogLayout: VintageBlogLayout,
-      PostLayout: VintagePostLayout,
-    },
+    components: getThemeComponents('vintage'),
     config: {
       colors: {
         primary: '#92400e', // amber-800
