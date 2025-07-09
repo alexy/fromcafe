@@ -327,7 +327,7 @@ export class ContentProcessor {
                 // If already in figure, just add/update the figcaption
                 if (newTag.includes('<figcaption>')) {
                   // Replace existing figcaption
-                  newTag = newTag.replace(/<figcaption>.*?<\/figcaption>/s, `<figcaption>${caption}</figcaption>`)
+                  newTag = newTag.replace(/<figcaption>[\s\S]*?<\/figcaption>/g, `<figcaption>${caption}</figcaption>`)
                 } else {
                   // Add figcaption before closing figure
                   newTag = newTag.replace('</figure>', `  <figcaption>${caption}</figcaption>\n</figure>`)
