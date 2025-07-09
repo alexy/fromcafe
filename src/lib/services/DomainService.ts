@@ -22,9 +22,9 @@ export class DomainService {
     const cleanHostname = hostname.split(':')[0].toLowerCase()
     
     const isCustom = isCustomDomain(hostname)
-    const isSubdomainResult = this.isSubdomain(hostname)
-    const isPrimary = this.isPrimaryDomain(hostname)
-    const isDev = this.isDevelopment(hostname)
+    const isSubdomainResult = DomainService.isSubdomain(hostname)
+    const isPrimary = DomainService.isPrimaryDomain(hostname)
+    const isDev = DomainService.isDevelopment(hostname)
     
     return {
       hostname: cleanHostname,
@@ -32,7 +32,7 @@ export class DomainService {
       isSubdomain: isSubdomainResult,
       isPrimaryDomain: isPrimary,
       isDevelopment: isDev,
-      subdomain: isSubdomainResult ? this.extractSubdomain(hostname) ?? undefined : undefined
+      subdomain: isSubdomainResult ? DomainService.extractSubdomain(hostname) ?? undefined : undefined
     }
   }
 
@@ -71,7 +71,7 @@ export class DomainService {
    * Extract subdomain from hostname
    */
   static extractSubdomain(hostname: string): string | null {
-    if (!this.isSubdomain(hostname)) return null
+    if (!DomainService.isSubdomain(hostname)) return null
     
     const cleanHostname = hostname.split(':')[0].toLowerCase()
     return cleanHostname.split('.')[0]
@@ -89,7 +89,7 @@ export class DomainService {
    * Check if domain is available for use (not primary or development domain)
    */
   static isDomainAvailable(domain: string): boolean {
-    if (!this.isValidDomain(domain)) return false
+    if (!DomainService.isValidDomain(domain)) return false
     
     const cleanDomain = domain.toLowerCase()
     
@@ -131,18 +131,18 @@ export class DomainService {
   static isCustomContext(hostname?: string): boolean {
     if (!hostname) return false
     
-    return isCustomDomain(hostname) || this.isSubdomain(hostname)
+    return isCustomDomain(hostname) || DomainService.isSubdomain(hostname)
   }
 
   /**
    * Get appropriate base URL for API calls
    */
   static getApiBaseUrl(hostname?: string): string {
-    if (hostname && this.isDevelopment(hostname)) {
+    if (hostname && DomainService.isDevelopment(hostname)) {
       return `http://${hostname}`
     }
     
-    return `https://${this.getPrimaryDomain()}`
+    return `https://${DomainService.getPrimaryDomain()}`
   }
 
   /**

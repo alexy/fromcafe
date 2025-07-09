@@ -23,7 +23,7 @@ export class UrlService {
   static isCustomDomainOrSubdomain(hostname?: string): boolean {
     if (!hostname) return false
     
-    return isCustomDomain(hostname) || this.isSubdomain(hostname)
+    return isCustomDomain(hostname) || UrlService.isSubdomain(hostname)
   }
 
   /**
@@ -38,7 +38,7 @@ export class UrlService {
     if (!userSlug) return `/${blogSlug}/${postSlug}`
     
     // Custom domain/subdomain: clean URLs (just /postSlug)
-    if (hostname && this.isCustomDomainOrSubdomain(hostname)) {
+    if (hostname && UrlService.isCustomDomainOrSubdomain(hostname)) {
       return `/${postSlug}`
     }
     
@@ -57,7 +57,7 @@ export class UrlService {
     if (!userSlug) return `/${blogSlug}`
     
     // Custom domain/subdomain: clean URLs (just /)
-    if (hostname && this.isCustomDomainOrSubdomain(hostname)) {
+    if (hostname && UrlService.isCustomDomainOrSubdomain(hostname)) {
       return `/`
     }
     
@@ -69,7 +69,7 @@ export class UrlService {
    * Generate preview URL for drafts
    */
   static getPreviewUrl(postId: string, hostname?: string): string {
-    if (hostname && this.isCustomDomainOrSubdomain(hostname)) {
+    if (hostname && UrlService.isCustomDomainOrSubdomain(hostname)) {
       return `/p/preview/${postId}`
     }
     
@@ -85,7 +85,7 @@ export class UrlService {
     tagSlug: string,
     hostname?: string
   ): string {
-    const baseUrl = this.getBlogUrl(userSlug, blogSlug, hostname)
+    const baseUrl = UrlService.getBlogUrl(userSlug, blogSlug, hostname)
     return `${baseUrl}?tag=${tagSlug}`
   }
 
@@ -100,7 +100,7 @@ export class UrlService {
    * Generate authentication URLs based on context
    */
   static getAuthUrl(action: 'signin' | 'signup', hostname?: string): string {
-    if (hostname && this.isCustomDomainOrSubdomain(hostname)) {
+    if (hostname && UrlService.isCustomDomainOrSubdomain(hostname)) {
       return `/auth/${action}`
     }
     
@@ -118,7 +118,7 @@ export class UrlService {
    * Extract subdomain from hostname
    */
   static extractSubdomain(hostname: string): string | null {
-    if (!this.isSubdomain(hostname)) return null
+    if (!UrlService.isSubdomain(hostname)) return null
     
     return hostname.split('.')[0]
   }
@@ -134,7 +134,7 @@ export class UrlService {
   ): string {
     const baseUrl = customDomain 
       ? `https://${customDomain}`
-      : this.getSubdomainUrl(blogSlug)
+      : UrlService.getSubdomainUrl(blogSlug)
     
     if (postSlug) {
       return `${baseUrl}/${postSlug}`
