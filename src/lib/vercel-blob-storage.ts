@@ -88,6 +88,21 @@ export class VercelBlobStorageService {
           // Verify the existing blob is the same size to ensure it's the same file
           if (existingBlob.size === imageData.length) {
             console.log(`Image already exists in Vercel Blob: ${filename} (${existingBlob.size} bytes) - reusing existing`)
+            
+            // Record naming decision for reused image
+            console.log(`Recording naming decision for ${originalHash} in post ${postId}`)
+            await this.recordNamingDecision(
+              postId,
+              originalHash,
+              filename,
+              existingBlob.url,
+              filenameResult.decision,
+              title,
+              exifDate,
+              exifMetadata,
+              originalFilename
+            )
+            
             return {
               originalHash,
               filename,
@@ -95,7 +110,8 @@ export class VercelBlobStorageService {
               size: existingBlob.size,
               url: existingBlob.url,
               contentHash,
-              exifMetadata
+              exifMetadata,
+              namingDecision: filenameResult.decision
             }
           } else {
             console.log(`Image exists but size mismatch: expected ${imageData.length}, found ${existingBlob.size} - uploading new version`)
@@ -753,19 +769,36 @@ export class VercelBlobStorageService {
     // Generate what the filename should be with current title
     const contentHash = createHash('sha256').update(originalHash).digest('hex').substring(0, 16)
     const extension = this.getExtensionFromMimeType(mimeType || 'image/jpeg')
-    const expectedFilename = this.generateFilename(title, originalFilename, contentHash, extension, postId, exifDate)
+    const filenameResult = this.generateFilenameWithDecision(title, originalFilename, contentHash, extension, postId, exifDate)
+    const expectedFilename = filenameResult.filename
     
     if (existingImage.filename === expectedFilename) {
       // No change needed, return existing image info
       try {
         const existingBlob = await head(`images/${existingImage.filename}`)
+        
+        // Record naming decision for unchanged image
+        console.log(`Recording naming decision for ${originalHash} in post ${postId}`)
+        await this.recordNamingDecision(
+          postId,
+          originalHash,
+          existingImage.filename,
+          existingImage.url,
+          filenameResult.decision,
+          title,
+          exifDate,
+          undefined, // No EXIF metadata available in rename operations
+          originalFilename
+        )
+        
         return {
           originalHash,
           filename: existingImage.filename,
           mimeType: mimeType || 'image/jpeg',
           size: existingBlob?.size || 0,
           url: existingImage.url,
-          contentHash
+          contentHash,
+          namingDecision: filenameResult.decision
         }
       } catch {
         return null // Blob doesn't exist, need to upload
@@ -789,13 +822,28 @@ export class VercelBlobStorageService {
       // Get size from the copied blob
       const renamedBlob = await head(`images/${expectedFilename}`)
       
+      // Record naming decision for renamed image
+      console.log(`Recording naming decision for ${originalHash} in post ${postId}`)
+      await this.recordNamingDecision(
+        postId,
+        originalHash,
+        expectedFilename,
+        copiedBlob.url,
+        filenameResult.decision,
+        title,
+        exifDate,
+        undefined, // No EXIF metadata available in rename operations
+        originalFilename
+      )
+      
       return {
         originalHash,
         filename: expectedFilename,
         mimeType: mimeType || 'image/jpeg',
         size: renamedBlob?.size || 0,
         url: copiedBlob.url,
-        contentHash
+        contentHash,
+        namingDecision: filenameResult.decision
       }
     } catch (error) {
       console.warn(`Failed to rename blob, will need to re-upload:`, error)
