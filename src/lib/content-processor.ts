@@ -111,23 +111,30 @@ export class ContentProcessor {
       console.log(`✅ CRITICAL: Found matching resource for hash ${hash}: GUID=${resource.guid}, mime=${resource.mime}, size=${resource.data.size}`)
       
       try {
-        // Check if image already exists
-        let imageUrl = await this.imageStorage.imageExists(hash, postId)
+        // Extract title from en-media tag attributes
+        const titleMatch = fullTag.match(/title="([^"]+)"/)
+        const altMatch = fullTag.match(/alt="([^"]+)"/)
+        const title = titleMatch?.[1] || altMatch?.[1] || undefined
         
-        if (!imageUrl) {
-          // Download and store the image
+        // Check if image already exists
+        const existingImage = await this.imageStorage.imageExists(hash, postId)
+        let imageUrl = existingImage?.url
+        
+        // Always re-process if title has changed or image doesn't exist
+        const shouldReprocess = !existingImage || 
+          (title && !existingImage.filename.includes(this.sanitizeFilename(title)))
+        
+        if (shouldReprocess) {
+          // Download and store the image (or re-store with new title)
           const imageData = await evernoteService.getResourceData(resource.guid)
           if (imageData) {
-            // Extract title from en-media tag attributes
-            const titleMatch = fullTag.match(/title="([^"]+)"/)
-            const altMatch = fullTag.match(/alt="([^"]+)"/)
-            const title = titleMatch?.[1] || altMatch?.[1] || undefined
-            
             // Convert Evernote timestamp to date string
             const postDate = new Date(note.created).toISOString()
             const imageInfo = await this.imageStorage.storeImage(imageData, hash, resource.mime, postId, title, undefined, undefined, postDate)
             imageUrl = imageInfo.url
-            console.log(`Stored Evernote image: ${imageInfo.filename} for post ${postId}${title ? ` (title: "${title}")` : ''}`)
+            
+            const action = existingImage ? 'Updated' : 'Stored'
+            console.log(`${action} Evernote image: ${imageInfo.filename} for post ${postId}${title ? ` (title: "${title}")` : ''}`)
           }
         } else {
           console.log(`Using existing Evernote image: ${imageUrl} for post ${postId}`)
@@ -407,5 +414,18 @@ export class ContentProcessor {
       .trim()
     
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
+  }
+
+  /**
+   * Sanitize filename for web safety (same as VercelBlobStorageService)
+   */
+  private sanitizeFilename(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9\-_.]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .substring(0, 50)
+      .replace(/-+$/, '')
   }
 }

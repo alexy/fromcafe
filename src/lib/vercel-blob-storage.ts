@@ -2,7 +2,7 @@
  * Vercel Blob-based image storage service for serverless compatibility
  */
 
-import { put, head } from '@vercel/blob'
+import { put, head, del } from '@vercel/blob'
 import { createHash } from 'crypto'
 import { getConfig } from './config'
 
@@ -42,7 +42,52 @@ export class VercelBlobStorageService {
       const extension = this.getExtensionFromMimeType(mimeType)
       const filename = this.generateFilename(title, originalFilename, contentHash, extension, postId, exifDate)
 
-      // Check if blob already exists by content hash (more robust deduplication)
+      // Check if image already exists with potentially different filename
+      const existingImage = await this.imageExists(originalHash, postId)
+      
+      if (existingImage) {
+        // Check if the current title would generate a different filename
+        const currentExpectedFilename = this.generateFilename(title, undefined, contentHash, extension, postId, exifDate)
+        
+        if (existingImage.filename === currentExpectedFilename) {
+          // Same filename, verify size and reuse
+          try {
+            const existingBlob = await head(`images/${existingImage.filename}`)
+            if (existingBlob && existingBlob.size === imageData.length) {
+              console.log(`Image already exists with same title: ${existingImage.filename} (${existingBlob.size} bytes) - reusing existing`)
+              return {
+                originalHash,
+                filename: existingImage.filename,
+                mimeType,
+                size: existingBlob.size,
+                url: existingBlob.url,
+                contentHash
+              }
+            }
+          } catch {
+            // Blob doesn't exist anymore, continue with upload
+          }
+        } else {
+          // Title has changed, need to upload with new filename
+          console.log(`Image title changed: ${existingImage.filename} -> ${currentExpectedFilename} - uploading with new filename`)
+          
+          // Delete old file after successful upload (will be done after upload)
+          // Store old filename for cleanup
+          const oldFilename = existingImage.filename
+          
+          // Mark for cleanup after successful upload
+          setTimeout(async () => {
+            try {
+              await del(`images/${oldFilename}`)
+              console.log(`Cleaned up old image file: ${oldFilename}`)
+            } catch (error) {
+              console.warn(`Failed to delete old image file ${oldFilename}:`, error)
+            }
+          }, 1000) // Small delay to ensure new file is uploaded first
+        }
+      }
+      
+      // Check if new filename already exists (edge case)
       try {
         const existingBlob = await head(`images/${filename}`)
         if (existingBlob) {
@@ -90,10 +135,10 @@ export class VercelBlobStorageService {
   }
 
   /**
-   * Check if an image already exists (supports multiple naming patterns)
-   * Note: Without knowing the exact filename, we check common patterns
+   * Check if an image already exists and return detailed information
+   * Returns both URL and filename for comparison
    */
-  async imageExists(originalHash: string, postId: string): Promise<string | null> {
+  async imageExists(originalHash: string, postId: string): Promise<{ url: string; filename: string } | null> {
     // Generate content hash for fallback naming
     const contentHash = createHash('sha256').update(originalHash).digest('hex').substring(0, 16)
     const hashPrefix = originalHash.substring(0, 8)
@@ -115,7 +160,7 @@ export class VercelBlobStorageService {
         const blob = await head(filename)
         if (blob) {
           console.log(`Image already exists in Vercel Blob (current date): ${filename}`)
-          return blob.url
+          return { url: blob.url, filename: filename.replace('images/', '') }
         }
       } catch {
         // Blob doesn't exist, continue checking
@@ -135,7 +180,7 @@ export class VercelBlobStorageService {
         const blob = await head(filename)
         if (blob) {
           console.log(`Image already exists in Vercel Blob (hash pattern): ${filename}`)
-          return blob.url
+          return { url: blob.url, filename: filename.replace('images/', '') }
         }
       } catch {
         // Blob doesn't exist, continue checking
@@ -155,7 +200,7 @@ export class VercelBlobStorageService {
         const blob = await head(filename)
         if (blob) {
           console.log(`Image already exists in Vercel Blob (simple pattern): ${filename}`)
-          return blob.url
+          return { url: blob.url, filename: filename.replace('images/', '') }
         }
       } catch {
         // Blob doesn't exist, continue checking
