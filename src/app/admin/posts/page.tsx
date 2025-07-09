@@ -82,6 +82,30 @@ export default function AdminPostsPage() {
     }
   }
 
+  const fixNestedFigures = async (postId: string) => {
+    try {
+      const response = await fetch('/api/admin/fix-nested-figures', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fix nested figures')
+      }
+
+      const result = await response.json()
+      alert(result.message)
+      
+      // Refresh the posts list to show updated content
+      if (result.figuresFixed > 0) {
+        fetchPosts(blogFilter, pagination.offset, showContent)
+      }
+    } catch (err) {
+      alert('Failed to fix nested figures: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    }
+  }
+
   useEffect(() => {
     fetchPosts(blogFilter, 0, showContent)
   }, [blogFilter, showContent])
@@ -153,6 +177,14 @@ export default function AdminPostsPage() {
                 >
                   Clear Cache
                 </button>
+                {post.hasNestedFigures && (
+                  <button
+                    onClick={() => fixNestedFigures(post.id)}
+                    className="ml-2 px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+                  >
+                    Fix Nested Figures
+                  </button>
+                )}
               </div>
             </div>
 
