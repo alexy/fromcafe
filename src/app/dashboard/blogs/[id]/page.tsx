@@ -1,7 +1,7 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { getAvailableThemes } from '@/lib/themes/registry'
 import GhostConfigSection from '@/components/GhostConfigSection'
@@ -63,6 +63,11 @@ export default function BlogSettings() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   
+  // Auto-save state tracking
+  const [autoSaving, setAutoSaving] = useState<Record<string, boolean>>({})
+  const [autoSaveSuccess, setAutoSaveSuccess] = useState<Record<string, boolean>>({})
+  const [autoSaveError, setAutoSaveError] = useState<Record<string, string | null>>({})
+  
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [author, setAuthor] = useState('')
@@ -93,6 +98,85 @@ export default function BlogSettings() {
   const [resettingSync, setResettingSync] = useState(false)
   const [userBlogSpace, setUserBlogSpace] = useState<{slug: string; subdomain?: string; useSubdomain?: boolean} | null>(null)
   const [domainStatus, setDomainStatus] = useState<{verified: boolean; checking: boolean; error?: string} | null>(null)
+  
+  // Debounce timers for text inputs
+  const debounceTimersRef = useRef<Record<string, NodeJS.Timeout>>({})
+  
+  // Auto-save utility function
+  const autoSaveField = async (fieldName: string, value: string | boolean) => {
+    // Set auto-saving state
+    setAutoSaving(prev => ({ ...prev, [fieldName]: true }))
+    setAutoSaveError(prev => ({ ...prev, [fieldName]: null }))
+    setAutoSaveSuccess(prev => ({ ...prev, [fieldName]: false }))
+    
+    try {
+      const response = await fetch(`/api/blogs/${blogId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ [fieldName]: value }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setBlog(data.blog)
+        
+        // Update original value to reflect saved state
+        if (fieldName === 'showCameraMake') {
+          setOriginalShowCameraMake(value)
+        } else if (fieldName === 'isPublic') {
+          setOriginalIsPublic(value)
+        } else if (fieldName === 'theme') {
+          setOriginalTheme(value)
+        } else if (fieldName === 'title') {
+          setOriginalTitle(value)
+        } else if (fieldName === 'description') {
+          setOriginalDescription(value)
+        } else if (fieldName === 'author') {
+          setOriginalAuthor(value)
+        }
+        
+        // Show success indicator
+        setAutoSaveSuccess(prev => ({ ...prev, [fieldName]: true }))
+        
+        // Clear success indicator after 2 seconds
+        setTimeout(() => {
+          setAutoSaveSuccess(prev => ({ ...prev, [fieldName]: false }))
+        }, 2000)
+      } else {
+        const errorData = await response.json()
+        setAutoSaveError(prev => ({ ...prev, [fieldName]: errorData.error || 'Failed to save' }))
+      }
+    } catch (error) {
+      console.error(`Error auto-saving ${fieldName}:`, error)
+      setAutoSaveError(prev => ({ ...prev, [fieldName]: 'Failed to save' }))
+    } finally {
+      setAutoSaving(prev => ({ ...prev, [fieldName]: false }))
+    }
+  }
+  
+  // Debounced auto-save for text inputs (waits 1 second after user stops typing)
+  const debouncedAutoSave = (fieldName: string, value: string) => {
+    // Clear existing timer
+    if (debounceTimersRef.current[fieldName]) {
+      clearTimeout(debounceTimersRef.current[fieldName])
+    }
+    
+    // Set new timer
+    debounceTimersRef.current[fieldName] = setTimeout(() => {
+      autoSaveField(fieldName, value)
+    }, 1000)
+  }
+  
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      const timers = debounceTimersRef.current
+      Object.values(timers).forEach(clearTimeout)
+    }
+  }, [])
+  
   const [addingDomain, setAddingDomain] = useState(false)
   const [removingDomain, setRemovingDomain] = useState(false)
   const [verificationReport, setVerificationReport] = useState<{
@@ -754,26 +838,82 @@ export default function BlogSettings() {
             
             <div className="space-y-4">
               <div>
-                <label htmlFor="title" className="block text-sm font-medium text-black mb-2">
-                  Blog Title
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="title" className="block text-sm font-medium text-black">
+                    Blog Title
+                  </label>
+                  
+                  {/* Auto-save status indicator */}
+                  <div className="flex items-center space-x-2">
+                    {autoSaving.title && (
+                      <div className="flex items-center space-x-1 text-xs text-gray-600">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600"></div>
+                        <span>Saving...</span>
+                      </div>
+                    )}
+                    {autoSaveSuccess.title && (
+                      <div className="flex items-center space-x-1 text-xs text-green-600">
+                        <span>✓</span>
+                        <span>Saved</span>
+                      </div>
+                    )}
+                    {autoSaveError.title && (
+                      <div className="flex items-center space-x-1 text-xs text-red-600">
+                        <span>✗</span>
+                        <span>{autoSaveError.title}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <input
                   type="text"
                   id="title"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    const newValue = e.target.value
+                    setTitle(newValue)
+                    debouncedAutoSave('title', newValue)
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
                 />
               </div>
 
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-black mb-2">
-                  Subtitle
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="description" className="block text-sm font-medium text-black">
+                    Subtitle
+                  </label>
+                  
+                  {/* Auto-save status indicator */}
+                  <div className="flex items-center space-x-2">
+                    {autoSaving.description && (
+                      <div className="flex items-center space-x-1 text-xs text-gray-600">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600"></div>
+                        <span>Saving...</span>
+                      </div>
+                    )}
+                    {autoSaveSuccess.description && (
+                      <div className="flex items-center space-x-1 text-xs text-green-600">
+                        <span>✓</span>
+                        <span>Saved</span>
+                      </div>
+                    )}
+                    {autoSaveError.description && (
+                      <div className="flex items-center space-x-1 text-xs text-red-600">
+                        <span>✗</span>
+                        <span>{autoSaveError.description}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <textarea
                   id="description"
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={(e) => {
+                    const newValue = e.target.value
+                    setDescription(newValue)
+                    debouncedAutoSave('description', newValue)
+                  }}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
                   placeholder="Optional subtitle displayed under the blog name"
@@ -781,40 +921,124 @@ export default function BlogSettings() {
               </div>
 
               <div>
-                <label htmlFor="author" className="block text-sm font-medium text-black mb-2">
-                  Author
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="author" className="block text-sm font-medium text-black">
+                    Author
+                  </label>
+                  
+                  {/* Auto-save status indicator */}
+                  <div className="flex items-center space-x-2">
+                    {autoSaving.author && (
+                      <div className="flex items-center space-x-1 text-xs text-gray-600">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600"></div>
+                        <span>Saving...</span>
+                      </div>
+                    )}
+                    {autoSaveSuccess.author && (
+                      <div className="flex items-center space-x-1 text-xs text-green-600">
+                        <span>✓</span>
+                        <span>Saved</span>
+                      </div>
+                    )}
+                    {autoSaveError.author && (
+                      <div className="flex items-center space-x-1 text-xs text-red-600">
+                        <span>✗</span>
+                        <span>{autoSaveError.author}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <input
                   type="text"
                   id="author"
                   value={author}
-                  onChange={(e) => setAuthor(e.target.value)}
+                  onChange={(e) => {
+                    const newValue = e.target.value
+                    setAuthor(newValue)
+                    debouncedAutoSave('author', newValue)
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
                   placeholder="Author name for byline"
                 />
               </div>
 
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="isPublic"
-                  checked={isPublic}
-                  onChange={(e) => setIsPublic(e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="isPublic" className="ml-2 block text-sm text-black">
-                  Make this blog public
-                </label>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="isPublic"
+                    checked={isPublic}
+                    onChange={(e) => {
+                      const newValue = e.target.checked
+                      setIsPublic(newValue)
+                      autoSaveField('isPublic', newValue)
+                    }}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="isPublic" className="ml-2 block text-sm text-black">
+                    Make this blog public
+                  </label>
+                </div>
+                
+                {/* Auto-save status indicator */}
+                <div className="flex items-center space-x-2">
+                  {autoSaving.isPublic && (
+                    <div className="flex items-center space-x-1 text-xs text-gray-600">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600"></div>
+                      <span>Saving...</span>
+                    </div>
+                  )}
+                  {autoSaveSuccess.isPublic && (
+                    <div className="flex items-center space-x-1 text-xs text-green-600">
+                      <span>✓</span>
+                      <span>Saved</span>
+                    </div>
+                  )}
+                  {autoSaveError.isPublic && (
+                    <div className="flex items-center space-x-1 text-xs text-red-600">
+                      <span>✗</span>
+                      <span>{autoSaveError.isPublic}</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
-                <label htmlFor="theme" className="block text-sm font-medium text-black mb-2">
-                  Theme
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="theme" className="block text-sm font-medium text-black">
+                    Theme
+                  </label>
+                  
+                  {/* Auto-save status indicator */}
+                  <div className="flex items-center space-x-2">
+                    {autoSaving.theme && (
+                      <div className="flex items-center space-x-1 text-xs text-gray-600">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600"></div>
+                        <span>Saving...</span>
+                      </div>
+                    )}
+                    {autoSaveSuccess.theme && (
+                      <div className="flex items-center space-x-1 text-xs text-green-600">
+                        <span>✓</span>
+                        <span>Saved</span>
+                      </div>
+                    )}
+                    {autoSaveError.theme && (
+                      <div className="flex items-center space-x-1 text-xs text-red-600">
+                        <span>✗</span>
+                        <span>{autoSaveError.theme}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <select
                   id="theme"
                   value={theme}
-                  onChange={(e) => setTheme(e.target.value)}
+                  onChange={(e) => {
+                    const newValue = e.target.value
+                    setTheme(newValue)
+                    autoSaveField('theme', newValue)
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
                 >
                   {getAvailableThemes().map((availableTheme) => (
@@ -838,17 +1062,45 @@ export default function BlogSettings() {
               <div className="border-t pt-6">
                 <h3 className="text-lg font-medium text-black mb-4">Image Settings</h3>
                 
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="showCameraMake"
-                    checked={showCameraMake}
-                    onChange={(e) => setShowCameraMake(e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="showCameraMake" className="ml-2 block text-sm text-black">
-                    Show camera make in image captions
-                  </label>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="showCameraMake"
+                      checked={showCameraMake}
+                      onChange={(e) => {
+                        const newValue = e.target.checked
+                        setShowCameraMake(newValue)
+                        autoSaveField('showCameraMake', newValue)
+                      }}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="showCameraMake" className="ml-2 block text-sm text-black">
+                      Show camera make in image captions
+                    </label>
+                  </div>
+                  
+                  {/* Auto-save status indicator */}
+                  <div className="flex items-center space-x-2">
+                    {autoSaving.showCameraMake && (
+                      <div className="flex items-center space-x-1 text-xs text-gray-600">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600"></div>
+                        <span>Saving...</span>
+                      </div>
+                    )}
+                    {autoSaveSuccess.showCameraMake && (
+                      <div className="flex items-center space-x-1 text-xs text-green-600">
+                        <span>✓</span>
+                        <span>Saved</span>
+                      </div>
+                    )}
+                    {autoSaveError.showCameraMake && (
+                      <div className="flex items-center space-x-1 text-xs text-red-600">
+                        <span>✗</span>
+                        <span>{autoSaveError.showCameraMake}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="mt-2 text-sm text-gray-600">
                   When enabled, image captions will show both camera make and model (e.g., &quot;Leica Camera AG LEICA M&quot;). When disabled, only the camera model will be shown (e.g., &quot;LEICA M&quot;).
