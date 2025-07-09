@@ -1,5 +1,7 @@
 import { Theme, ThemeRegistry } from './types'
 import { getThemeComponents } from './factory'
+import VintageBlogLayout from './vintage/BlogLayout'
+import VintagePostLayout from './vintage/PostLayout'
 
 export const themes: ThemeRegistry = {
   default: {
@@ -52,7 +54,10 @@ export const themes: ThemeRegistry = {
     name: 'Vintage Newspaper',
     description: 'Old-fashioned newspaper style with two columns, ornate borders, and classic typography',
     preview: '/themes/vintage-preview.jpg',
-    components: getThemeComponents('vintage'),
+    components: {
+      BlogLayout: VintageBlogLayout,
+      PostLayout: VintagePostLayout,
+    },
     config: {
       colors: {
         primary: '#92400e', // amber-800
