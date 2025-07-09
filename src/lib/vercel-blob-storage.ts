@@ -394,9 +394,12 @@ export class VercelBlobStorageService {
     originalFilename?: string
   ): Promise<void> {
     try {
-      // Skip naming decision recording for Ghost upload pseudo-postIds
+      // Skip naming decision recording for Ghost upload pseudo-postIds to avoid foreign key constraint
       if (postId.startsWith('ghost-')) {
-        console.log(`Skipping naming decision recording for Ghost upload pseudo-postId: ${postId}`)
+        console.log(`Skipping naming decision recording for Ghost upload pseudo-postId: ${postId} (hash: ${originalHash})`)
+        console.log(`Ghost upload naming decision would be: ${decision.source} - ${decision.reason}`)
+        if (originalTitle) console.log(`Original title: ${originalTitle}`)
+        if (originalFilename) console.log(`Original filename: ${originalFilename}`)
         return
       }
       
