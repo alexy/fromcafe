@@ -147,7 +147,7 @@ export class ContentProcessor {
         if (!originalFilename) {
           const resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
           if (resourceWithAttributes?.attributes?.filename) {
-            originalFilename = resourceWithAttributes.attributes.filename
+            originalFilename = resourceWithAttributes.attributes.filename.trim()
           }
         }
         
@@ -176,7 +176,7 @@ export class ContentProcessor {
           const resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
           if (resourceWithAttributes) {
             imageData = resourceWithAttributes.data
-            originalFilename = resourceWithAttributes.attributes?.filename || originalFilename
+            originalFilename = resourceWithAttributes.attributes?.filename?.trim() || originalFilename
           } else {
             // Fallback to basic resource data if attributes fetch fails
             imageData = await evernoteService.getResourceData(resource.guid)

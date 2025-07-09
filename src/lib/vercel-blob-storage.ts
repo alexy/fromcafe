@@ -51,6 +51,12 @@ export class VercelBlobStorageService {
     postDate?: string
   ): Promise<ImageInfo> {
     try {
+      console.log(`🔄 STORE-IMAGE-DEBUG: Post ${postId}, Hash ${originalHash.substring(0, 8)}:`, {
+        title,
+        originalFilename,
+        exifDate,
+        postDate
+      })
       // Extract comprehensive EXIF metadata
       const exifMetadata = await this.extractExifMetadata(imageData)
       
@@ -767,6 +773,12 @@ export class VercelBlobStorageService {
     exifDate?: string,
     postDate?: string
   ): Promise<ImageInfo | null> {
+    console.log(`🔄 RENAME-DEBUG: Post ${postId}, Hash ${originalHash.substring(0, 8)}:`, {
+      title,
+      originalFilename,
+      exifDate,
+      postDate
+    })
     // Extract date if not provided
     if (!exifDate) {
       // For rename operations, we need to get the date without image data
@@ -794,6 +806,13 @@ export class VercelBlobStorageService {
     const extension = this.getExtensionFromMimeType(mimeType || 'image/jpeg')
     const filenameResult = this.generateFilenameWithDecision(title, originalFilename, contentHash, extension, postId, exifDate)
     const expectedFilename = filenameResult.filename
+    
+    console.log(`🔄 RENAME-FILENAME-DEBUG: Expected vs Existing:`, {
+      expectedFilename,
+      existingFilename: existingImage.filename,
+      filenameMatch: existingImage.filename === expectedFilename,
+      decision: filenameResult.decision
+    })
     
     if (existingImage.filename === expectedFilename) {
       // No change needed, return existing image info
