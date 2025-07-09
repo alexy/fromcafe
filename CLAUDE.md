@@ -69,3 +69,9 @@ npm run build
    - Wait the specified duration (usually 15-40 minutes)
    - Avoid frequent syncs during development
    - Use the debugging logs to identify excessive API calls
+
+5. **Ghost API token expiration**: Ghost API tokens expire and need regeneration:
+   - Default expiration: 1 year (changed from 24h for better UX)
+   - If Ulysses/Ghost clients can't authenticate, regenerate token via `/api/ghost/admin/auth`
+   - Check logs for "👻 Found expired Ghost token" messages
+   - Available expiration options: '1h', '24h', '7d', '30d', '1y', 'never'

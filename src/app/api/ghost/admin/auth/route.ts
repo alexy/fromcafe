@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: GhostTokenRequest = await request.json()
-    const { blogId, expiresIn = '24h' } = body
+    const { blogId, expiresIn = '1y' } = body
 
     if (!blogId) {
       return NextResponse.json({ 

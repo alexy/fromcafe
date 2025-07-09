@@ -89,6 +89,31 @@ async function parseJWTToken(token: string): Promise<GhostAuthResult | null> {
     
     if (!adminApiKey) {
       console.log('No valid Admin API key found for kid:', kid)
+      
+      // Check if there's an expired key for this kid - if so, we can try to auto-refresh
+      const expiredApiKey = await prisma.ghostToken.findFirst({
+        where: {
+          token: {
+            startsWith: `${kid}:`
+          }
+        },
+        select: {
+          token: true,
+          blogId: true,
+          userId: true,
+          expiresAt: true
+        }
+      })
+      
+      if (expiredApiKey) {
+        const expiredAgo = Date.now() - expiredApiKey.expiresAt.getTime()
+        const expiredDays = Math.floor(expiredAgo / (24 * 60 * 60 * 1000))
+        console.log(`👻 Found expired Ghost token for kid: ${kid}`)
+        console.log(`👻 Token expired at: ${expiredApiKey.expiresAt.toISOString()} (${expiredDays} days ago)`)
+        console.log(`👻 Blog ID: ${expiredApiKey.blogId}`)
+        console.log(`👻 User needs to regenerate token via /api/ghost/admin/auth`)
+      }
+      
       return null
     }
     
