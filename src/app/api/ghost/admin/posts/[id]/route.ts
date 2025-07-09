@@ -72,9 +72,15 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     }
     console.log('👻 Found post:', post.title)
 
+    // Configure marked to NOT wrap images in figure tags to prevent nesting
+    const renderer = new marked.Renderer()
+    renderer.image = function({ href, title, text }) {
+      return `<img src="${href}" alt="${text || ''}"${title ? ` title="${title}"` : ''} />`
+    }
+    
     // Convert content for response
     const responseHtml = post.contentFormat === ContentFormat.MARKDOWN 
-      ? await marked(post.content) 
+      ? await marked(post.content, { renderer }) 
       : post.content
     const responseMarkdown = post.contentFormat === ContentFormat.MARKDOWN 
       ? post.content 
@@ -454,17 +460,17 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       console.log('📝 POST STATUS UNCHANGED (' + (isPublished ? 'published' : 'draft') + ')')
     }
 
+    // Configure marked to NOT wrap images in figure tags to prevent nesting
+    const renderer = new marked.Renderer()
+    renderer.image = function({ href, title, text }) {
+      return `<img src="${href}" alt="${text || ''}"${title ? ` title="${title}"` : ''} />`
+    }
+    
     // Process content with unified image handling
     const contentProcessor = new ContentProcessor()
     let processingResult
     
     if (isMarkdownContent) {
-      // Configure marked to NOT wrap images in figure tags to prevent nesting
-      const renderer = new marked.Renderer()
-      renderer.image = function({ href, title, text }) {
-        return `<img src="${href}" alt="${text || ''}"${title ? ` title="${title}"` : ''} />`
-      }
-      
       // Convert Markdown to HTML for image processing only
       const htmlContent = await marked(content, { renderer })
       processingResult = await contentProcessor.processGhostContent(htmlContent, existingPost.id)
@@ -475,7 +481,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     }
     
     // Generate excerpt from content (use HTML version for excerpt generation)
-    const htmlForExcerpt = isMarkdownContent ? await marked(content) : content
+    const htmlForExcerpt = isMarkdownContent ? await marked(content, { renderer }) : content
     const excerpt = ghostPost.excerpt || contentProcessor.generateExcerpt(htmlForExcerpt)
 
     // Update the post
@@ -509,7 +515,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
 
     // Convert content for response
     const responseHtml = updatedPost.contentFormat === ContentFormat.MARKDOWN 
-      ? await marked(updatedPost.content) 
+      ? await marked(updatedPost.content, { renderer }) 
       : updatedPost.content
     const responseMarkdown = updatedPost.contentFormat === ContentFormat.MARKDOWN 
       ? updatedPost.content 

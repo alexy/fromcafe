@@ -214,13 +214,13 @@ export async function POST(request: NextRequest) {
       const contentProcessor = new ContentProcessor()
       let processingResult
       
+      // Configure marked to NOT wrap images in figure tags to prevent nesting
+      const renderer = new marked.Renderer()
+      renderer.image = function({ href, title, text }) {
+        return `<img src="${href}" alt="${text || ''}"${title ? ` title="${title}"` : ''} />`
+      }
+      
       if (isMarkdownContent) {
-        // Configure marked to NOT wrap images in figure tags to prevent nesting
-        const renderer = new marked.Renderer()
-        renderer.image = function({ href, title, text }) {
-          return `<img src="${href}" alt="${text || ''}"${title ? ` title="${title}"` : ''} />`
-        }
-        
         // Convert Markdown to HTML for image processing only
         const htmlContent = await marked(content, { renderer })
         processingResult = await contentProcessor.processGhostContent(htmlContent, post.id)
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Generate excerpt from content (use HTML version for excerpt generation)
-      const htmlForExcerpt = isMarkdownContent ? await marked(content) : content
+      const htmlForExcerpt = isMarkdownContent ? await marked(content, { renderer }) : content
       const excerpt = ghostPost.excerpt || contentProcessor.generateExcerpt(htmlForExcerpt)
 
       // Generate Ghost-compatible ID for this post if not already set
@@ -272,7 +272,7 @@ export async function POST(request: NextRequest) {
       
       // Convert content for response
       const responseHtml = updatedPost!.contentFormat === ContentFormat.MARKDOWN 
-        ? await marked(updatedPost!.content) 
+        ? await marked(updatedPost!.content, { renderer }) 
         : updatedPost!.content
       const responseMarkdown = updatedPost!.contentFormat === ContentFormat.MARKDOWN 
         ? updatedPost!.content 
