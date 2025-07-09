@@ -5,6 +5,7 @@
 import { createHash } from 'crypto'
 import { VercelBlobStorageService } from '@/lib/vercel-blob-storage'
 import { EvernoteService, EvernoteNote } from '@/lib/evernote'
+import { prisma } from '@/lib/prisma'
 
 export interface ImageProcessingResult {
   processedContent: string
@@ -122,7 +123,9 @@ export class ContentProcessor {
             const altMatch = fullTag.match(/alt="([^"]+)"/)
             const title = titleMatch?.[1] || altMatch?.[1] || undefined
             
-            const imageInfo = await this.imageStorage.storeImage(imageData, hash, resource.mime, postId, title)
+            // Convert Evernote timestamp to date string
+            const postDate = new Date(note.created).toISOString()
+            const imageInfo = await this.imageStorage.storeImage(imageData, hash, resource.mime, postId, title, undefined, undefined, postDate)
             imageUrl = imageInfo.url
             console.log(`Stored Evernote image: ${imageInfo.filename} for post ${postId}${title ? ` (title: "${title}")` : ''}`)
           }
@@ -226,7 +229,19 @@ export class ContentProcessor {
             
             // Determine MIME type from image data or URL
             const mimeType = this.detectMimeType(imageData, imageUrl)
-            const imageInfo = await this.imageStorage.storeImage(imageData, urlHash, mimeType, postId, title, originalFilename)
+            // For Ghost posts, query the database to get the post creation date
+            let postDate: string | undefined
+            try {
+              const post = await prisma.post.findUnique({
+                where: { id: postId },
+                select: { createdAt: true }
+              })
+              postDate = post?.createdAt.toISOString()
+            } catch (error) {
+              console.warn('Failed to fetch post creation date:', error)
+            }
+            
+            const imageInfo = await this.imageStorage.storeImage(imageData, urlHash, mimeType, postId, title, originalFilename, undefined, postDate)
             localImageUrl = imageInfo.url
             
             // Log which attribute was used for the filename

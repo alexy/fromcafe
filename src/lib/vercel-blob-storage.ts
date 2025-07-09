@@ -4,6 +4,7 @@
 
 import { put, head } from '@vercel/blob'
 import { createHash } from 'crypto'
+import { getConfig } from './config'
 
 export interface ImageInfo {
   originalHash: string
@@ -24,15 +25,22 @@ export class VercelBlobStorageService {
     mimeType: string,
     postId: string,
     title?: string,
-    originalFilename?: string
+    originalFilename?: string,
+    exifDate?: string,
+    postDate?: string
   ): Promise<ImageInfo> {
     try {
+      // Extract date if not provided
+      if (!exifDate) {
+        exifDate = await this.extractImageDate(imageData, originalFilename, postDate)
+      }
+      
       // Generate content hash for deduplication
       const contentHash = createHash('sha256').update(imageData).digest('hex').substring(0, 16)
       
       // Generate filename
       const extension = this.getExtensionFromMimeType(mimeType)
-      const filename = this.generateFilename(title, originalFilename, contentHash, extension, postId)
+      const filename = this.generateFilename(title, originalFilename, contentHash, extension, postId, exifDate)
 
       // Check if blob already exists by content hash (more robust deduplication)
       try {
@@ -82,25 +90,71 @@ export class VercelBlobStorageService {
   }
 
   /**
-   * Check if an image already exists (simplified for Vercel Blob)
-   * Note: Vercel Blob doesn't have a great way to search, so we'll rely on our naming convention
+   * Check if an image already exists (supports multiple naming patterns)
+   * Note: Without knowing the exact filename, we check common patterns
    */
   async imageExists(originalHash: string, postId: string): Promise<string | null> {
-    // For Vercel Blob, we'll generate the expected filename and check if it exists
-    // This is a simplified approach - in practice, you might want to track this in your database
+    // Generate content hash for fallback naming
+    const contentHash = createHash('sha256').update(originalHash).digest('hex').substring(0, 16)
     const hashPrefix = originalHash.substring(0, 8)
-    const potentialFilenames = [
+    
+    // We can't predict the exact filename with title and date without that information
+    // So we'll check for the most likely patterns based on our naming strategy
+    
+    // Check for current date-based naming (most likely for new images)
+    const today = new Date().toISOString().split('T')[0]
+    const currentPatternFilenames = [
+      `images/${postId}_image_${today}.jpg`,
+      `images/${postId}_image_${today}.png`,
+      `images/${postId}_image_${today}.gif`,
+      `images/${postId}_image_${today}.webp`
+    ]
+
+    for (const filename of currentPatternFilenames) {
+      try {
+        const blob = await head(filename)
+        if (blob) {
+          console.log(`Image already exists in Vercel Blob (current date): ${filename}`)
+          return blob.url
+        }
+      } catch {
+        // Blob doesn't exist, continue checking
+      }
+    }
+
+    // Check for content hash fallback naming
+    const hashPatternFilenames = [
+      `images/${postId}_image_${contentHash}.jpg`,
+      `images/${postId}_image_${contentHash}.png`,
+      `images/${postId}_image_${contentHash}.gif`,
+      `images/${postId}_image_${contentHash}.webp`
+    ]
+
+    for (const filename of hashPatternFilenames) {
+      try {
+        const blob = await head(filename)
+        if (blob) {
+          console.log(`Image already exists in Vercel Blob (hash pattern): ${filename}`)
+          return blob.url
+        }
+      } catch {
+        // Blob doesn't exist, continue checking
+      }
+    }
+
+    // Check for legacy simple naming pattern
+    const simplePatternFilenames = [
       `images/${postId}_${hashPrefix}.jpg`,
       `images/${postId}_${hashPrefix}.png`,
       `images/${postId}_${hashPrefix}.gif`,
       `images/${postId}_${hashPrefix}.webp`
     ]
 
-    for (const filename of potentialFilenames) {
+    for (const filename of simplePatternFilenames) {
       try {
         const blob = await head(filename)
         if (blob) {
-          console.log(`Image already exists in Vercel Blob: ${filename}`)
+          console.log(`Image already exists in Vercel Blob (simple pattern): ${filename}`)
           return blob.url
         }
       } catch {
@@ -127,22 +181,24 @@ export class VercelBlobStorageService {
   }
 
   /**
-   * Generate filename with proper structure
+   * Generate filename using title and EXIF date when available
    */
   private generateFilename(
     title?: string,
     originalFilename?: string,
     contentHash?: string,
     extension?: string,
-    postId?: string
+    postId?: string,
+    exifDate?: string
   ): string {
-    const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    // Use the extracted date (already in YYYY-MM-DD format)
+    const dateStr = exifDate
     
     // Use title if available and meaningful
     if (title && title.trim() && title.trim().length > 2) {
       const sanitized = this.sanitizeFilename(title.trim())
       if (sanitized) {
-        return `${postId}_${sanitized}_${contentHash}.${extension}`
+        return dateStr ? `${postId}_${sanitized}_${dateStr}.${extension}` : `${postId}_${sanitized}.${extension}`
       }
     }
 
@@ -150,12 +206,12 @@ export class VercelBlobStorageService {
     if (originalFilename) {
       const sanitized = this.sanitizeFilename(originalFilename.replace(/\.[^.]*$/, ''))
       if (sanitized) {
-        return `${postId}_${sanitized}_${contentHash}.${extension}`
+        return dateStr ? `${postId}_${sanitized}_${dateStr}.${extension}` : `${postId}_${sanitized}.${extension}`
       }
     }
 
-    // Fallback to structured naming
-    return `${postId}_image_${timestamp}_${contentHash}.${extension}`
+    // Fallback to structured naming with date if available
+    return dateStr ? `${postId}_image_${dateStr}.${extension}` : `${postId}_image_${contentHash}.${extension}`
   }
 
   /**
@@ -194,5 +250,113 @@ export class VercelBlobStorageService {
       default:
         return 'jpg'
     }
+  }
+
+  /**
+   * Extract date from EXIF, filename, file stats, or post date
+   */
+  private async extractImageDate(imageData: Buffer, originalFilename?: string, postDate?: string): Promise<string> {
+    const config = getConfig()
+    
+    // Try EXIF data first if enabled
+    if (config.images.useExifDates) {
+      try {
+        const exifr = await import('exifr')
+        const exifData = await exifr.parse(imageData, { 
+          tiff: true, 
+          exif: true,
+          gps: false,
+          interop: false,
+          ifd1: false
+        })
+        
+        const dateFields = [
+          'DateTimeOriginal',     // Camera capture time
+          'CreateDate',           // File creation time
+          'DateTime',             // File modification time
+          'DateTimeDigitized'     // Digitization time
+        ]
+        
+        for (const field of dateFields) {
+          const date = exifData?.[field]
+          if (date && date instanceof Date) {
+            return this.formatDateForFilename(date)
+          }
+          if (typeof date === 'string') {
+            const parsedDate = new Date(date)
+            if (!isNaN(parsedDate.getTime())) {
+              return this.formatDateForFilename(parsedDate)
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to extract EXIF date:', error)
+      }
+    }
+    
+    // Fallback 1: Parse date from filename
+    if (originalFilename) {
+      const filenameDate = this.extractDateFromFilename(originalFilename)
+      if (filenameDate) {
+        return filenameDate
+      }
+    }
+    
+    // Fallback 2: Use file system timestamps (not applicable for Buffer data)
+    // This would require the original file path, which we don't have
+    
+    // Fallback 3: Use post date if available
+    if (postDate) {
+      try {
+        const parsedDate = new Date(postDate)
+        if (!isNaN(parsedDate.getTime())) {
+          return this.formatDateForFilename(parsedDate)
+        }
+      } catch (error) {
+        console.warn('Failed to parse post date:', error)
+      }
+    }
+    
+    // Final fallback: current date
+    return this.formatDateForFilename(new Date())
+  }
+
+  /**
+   * Extract date from filename patterns
+   */
+  private extractDateFromFilename(filename: string): string | null {
+    // Common date patterns in filenames
+    const patterns = [
+      // IMG_20240315_123456.jpg, IMG_20240315.jpg
+      /IMG_?(\d{4})(\d{2})(\d{2})/,
+      // 2024-03-15, 2024_03_15
+      /(\d{4})[-_](\d{2})[-_](\d{2})/,
+      // 20240315
+      /(\d{4})(\d{2})(\d{2})/,
+      // Screenshot 2024-03-15 at 12.34.56
+      /Screenshot\s+(\d{4})[-_](\d{2})[-_](\d{2})/,
+      // Photo 2024-03-15
+      /Photo\s+(\d{4})[-_](\d{2})[-_](\d{2})/
+    ]
+    
+    for (const pattern of patterns) {
+      const match = filename.match(pattern)
+      if (match) {
+        const [, year, month, day] = match
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        if (!isNaN(date.getTime())) {
+          return this.formatDateForFilename(date)
+        }
+      }
+    }
+    
+    return null
+  }
+
+  /**
+   * Format date for use in filename
+   */
+  private formatDateForFilename(date: Date): string {
+    return date.toISOString().split('T')[0] // YYYY-MM-DD format
   }
 }
