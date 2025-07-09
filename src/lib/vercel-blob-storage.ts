@@ -497,15 +497,15 @@ export class VercelBlobStorageService {
     
     let caption = ''
     
-    // Add camera make and model
-    if (exifMetadata.make && exifMetadata.model) {
+    // Add camera model (without make)
+    if (exifMetadata.model) {
       // Remove redundant make from model if present
-      const model = exifMetadata.model.replace(new RegExp(`^${exifMetadata.make}\\s*`, 'i'), '')
-      caption = `${exifMetadata.make} ${model}`
+      const model = exifMetadata.make 
+        ? exifMetadata.model.replace(new RegExp(`^${exifMetadata.make}\\s*`, 'i'), '')
+        : exifMetadata.model
+      caption = model
     } else if (exifMetadata.make) {
       caption = exifMetadata.make
-    } else if (exifMetadata.model) {
-      caption = exifMetadata.model
     }
     
     // Add lens information
