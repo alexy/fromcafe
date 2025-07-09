@@ -124,7 +124,7 @@ export default function AdminPostsPage() {
           />
           Show content
         </label>
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-black">
           {pagination.total} posts total
         </span>
       </div>
@@ -135,7 +135,7 @@ export default function AdminPostsPage() {
             <div className="flex justify-between items-start mb-2">
               <div>
                 <h3 className="font-semibold text-lg">{post.title}</h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-black">
                   {post.blog.title} ({post.blog.slug})
                   {post.blog.subdomain && ` - ${post.blog.subdomain}.from.cafe`}
                   {post.blog.customDomain && ` - ${post.blog.customDomain}`}
@@ -172,7 +172,7 @@ export default function AdminPostsPage() {
               </div>
             </div>
 
-            <div className="text-xs text-gray-500 mb-2">
+            <div className="text-xs text-black mb-2">
               <span>Created: {new Date(post.createdAt).toLocaleString()}</span>
               <span className="ml-4">Updated: {new Date(post.updatedAt).toLocaleString()}</span>
               {post.publishedAt && (
@@ -195,7 +195,7 @@ export default function AdminPostsPage() {
               <div className="mt-4 border-t pt-4">
                 <h4 className="font-medium mb-2">Content:</h4>
                 <div className="text-sm bg-gray-50 p-3 rounded max-h-60 overflow-y-auto">
-                  <pre className="whitespace-pre-wrap font-mono text-xs">
+                  <pre className="whitespace-pre-wrap font-mono text-xs text-black">
                     {post.content.substring(0, 2000)}
                     {post.content.length > 2000 && '... (truncated)'}
                   </pre>

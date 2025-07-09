@@ -179,7 +179,7 @@ export default function AdminUsersPage() {
         <div className="flex justify-between items-center mb-4">
           <div>
             <h1 className="text-3xl font-bold mb-2">User Management</h1>
-            <p className="text-gray-600">
+            <p className="text-black">
               Manage user accounts, roles, and permissions
             </p>
           </div>
@@ -238,7 +238,7 @@ export default function AdminUsersPage() {
             </div>
             
             <div className="flex items-end">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-black">
                 Showing {filteredUsers.length} of {users.length} users
               </div>
             </div>
@@ -287,9 +287,9 @@ export default function AdminUsersPage() {
                           </span>
                         )}
                       </div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
+                      <div className="text-sm text-black">{user.email}</div>
                       {user.displayName && (
-                        <div className="text-sm text-gray-500">&quot;{user.displayName}&quot;</div>
+                        <div className="text-sm text-black">&quot;{user.displayName}&quot;</div>
                       )}
                     </div>
                   </td>
@@ -299,10 +299,10 @@ export default function AdminUsersPage() {
                       <div>
                         <div className="text-sm text-gray-900">/{user.slug}</div>
                         {user.subdomain && (
-                          <div className="text-sm text-gray-500">{user.subdomain}.from.cafe</div>
+                          <div className="text-sm text-black">{user.subdomain}.from.cafe</div>
                         )}
                         {user.domain && (
-                          <div className="text-sm text-gray-500">{user.domain}</div>
+                          <div className="text-sm text-black">{user.domain}</div>
                         )}
                       </div>
                     ) : (
@@ -375,7 +375,7 @@ export default function AdminUsersPage() {
         
         {filteredUsers.length === 0 && (
           <div className="text-center py-8">
-            <p className="text-gray-500">No users found matching your criteria.</p>
+            <p className="text-black">No users found matching your criteria.</p>
           </div>
         )}
       </div>

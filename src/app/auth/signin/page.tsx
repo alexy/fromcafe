@@ -28,7 +28,7 @@ function SignInForm() {
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Sign in to Evernote Blog
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-black">
             Connect your Evernote account to create beautiful blogs
           </p>
         </div>
