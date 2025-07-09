@@ -49,6 +49,7 @@ input, textarea, select {
 figure {
   margin: 1rem 0;
   text-align: center;
+  column-span: all !important;
 }
 
 figure img {
@@ -69,6 +70,7 @@ figcaption {
   margin-right: auto !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
+  column-span: all !important;
 }
 
 figcaption small {
