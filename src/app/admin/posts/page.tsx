@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 
 interface Post {
   id: string
@@ -30,6 +31,7 @@ interface Post {
 }
 
 export default function AdminPostsPage() {
+  const router = useRouter()
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -37,11 +39,12 @@ export default function AdminPostsPage() {
   const [showContent, setShowContent] = useState(false)
   const [publishedFilter, setPublishedFilter] = useState<'all' | 'published' | 'unpublished'>('all')
   const [sourceFilter, setSourceFilter] = useState<'all' | 'EVERNOTE' | 'GHOST'>('all')
-  const [pagination, setPagination] = useState({ total: 0, limit: 20, offset: 0, hasMore: false })
+  const [pagination, setPagination] = useState({ total: 0, limit: 20, offset: 0, hasMore: false, page: 1, totalPages: 1 })
 
-  const fetchPosts = useCallback(async (blog = '', offset = 0, content = false, published = publishedFilter, source = sourceFilter) => {
+  const fetchPosts = useCallback(async (blog = '', page = 1, content = false, published = publishedFilter, source = sourceFilter) => {
     try {
       setLoading(true)
+      const offset = (page - 1) * 20
       const params = new URLSearchParams({
         limit: '20',
         offset: offset.toString(),
@@ -111,7 +114,7 @@ export default function AdminPostsPage() {
       
       // Refresh the posts list to show updated content
       if (result.figuresFixed > 0) {
-        fetchPosts(blogFilter, pagination.offset, showContent)
+        fetchPosts(blogFilter, pagination.page, showContent, publishedFilter, sourceFilter)
       }
     } catch (err) {
       alert('Failed to fix nested figures: ' + (err instanceof Error ? err.message : 'Unknown error'))
@@ -144,24 +147,23 @@ export default function AdminPostsPage() {
       alert(result.message)
       
       // Refresh the posts list
-      fetchPosts(blogFilter, 0, showContent, publishedFilter, sourceFilter)
+      fetchPosts(blogFilter, pagination.page, showContent, publishedFilter, sourceFilter)
     } catch (err) {
       alert('Failed to delete post: ' + (err instanceof Error ? err.message : 'Unknown error'))
     }
   }
 
   useEffect(() => {
-    fetchPosts(blogFilter, 0, showContent, publishedFilter, sourceFilter)
+    fetchPosts(blogFilter, 1, showContent, publishedFilter, sourceFilter)
   }, [blogFilter, showContent, publishedFilter, sourceFilter, fetchPosts])
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setBlogFilter(e.target.value)
-    setPagination(prev => ({ ...prev, offset: 0 }))
+    setPagination(prev => ({ ...prev, page: 1, offset: 0 }))
   }
 
-  const loadMore = () => {
-    const newOffset = pagination.offset + pagination.limit
-    fetchPosts(blogFilter, newOffset, showContent, publishedFilter, sourceFilter)
+  const goToPage = (page: number) => {
+    fetchPosts(blogFilter, page, showContent, publishedFilter, sourceFilter)
   }
 
   if (loading && posts.length === 0) {
@@ -174,7 +176,15 @@ export default function AdminPostsPage() {
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6 text-blue-900">Admin: Posts Database</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-blue-900">Admin: Posts Database</h1>
+        <button
+          onClick={() => router.push('/admin')}
+          className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+        >
+          ← Back to Admin
+        </button>
+      </div>
       
       <div className="mb-6 space-y-4">
         <div className="flex flex-wrap gap-4 items-center">
@@ -344,17 +354,77 @@ export default function AdminPostsPage() {
         ))}
       </div>
 
-      {pagination.hasMore && (
-        <div className="mt-6 text-center">
+      {pagination.totalPages > 1 && (
+        <div className="mt-6 flex justify-center items-center gap-4">
           <button
-            onClick={loadMore}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+            onClick={() => goToPage(pagination.page - 1)}
+            disabled={pagination.page <= 1 || loading}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Loading...' : 'Load More'}
+            Previous
+          </button>
+          
+          <div className="flex items-center gap-2">
+            {/* Show first page */}
+            {pagination.page > 3 && (
+              <>
+                <button
+                  onClick={() => goToPage(1)}
+                  className="px-3 py-2 border rounded hover:bg-gray-100"
+                >
+                  1
+                </button>
+                {pagination.page > 4 && <span className="px-2">...</span>}
+              </>
+            )}
+            
+            {/* Show pages around current page */}
+            {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+              const startPage = Math.max(1, Math.min(pagination.page - 2, pagination.totalPages - 4))
+              const pageNum = startPage + i
+              
+              if (pageNum > pagination.totalPages) return null
+              
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => goToPage(pageNum)}
+                  className={`px-3 py-2 border rounded hover:bg-gray-100 ${
+                    pageNum === pagination.page ? 'bg-blue-500 text-white hover:bg-blue-600' : ''
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              )
+            })}
+            
+            {/* Show last page */}
+            {pagination.page < pagination.totalPages - 2 && (
+              <>
+                {pagination.page < pagination.totalPages - 3 && <span className="px-2">...</span>}
+                <button
+                  onClick={() => goToPage(pagination.totalPages)}
+                  className="px-3 py-2 border rounded hover:bg-gray-100"
+                >
+                  {pagination.totalPages}
+                </button>
+              </>
+            )}
+          </div>
+          
+          <button
+            onClick={() => goToPage(pagination.page + 1)}
+            disabled={pagination.page >= pagination.totalPages || loading}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
           </button>
         </div>
       )}
+      
+      <div className="mt-4 text-center text-sm text-gray-600">
+        Page {pagination.page} of {pagination.totalPages} • {pagination.total} posts total
+      </div>
     </div>
   )
 }

@@ -109,7 +109,9 @@ export async function GET(request: NextRequest) {
         total: totalCount,
         limit,
         offset,
-        hasMore: offset + limit < totalCount
+        hasMore: offset + limit < totalCount,
+        page: Math.floor(offset / limit) + 1,
+        totalPages: Math.ceil(totalCount / limit)
       }
     })
 

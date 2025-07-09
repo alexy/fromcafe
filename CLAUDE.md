@@ -2,16 +2,31 @@
 
 ## Database Connection
 
-**IMPORTANT: Remote Database Access**
+**IMPORTANT: Vercel Production Database Access**
 
-To connect to the remote database, you must set up the environment properly:
+To connect to the Vercel production database, you must set up the environment properly:
 
 ```bash
 # Source the environment variables
 source .env.local
 
-# Set DATABASE_URL to the remote database URL
-export DATABASE_URL=$DIRECT_URL
+# For Vercel production database access:
+PRISMA_DATABASE_URL=$PRISMA_DATABASE_URL [command]
+```
+
+Example:
+```bash
+source .env.local && PRISMA_DATABASE_URL=$PRISMA_DATABASE_URL node test-db.js
+```
+
+**Alternative for direct database access (bypassing Accelerate):**
+```bash
+# Source the environment variables
+source .env.local
+
+# Extract direct database URL from DIRECT_URL
+eval $DIRECT_URL
+export DATABASE_URL=$PRISMA_DATABASE_URL
 ```
 
 This is required for all Prisma operations including:
@@ -21,10 +36,11 @@ This is required for all Prisma operations including:
 - `npx prisma studio`
 
 **Why this is needed:**
-- The project uses a remote database (not local)
-- `DIRECT_URL` contains the connection string to the remote database
+- The project uses Vercel's database with Prisma Accelerate
+- `PRISMA_DATABASE_URL` contains the Accelerate connection string to the production database
 - `DATABASE_URL` is what Prisma uses by default
-- We need to copy `DIRECT_URL` to `DATABASE_URL` for remote operations
+- `DIRECT_URL` contains the raw connection string for direct access (when needed)
+- For most operations, use `PRISMA_DATABASE_URL` to access the production data
 
 ## Testing Commands
 

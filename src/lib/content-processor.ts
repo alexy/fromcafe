@@ -13,7 +13,7 @@ export interface ImageProcessingResult {
   errors: string[]
 }
 
-// Extended resource interface to include EXIF metadata
+// Extended resource interface to include EXIF metadata and attributes
 interface ResourceWithExif {
   guid: string
   data: {
@@ -24,6 +24,10 @@ interface ResourceWithExif {
   mime: string
   width?: number
   height?: number
+  attributes?: {
+    filename?: string
+    attachment?: boolean
+  }
   exifMetadata?: ExifMetadata
 }
 
@@ -136,19 +140,44 @@ export class ContentProcessor {
         const existingImage = await this.imageStorage.imageExists(hash, postId)
         let imageUrl = existingImage?.url
         
-        // Always re-process if title has changed or image doesn't exist
+        // Get the original filename from resource attributes (need to fetch with attributes)
+        let originalFilename = (resource as ResourceWithExif).attributes?.filename
+        
+        // If resource doesn't have attributes, fetch them separately
+        if (!originalFilename) {
+          const resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
+          if (resourceWithAttributes?.attributes?.filename) {
+            originalFilename = resourceWithAttributes.attributes.filename
+          }
+        }
+        
+        // Always re-process if title or filename has changed or image doesn't exist
         const shouldReprocess = !existingImage || 
-          (title && !existingImage.filename.includes(this.sanitizeFilename(title)))
+          (title && !existingImage.filename.includes(this.sanitizeFilename(title))) ||
+          (originalFilename && !existingImage.filename.includes(this.sanitizeFilename(originalFilename.replace(/\.[^.]*$/, ''))))
         
         if (shouldReprocess) {
           // Convert Evernote timestamp to date string
           const postDate = new Date(note.created).toISOString()
           
           // Try to handle renaming without downloading image data first
-          const imageData = await evernoteService.getResourceData(resource.guid)
+          let imageData: Buffer | null = null
+          
+          // If we already fetched resource with attributes, use that data
+          if (!originalFilename) {
+            imageData = await evernoteService.getResourceData(resource.guid)
+          } else {
+            // We might have fetched it above, but need to get it again for processing
+            const resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
+            if (resourceWithAttributes) {
+              imageData = resourceWithAttributes.data
+              originalFilename = resourceWithAttributes.attributes?.filename || originalFilename
+            }
+          }
+          
           if (imageData) {
             // The storage service will handle renaming vs uploading efficiently
-            const imageInfo = await this.imageStorage.storeImage(imageData, hash, resource.mime, postId, title, undefined, undefined, postDate)
+            const imageInfo = await this.imageStorage.storeImage(imageData, hash, resource.mime, postId, title, originalFilename, undefined, postDate)
             imageUrl = imageInfo.url
             
             // Store EXIF metadata for caption generation
@@ -157,7 +186,7 @@ export class ContentProcessor {
             }
             
             const action = existingImage ? 'Updated' : 'Stored'
-            console.log(`${action} Evernote image: ${imageInfo.filename} for post ${postId}${title ? ` (title: "${title}")` : ''}`)
+            console.log(`${action} Evernote image: ${imageInfo.filename} for post ${postId}${title ? ` (title: "${title}")` : ''}${originalFilename ? ` (filename: "${originalFilename}")` : ''}`)
           }
         } else {
           console.log(`Using existing Evernote image: ${imageUrl} for post ${postId}`)

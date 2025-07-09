@@ -648,6 +648,51 @@ export class EvernoteService {
   /**
    * Download resource data (image) from Evernote
    */
+  async getResourceWithAttributes(resourceGuid: string): Promise<{ data: Buffer; attributes?: { filename?: string; attachment?: boolean } } | null> {
+    try {
+      // Create a fresh client with the access token
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const EvernoteSDK = require('evernote')
+      const tokenizedClient = new EvernoteSDK.Client({
+        consumerKey: process.env.EVERNOTE_CONSUMER_KEY!,
+        consumerSecret: process.env.EVERNOTE_CONSUMER_SECRET!,
+        sandbox: false,
+        token: this.accessToken
+      })
+      
+      // Use stored noteStoreUrl if available to avoid getUserUrls() call
+      const freshNoteStore = this.noteStoreUrl 
+        ? tokenizedClient.getNoteStore(this.noteStoreUrl)
+        : tokenizedClient.getNoteStore()
+
+      // Detect if we're dealing with wrapped functions (local dev) vs normal functions (production)
+      const getResourceFunc = (freshNoteStore as { getResource: (...args: unknown[]) => unknown }).getResource
+      const isWrappedFunction = getResourceFunc.length === 0 && 
+        getResourceFunc.toString().includes('arguments.length')
+      
+      // SIMPLIFIED LOGIC: Only local wrapped functions are different
+      const isLocal = !process.env.VERCEL && !process.env.VERCEL_ENV
+      const isLocalWrappedException = isLocal && isWrappedFunction
+      
+      const resource = isLocalWrappedException
+        ? await (freshNoteStore as { getResource: (guid: string, withData: boolean, withRecognition: boolean, withAttributes: boolean, withAlternateData: boolean) => Promise<{ data: { body: Buffer }; attributes?: { filename?: string; attachment?: boolean } }> }).getResource(resourceGuid, true, false, true, false)
+        : await (freshNoteStore as { getResource: (token: string, guid: string, withData: boolean, withRecognition: boolean, withAttributes: boolean, withAlternateData: boolean) => Promise<{ data: { body: Buffer }; attributes?: { filename?: string; attachment?: boolean } }> }).getResource(this.accessToken, resourceGuid, true, false, true, false)
+      
+      console.log(`Fetched resource ${resourceGuid} with attributes:`, {
+        hasData: !!resource.data?.body,
+        attributes: resource.attributes
+      })
+      
+      return {
+        data: resource.data?.body,
+        attributes: resource.attributes
+      }
+    } catch (error) {
+      console.error(`Error fetching resource ${resourceGuid} with attributes:`, error)
+      return null
+    }
+  }
+
   async getResourceData(resourceGuid: string): Promise<Buffer | null> {
     try {
       // Create a fresh client with the access token
