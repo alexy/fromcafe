@@ -394,6 +394,12 @@ export class VercelBlobStorageService {
     originalFilename?: string
   ): Promise<void> {
     try {
+      // Skip naming decision recording for Ghost upload pseudo-postIds
+      if (postId.startsWith('ghost-')) {
+        console.log(`Skipping naming decision recording for Ghost upload pseudo-postId: ${postId}`)
+        return
+      }
+      
       await prisma.imageNamingDecision.upsert({
         where: { originalHash },
         create: {
