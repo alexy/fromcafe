@@ -1,3 +1,5 @@
+'use client'
+
 import React from 'react'
 import { PostThemeProps } from '../types'
 import { getBlogUrl } from '../../utils/urls'

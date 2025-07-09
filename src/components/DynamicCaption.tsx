@@ -163,52 +163,29 @@ export function useDynamicCaptions(htmlContent: string, showCameraMake: boolean 
 
     // Process HTML to add dynamic captions
     const processHTML = (html: string) => {
-      console.log('🔍 Processing HTML for figcaptions...')
-      console.log('📄 HTML content:', html.substring(0, 500) + '...')
-      
       // Find all figcaption tags with data-exif attributes
-      const figcaptionMatches = html.match(/<figcaption\s+data-exif="([^"]*)"[^>]*><\/figcaption>/g)
-      console.log('🎯 Found figcaption matches:', figcaptionMatches)
-      
       return html.replace(/<figcaption\s+data-exif="([^"]*)"[^>]*><\/figcaption>/g, (match, exifData) => {
-        console.log('🔄 Processing figcaption match:', match)
-        console.log('📊 Raw EXIF data:', exifData)
-        
         try {
           // Decode HTML entities in the JSON data
           const decodedData = exifData.replace(/&quot;/g, '"')
-          console.log('📊 Decoded EXIF data:', decodedData)
-          
           const metadata: ExtendedExifMetadata = JSON.parse(decodedData)
-          console.log('📊 Parsed metadata:', metadata)
           
           // Generate caption using the current settings
           const caption = generateFullCaption(metadata, showCameraMake)
-          console.log('📝 Generated caption:', caption)
           
           if (caption) {
-            const result = `<figcaption data-exif="${exifData}">${caption}</figcaption>`
-            console.log('✅ Final figcaption result:', result)
-            return result
+            return `<figcaption data-exif="${exifData}">${caption}</figcaption>`
           }
         } catch (err) {
-          console.error('❌ Error processing EXIF data in figcaption:', err)
-          console.error('Failed to process:', { exifData, decodedData: exifData.replace(/&quot;/g, '"') })
+          console.error('Error processing EXIF data in figcaption:', err)
         }
         
         // Return empty figcaption if processing fails
-        console.log('⚠️ Returning empty figcaption')
         return `<figcaption data-exif="${exifData}"></figcaption>`
       })
     }
 
-    console.log('🚀 useDynamicCaptions called with:')
-    console.log('📄 HTML content length:', htmlContent.length)
-    console.log('🎚️ showCameraMake:', showCameraMake)
-    console.log('📄 HTML preview:', htmlContent.substring(0, 300) + '...')
-    
     const processed = processHTML(htmlContent)
-    console.log('✅ Final processed content:', processed.substring(0, 300) + '...')
     
     setProcessedContent(processed)
   }, [htmlContent, showCameraMake])
