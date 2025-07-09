@@ -165,7 +165,7 @@ export default function ImageNamingAdminPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Image Naming Decisions</h1>
           <p className="mt-2 text-gray-600">
-            Review how image blob names were generated and manage renaming decisions
+            Review how image blob names were generated and manage renaming decisions.
           </p>
         </div>
 
