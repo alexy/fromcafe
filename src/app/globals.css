@@ -85,6 +85,24 @@ figure figure {
 figure figure figcaption {
   text-align: center !important;
   margin-top: 0.5rem;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  display: block !important;
+  width: 100% !important;
+}
+
+/* Target the specific nested structure we're seeing */
+figure > figure > figcaption {
+  text-align: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  display: block !important;
+  width: 100% !important;
+}
+
+/* Hide empty figcaptions that might be causing layout issues */
+figcaption:empty {
+  display: none !important;
 }
 
 /* Ensure all figure elements center their content */
@@ -106,6 +124,22 @@ figure, figure figure {
 .modern-prose figcaption,
 .default-prose figcaption {
   text-align: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  display: block !important;
+  width: 100% !important;
+}
+
+/* Very specific targeting for the nested structure */
+.vintage-prose figure figure figcaption,
+.minimal-prose figure figure figcaption,
+.modern-prose figure figure figcaption,
+.default-prose figure figure figcaption {
+  text-align: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  display: block !important;
+  width: 100% !important;
 }
 
 /* Dark mode figure caption styling */
