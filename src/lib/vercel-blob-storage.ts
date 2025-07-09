@@ -5,6 +5,9 @@
 import { put, head, del, copy } from '@vercel/blob'
 import { createHash } from 'crypto'
 import { getConfig } from './config'
+import { prisma } from './prisma'
+
+export type NamingDecisionSource = 'TITLE' | 'EXIF_DATE' | 'POST_DATE' | 'CONTENT_HASH' | 'ORIGINAL_FILENAME'
 
 export interface ExifMetadata {
   dateTimeOriginal?: string
@@ -27,6 +30,10 @@ export interface ImageInfo {
   url: string
   contentHash: string
   exifMetadata?: ExifMetadata
+  namingDecision?: {
+    source: NamingDecisionSource
+    reason: string
+  }
 }
 
 export class VercelBlobStorageService {
@@ -67,9 +74,10 @@ export class VercelBlobStorageService {
       // Generate content hash for deduplication
       const contentHash = createHash('sha256').update(imageData).digest('hex').substring(0, 16)
       
-      // Generate filename
+      // Generate filename with naming decision tracking
       const extension = this.getExtensionFromMimeType(mimeType)
-      const filename = this.generateFilename(title, originalFilename, contentHash, extension, postId, exifDate)
+      const filenameResult = this.generateFilenameWithDecision(title, originalFilename, contentHash, extension, postId, exifDate)
+      const filename = filenameResult.filename
 
       // At this point, we need to upload the image data
       
@@ -107,6 +115,19 @@ export class VercelBlobStorageService {
 
       console.log(`Stored image in Vercel Blob: ${filename} (${imageData.length} bytes)`)
 
+      // Record naming decision in database
+      await this.recordNamingDecision(
+        postId,
+        originalHash,
+        filename,
+        blob.url,
+        filenameResult.decision,
+        title,
+        exifDate,
+        exifMetadata,
+        originalFilename
+      )
+
       return {
         originalHash,
         filename,
@@ -114,7 +135,8 @@ export class VercelBlobStorageService {
         size: imageData.length,
         url: blob.url,
         contentHash,
-        exifMetadata
+        exifMetadata,
+        namingDecision: filenameResult.decision
       }
     } catch (error) {
       console.error('Error storing image in Vercel Blob:', error)
@@ -245,6 +267,118 @@ export class VercelBlobStorageService {
 
     // Fallback to structured naming with date if available
     return dateStr ? `${postId}_image_${dateStr}.${extension}` : `${postId}_image_${contentHash}.${extension}`
+  }
+
+  /**
+   * Generate filename with decision tracking
+   */
+  private generateFilenameWithDecision(
+    title?: string,
+    originalFilename?: string,
+    contentHash?: string,
+    extension?: string,
+    postId?: string,
+    exifDate?: string
+  ): { filename: string; decision: { source: NamingDecisionSource; reason: string } } {
+    // Use the extracted date (already in YYYY-MM-DD format)
+    const dateStr = exifDate
+    
+    // Use title if available and meaningful
+    if (title && title.trim() && title.trim().length > 2) {
+      const sanitized = this.sanitizeFilename(title.trim())
+      if (sanitized) {
+        const filename = dateStr ? `${postId}_${sanitized}_${dateStr}.${extension}` : `${postId}_${sanitized}.${extension}`
+        return {
+          filename,
+          decision: {
+            source: 'TITLE',
+            reason: `Used post title "${title.trim()}" as primary naming source${dateStr ? ` with EXIF date ${dateStr}` : ''}`
+          }
+        }
+      }
+    }
+
+    // Use original filename if available
+    if (originalFilename) {
+      const sanitized = this.sanitizeFilename(originalFilename.replace(/\.[^.]*$/, ''))
+      if (sanitized) {
+        const filename = dateStr ? `${postId}_${sanitized}_${dateStr}.${extension}` : `${postId}_${sanitized}.${extension}`
+        return {
+          filename,
+          decision: {
+            source: 'ORIGINAL_FILENAME',
+            reason: `Used original filename "${originalFilename}" as title was not suitable${dateStr ? ` with EXIF date ${dateStr}` : ''}`
+          }
+        }
+      }
+    }
+
+    // Fallback to structured naming with date if available
+    if (dateStr) {
+      return {
+        filename: `${postId}_image_${dateStr}.${extension}`,
+        decision: {
+          source: 'EXIF_DATE',
+          reason: `Used EXIF date ${dateStr} as neither title nor filename were suitable`
+        }
+      }
+    } else {
+      return {
+        filename: `${postId}_image_${contentHash}.${extension}`,
+        decision: {
+          source: 'CONTENT_HASH',
+          reason: 'Used content hash as fallback - no title, filename, or EXIF date available'
+        }
+      }
+    }
+  }
+
+  /**
+   * Record naming decision in database
+   */
+  private async recordNamingDecision(
+    postId: string,
+    originalHash: string,
+    blobFilename: string,
+    blobUrl: string,
+    decision: { source: NamingDecisionSource; reason: string },
+    originalTitle?: string,
+    extractedDate?: string,
+    exifMetadata?: ExifMetadata,
+    originalFilename?: string
+  ): Promise<void> {
+    try {
+      await prisma.imageNamingDecision.upsert({
+        where: { originalHash },
+        create: {
+          postId,
+          originalHash,
+          blobFilename,
+          blobUrl,
+          namingSource: decision.source,
+          originalTitle,
+          extractedDate,
+          exifMetadata: exifMetadata as any,
+          originalFilename,
+          decisionReason: decision.reason
+        },
+        update: {
+          blobFilename,
+          blobUrl,
+          namingSource: decision.source,
+          originalTitle,
+          extractedDate,
+          exifMetadata: exifMetadata as any,
+          originalFilename,
+          decisionReason: decision.reason,
+          updatedAt: new Date()
+        }
+      })
+      console.log(`Recorded naming decision for ${originalHash}: ${decision.source} - ${decision.reason}`)
+    } catch (error) {
+      console.error('Failed to record naming decision:', error)
+      // Don't throw - this is for tracking only
+    }
   }
 
   /**

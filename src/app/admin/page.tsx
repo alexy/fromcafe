@@ -346,6 +346,39 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* Image Naming Management */}
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Image Naming
+                    </dt>
+                    <dd className="text-lg font-medium text-gray-900">
+                      Review naming decisions
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+            <div className="bg-gray-50 px-5 py-3">
+              <div className="text-sm">
+                <button
+                  onClick={() => router.push('/admin/image-naming')}
+                  className="font-medium text-blue-700 hover:text-blue-900"
+                >
+                  Review image naming
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* System Configuration */}
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
@@ -426,6 +459,30 @@ export default function AdminPage() {
                     <div className="sm:flex">
                       <p className="text-sm text-gray-500">
                         View all posts in database, analyze figure structures, and clear cache
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => router.push('/admin/image-naming')}
+                  className="block hover:bg-gray-50 px-4 py-4 sm:px-6 w-full text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-blue-600 truncate">
+                      Image Naming Decisions
+                    </p>
+                    <div className="ml-2 flex-shrink-0 flex">
+                      <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        Active
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-2 sm:flex sm:justify-between">
+                    <div className="sm:flex">
+                      <p className="text-sm text-gray-500">
+                        Review how image blob names were generated and manage renaming decisions
                       </p>
                     </div>
                   </div>

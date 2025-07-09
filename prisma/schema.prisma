@@ -128,8 +128,9 @@ model Post {
   ghostPostId     String?
   sourceUpdatedAt DateTime?
   sourceUrl       String?
-  blog            Blog          @relation(fields: [blogId], references: [id], onDelete: Cascade)
-  postTags        PostTag[]
+  blog                Blog                    @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  postTags            PostTag[]
+  imageNamingDecisions ImageNamingDecision[]
 
   @@unique([blogId, slug])
   @@map("posts")
@@ -191,6 +192,27 @@ model GhostToken {
   @@map("ghost_tokens")
 }
 
+model ImageNamingDecision {
+  id               String                @id @default(cuid())
+  postId           String
+  originalHash     String                @unique
+  blobFilename     String
+  blobUrl          String
+  namingSource     NamingDecisionSource
+  originalTitle    String?
+  extractedDate    String?
+  exifMetadata     Json?
+  originalFilename String?
+  decisionReason   String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  post             Post                  @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([blobFilename])
+  @@map("image_naming_decisions")
+}
+
 enum UserRole {
   USER
   ADMIN
@@ -209,4 +231,12 @@ enum ContentSource {
 enum ContentFormat {
   HTML
   MARKDOWN
+}
+
+enum NamingDecisionSource {
+  TITLE
+  EXIF_DATE
+  POST_DATE
+  CONTENT_HASH
+  ORIGINAL_FILENAME
 }
