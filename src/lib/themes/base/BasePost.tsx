@@ -2,6 +2,7 @@ import React from 'react'
 import { PostThemeProps } from '../types'
 import { getBlogUrl } from '../../utils/urls'
 import PostImageGallery from '../../../components/PostImageGallery'
+import { useDynamicCaptions } from '../../../components/DynamicCaption'
 
 export interface PostThemeConfig {
   name: string
@@ -47,6 +48,9 @@ interface BasePostProps extends PostThemeProps {
 
 export default function BasePost({ blog, post, hostname, config }: BasePostProps) {
   const { styles, layout } = config
+  
+  // Process content with dynamic captions based on blog settings
+  const processedContent = useDynamicCaptions(post.content, blog.showCameraMake || false)
 
   const renderNavigation = () => {
     if (!layout.showNav) return null
@@ -86,7 +90,7 @@ export default function BasePost({ blog, post, hostname, config }: BasePostProps
       <article className={styles.article}>
         <div
           className={styles.content}
-          dangerouslySetInnerHTML={{ __html: post.content }}
+          dangerouslySetInnerHTML={{ __html: processedContent }}
         />
         <PostImageGallery postContentSelector={config.imageSelector} />
         

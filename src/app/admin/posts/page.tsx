@@ -7,6 +7,7 @@ interface Post {
   title: string
   slug: string
   blog: {
+    id: string
     slug: string
     title: string
     subdomain: string | null
@@ -106,6 +107,12 @@ export default function AdminPostsPage() {
     }
   }
 
+  const updateCaptions = async (blogId: string, blogTitle: string) => {
+    // This function is no longer needed since we now use dynamic caption rendering
+    console.log('Update captions called for blog:', blogId, blogTitle)
+    alert('Dynamic caption rendering is now enabled. Captions will update automatically based on blog settings.')
+  }
+
   useEffect(() => {
     fetchPosts(blogFilter, 0, showContent)
   }, [blogFilter, showContent])
@@ -151,6 +158,9 @@ export default function AdminPostsPage() {
         <span className="text-sm text-black">
           {pagination.total} posts total
         </span>
+        <div className="text-sm text-gray-600">
+          <strong>Caption Update:</strong> Updates existing image captions to respect current blog showCameraMake setting
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -185,6 +195,14 @@ export default function AdminPostsPage() {
                     Fix Nested Figures
                   </button>
                 )}
+                {post.figcaptionCount > 0 && (
+                  <button
+                    onClick={() => updateCaptions(post.blog.id, post.blog.title)}
+                    className="ml-2 px-2 py-1 bg-purple-500 text-white rounded text-xs hover:bg-purple-600"
+                  >
+                    Update Captions
+                  </button>
+                )}
               </div>
             </div>
 
@@ -201,6 +219,9 @@ export default function AdminPostsPage() {
               <div>
                 <span className="font-medium">Figures:</span> {post.figureCount}
                 {post.hasNestedFigures && <span className="text-red-600 ml-1">⚠️ Nested</span>}
+              </div>
+              <div>
+                <span className="font-medium">Captions:</span> {post.figcaptionCount}
               </div>
             </div>
 

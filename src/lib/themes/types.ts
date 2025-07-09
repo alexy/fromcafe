@@ -7,6 +7,7 @@ export interface BlogData {
   customDomain: string | null | undefined
   theme: string
   isPublic: boolean
+  showCameraMake?: boolean
   createdAt: Date
   updatedAt: Date
   userSlug?: string

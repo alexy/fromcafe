@@ -43,7 +43,7 @@ export class ContentProcessor {
     note: EvernoteNote, 
     postId: string, 
     evernoteService: EvernoteService,
-    showCameraMake: boolean = false
+    showCameraMake: boolean = false // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<ImageProcessingResult> {
     console.log(`🖼️ Processing Evernote content for post ${postId}, note: "${note.title}"`)
     console.log(`📄 ENML content length: ${enmlContent.length}`)
@@ -176,18 +176,17 @@ export class ContentProcessor {
             imgAttributes += ` width="${resource.width}" height="${resource.height}"`
           }
           
-          // Generate caption from EXIF metadata if available
+          // Generate figure with EXIF data for dynamic caption rendering
           let imgHtml = `<img ${imgAttributes} />`
           
           const exifMetadata = (resource as ResourceWithExif).exifMetadata
           if (exifMetadata) {
-            const caption = VercelBlobStorageService.generateFullCaption(exifMetadata, showCameraMake)
-            if (caption) {
-              imgHtml = `<figure>
-                ${imgHtml}
-                <figcaption>${caption}</figcaption>
-              </figure>`
-            }
+            // Store EXIF data in data-exif attribute for dynamic caption rendering
+            const exifDataJson = JSON.stringify(exifMetadata)
+            imgHtml = `<figure>
+              ${imgHtml}
+              <figcaption data-exif="${exifDataJson.replace(/"/g, '&quot;')}"></figcaption>
+            </figure>`
           }
           
           mediaReplacements.push({ tag: fullTag, replacement: imgHtml })
@@ -222,7 +221,7 @@ export class ContentProcessor {
   async processGhostContent(
     htmlContent: string,
     postId: string,
-    showCameraMake: boolean = false
+    showCameraMake: boolean = false // eslint-disable-line @typescript-eslint/no-unused-vars
   ): Promise<ImageProcessingResult> {
     const errors: string[] = []
     let imageCount = 0
@@ -311,29 +310,29 @@ export class ContentProcessor {
           // Replace the external URL with the local URL
           let newTag = fullTag.replace(imageUrl, localImageUrl)
           
-          // Add caption if EXIF metadata is available
+          // Add EXIF data for dynamic caption rendering
           const exifMetadata = this.currentGhostImageExif
           if (exifMetadata) {
-            const caption = VercelBlobStorageService.generateFullCaption(exifMetadata, showCameraMake)
-            if (caption) {
-              // Check if image is already wrapped in a figure tag
-              const imgMatch = newTag.match(/<img[^>]*>/i)
-              if (imgMatch && !newTag.includes('<figure>')) {
-                // Only wrap if not already in a figure
-                const imgTag = imgMatch[0]
-                newTag = `<figure>
-                  ${imgTag}
-                  <figcaption>${caption}</figcaption>
-                </figure>`
-              } else if (imgMatch && newTag.includes('<figure>')) {
-                // If already in figure, just add/update the figcaption
-                if (newTag.includes('<figcaption>')) {
-                  // Replace existing figcaption
-                  newTag = newTag.replace(/<figcaption>[\s\S]*?<\/figcaption>/g, `<figcaption>${caption}</figcaption>`)
-                } else {
-                  // Add figcaption before closing figure
-                  newTag = newTag.replace('</figure>', `  <figcaption>${caption}</figcaption>\n</figure>`)
-                }
+            // Store EXIF data in data-exif attribute for dynamic caption rendering
+            const exifDataJson = JSON.stringify(exifMetadata)
+            
+            // Check if image is already wrapped in a figure tag
+            const imgMatch = newTag.match(/<img[^>]*>/i)
+            if (imgMatch && !newTag.includes('<figure>')) {
+              // Only wrap if not already in a figure
+              const imgTag = imgMatch[0]
+              newTag = `<figure>
+                ${imgTag}
+                <figcaption data-exif="${exifDataJson.replace(/"/g, '&quot;')}"></figcaption>
+              </figure>`
+            } else if (imgMatch && newTag.includes('<figure>')) {
+              // If already in figure, just add/update the figcaption
+              if (newTag.includes('<figcaption>')) {
+                // Replace existing figcaption with EXIF data
+                newTag = newTag.replace(/<figcaption[^>]*>[\s\S]*?<\/figcaption>/g, `<figcaption data-exif="${exifDataJson.replace(/"/g, '&quot;')}"></figcaption>`)
+              } else {
+                // Add figcaption before closing figure
+                newTag = newTag.replace('</figure>', `  <figcaption data-exif="${exifDataJson.replace(/"/g, '&quot;')}"></figcaption>\n</figure>`)
               }
             }
             // Clear the temporary EXIF metadata
