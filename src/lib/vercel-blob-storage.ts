@@ -358,7 +358,7 @@ export class VercelBlobStorageService {
           namingSource: decision.source,
           originalTitle,
           extractedDate,
-          exifMetadata: exifMetadata as any,
+          exifMetadata: exifMetadata ? JSON.parse(JSON.stringify(exifMetadata)) : null,
           originalFilename,
           decisionReason: decision.reason
         },
@@ -368,7 +368,7 @@ export class VercelBlobStorageService {
           namingSource: decision.source,
           originalTitle,
           extractedDate,
-          exifMetadata: exifMetadata as any,
+          exifMetadata: exifMetadata ? JSON.parse(JSON.stringify(exifMetadata)) : null,
           originalFilename,
           decisionReason: decision.reason,
           updatedAt: new Date()

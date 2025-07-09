@@ -61,7 +61,7 @@ export default function ImageNamingAdminPage() {
   // Check admin access
   useEffect(() => {
     if (status === 'loading') return
-    if (!session?.user || (session.user as any).role !== 'ADMIN') {
+    if (!session?.user || (session.user as { role?: string }).role !== 'ADMIN') {
       router.push('/')
       return
     }
@@ -95,7 +95,7 @@ export default function ImageNamingAdminPage() {
   }, [pagination.limit, filters.postId, filters.namingSource])
 
   useEffect(() => {
-    if ((session?.user as any)?.role === 'ADMIN') {
+    if ((session?.user as { role?: string })?.role === 'ADMIN') {
       fetchDecisions()
     }
   }, [session, filters, fetchDecisions])
@@ -155,7 +155,7 @@ export default function ImageNamingAdminPage() {
     return <div className="p-6">Loading...</div>
   }
 
-  if (!session?.user || (session.user as any).role !== 'ADMIN') {
+  if (!session?.user || (session.user as { role?: string }).role !== 'ADMIN') {
     return <div className="p-6">Access denied</div>
   }
 
@@ -308,7 +308,7 @@ export default function ImageNamingAdminPage() {
                           )}
                           {decision.exifMetadata && (
                             <div className="text-xs text-gray-500 mt-1">
-                              EXIF: {(decision.exifMetadata as any).make} {(decision.exifMetadata as any).model}
+                              EXIF: {(decision.exifMetadata as { make?: string; model?: string }).make} {(decision.exifMetadata as { make?: string; model?: string }).model}
                             </div>
                           )}
                         </div>
