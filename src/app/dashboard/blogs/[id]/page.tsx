@@ -124,17 +124,17 @@ export default function BlogSettings() {
         
         // Update original value to reflect saved state
         if (fieldName === 'showCameraMake') {
-          setOriginalShowCameraMake(value)
+          setOriginalShowCameraMake(value as boolean)
         } else if (fieldName === 'isPublic') {
-          setOriginalIsPublic(value)
+          setOriginalIsPublic(value as boolean)
         } else if (fieldName === 'theme') {
-          setOriginalTheme(value)
+          setOriginalTheme(value as string)
         } else if (fieldName === 'title') {
-          setOriginalTitle(value)
+          setOriginalTitle(value as string)
         } else if (fieldName === 'description') {
-          setOriginalDescription(value)
+          setOriginalDescription(value as string)
         } else if (fieldName === 'author') {
-          setOriginalAuthor(value)
+          setOriginalAuthor(value as string)
         }
         
         // Show success indicator
