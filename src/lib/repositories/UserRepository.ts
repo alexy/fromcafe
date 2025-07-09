@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { User, Prisma } from '@prisma/client'
+import { User } from '@prisma/client'
 
 export type UserWithBlogs = User & {
   blogs: Array<{
@@ -25,8 +25,6 @@ export interface UserCreateData {
   name?: string
   displayName?: string
   slug?: string
-  provider?: string
-  providerId?: string
   evernoteToken?: string
   evernoteNoteStoreUrl?: string
 }
@@ -127,8 +125,6 @@ export class UserRepository {
         name: data.name,
         displayName: data.displayName,
         slug: data.slug,
-        provider: data.provider,
-        providerId: data.providerId,
         evernoteToken: data.evernoteToken,
         evernoteNoteStoreUrl: data.evernoteNoteStoreUrl,
         isActive: true,
@@ -291,7 +287,7 @@ export class UserRepository {
     return prisma.user.findMany({
       where: {
         ghostApiToken: { not: null },
-        ghostSiteUrl: { not: null },
+        ghostApiUrl: { not: null },
         isActive: true
       }
     })

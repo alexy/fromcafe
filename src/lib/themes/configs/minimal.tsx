@@ -1,4 +1,5 @@
-import { ThemeConfig, PostThemeConfig } from '../base/BaseLayout'
+import { ThemeConfig } from '../base/BaseLayout'
+import { PostThemeConfig } from '../base/BasePost'
 
 export const minimalBlogConfig: ThemeConfig = {
   name: 'minimal',

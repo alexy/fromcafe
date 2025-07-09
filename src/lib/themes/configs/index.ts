@@ -1,4 +1,5 @@
-import { ThemeConfig, PostThemeConfig } from '../base/BaseLayout'
+import { ThemeConfig } from '../base/BaseLayout'
+import { PostThemeConfig } from '../base/BasePost'
 import { defaultBlogConfig, defaultPostConfig } from './default'
 import { minimalBlogConfig, minimalPostConfig } from './minimal'
 import { modernBlogConfig, modernPostConfig } from './modern'

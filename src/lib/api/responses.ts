@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 // Standard response types
-export interface SuccessResponse<T = any> {
+export interface SuccessResponse<T = unknown> {
   success: true
   data: T
   message?: string
@@ -10,10 +10,10 @@ export interface SuccessResponse<T = any> {
 export interface ErrorResponse {
   success: false
   error: string
-  details?: any
+  details?: unknown
 }
 
-export interface PaginatedResponse<T = any> extends SuccessResponse<T[]> {
+export interface PaginatedResponse<T = unknown> extends SuccessResponse<T[]> {
   pagination: {
     page: number
     limit: number
@@ -27,16 +27,19 @@ export interface PaginatedResponse<T = any> extends SuccessResponse<T[]> {
 /**
  * Create a success response
  */
-export function successResponse<T = any>(
+export function successResponse<T = unknown>(
   data: T,
   message?: string,
   status: number = 200
 ): NextResponse<SuccessResponse<T>> {
-  return NextResponse.json({
+  const response: SuccessResponse<T> = {
     success: true,
-    data,
-    ...(message && { message })
-  }, { status })
+    data
+  }
+  if (message) {
+    response.message = message
+  }
+  return NextResponse.json(response, { status })
 }
 
 /**
@@ -45,19 +48,22 @@ export function successResponse<T = any>(
 export function errorResponse(
   error: string,
   status: number = 400,
-  details?: any
+  details?: unknown
 ): NextResponse<ErrorResponse> {
-  return NextResponse.json({
+  const response: ErrorResponse = {
     success: false,
-    error,
-    ...(details && { details })
-  }, { status })
+    error
+  }
+  if (details) {
+    response.details = details
+  }
+  return NextResponse.json(response, { status })
 }
 
 /**
  * Create a paginated response
  */
-export function paginatedResponse<T = any>(
+export function paginatedResponse<T = unknown>(
   data: T[],
   pagination: {
     page: number
@@ -69,17 +75,20 @@ export function paginatedResponse<T = any>(
 ): NextResponse<PaginatedResponse<T>> {
   const totalPages = Math.ceil(pagination.total / pagination.limit)
   
-  return NextResponse.json({
+  const response: PaginatedResponse<T> = {
     success: true,
     data,
-    ...(message && { message }),
     pagination: {
       ...pagination,
       totalPages,
       hasNext: pagination.page < totalPages,
       hasPrev: pagination.page > 1
     }
-  }, { status })
+  }
+  if (message) {
+    response.message = message
+  }
+  return NextResponse.json(response, { status })
 }
 
 /**
@@ -113,9 +122,9 @@ export const responses = {
 /**
  * Parse request parameters safely
  */
-export async function parseRequestParams<T = any>(
+export async function parseRequestParams<T = unknown>(
   request: Request,
-  schema?: (data: any) => T
+  schema?: (data: unknown) => T
 ): Promise<{ data: T; error: null } | { data: null; error: NextResponse<ErrorResponse> }> {
   try {
     const data = await request.json()
@@ -135,7 +144,7 @@ export async function parseRequestParams<T = any>(
     }
     
     return { data, error: null }
-  } catch (error) {
+  } catch {
     return {
       data: null,
       error: responses.badRequest('Invalid JSON in request body')

@@ -8,6 +8,19 @@ import { authOptions } from '@/lib/auth'
 import { DomainService } from './DomainService'
 import type { Session } from 'next-auth'
 
+interface ExtendedUser {
+  id: string
+  role: string
+  isActive: boolean
+  name?: string | null
+  email?: string | null
+  image?: string | null
+}
+
+interface ExtendedSession extends Session {
+  user: ExtendedUser
+}
+
 export interface SessionInfo {
   session: Session | null
   isValid: boolean
@@ -41,9 +54,9 @@ export class SessionService {
     return {
       session,
       isValid,
-      userId: session?.user?.id,
-      userRole: session?.user?.role,
-      isActive: session?.user?.isActive
+      userId: (session as ExtendedSession)?.user?.id,
+      userRole: (session as ExtendedSession)?.user?.role,
+      isActive: (session as ExtendedSession)?.user?.isActive
     }
   }
 
@@ -57,17 +70,17 @@ export class SessionService {
     }
 
     // Check if authentication is required
-    if (options.requireAuth && !session.user.id) {
+    if (options.requireAuth && !(session as ExtendedSession).user.id) {
       return false
     }
 
     // Check if admin role is required
-    if (options.requireAdmin && session.user.role !== 'ADMIN') {
+    if (options.requireAdmin && (session as ExtendedSession).user.role !== 'ADMIN') {
       return false
     }
 
     // Check if active status is required
-    if (options.requireActive && session.user.isActive === false) {
+    if (options.requireActive && (session as ExtendedSession).user.isActive === false) {
       return false
     }
 
@@ -98,7 +111,7 @@ export class SessionService {
    */
   static async getUserId(): Promise<string | null> {
     const session = await this.getSession()
-    return session?.user?.id || null
+    return (session as ExtendedSession)?.user?.id || null
   }
 
   /**
@@ -106,7 +119,7 @@ export class SessionService {
    */
   static async isAdmin(): Promise<boolean> {
     const session = await this.getSession()
-    return session?.user?.role === 'ADMIN'
+    return (session as ExtendedSession)?.user?.role === 'ADMIN'
   }
 
   /**
@@ -114,7 +127,7 @@ export class SessionService {
    */
   static async isActive(): Promise<boolean> {
     const session = await this.getSession()
-    return session?.user?.isActive !== false
+    return (session as ExtendedSession)?.user?.isActive !== false
   }
 
   /**
@@ -183,7 +196,7 @@ export class SessionService {
   static async getCsrfToken(): Promise<string | undefined> {
     try {
       const session = await this.getSession()
-      return session?.user?.id // Simple CSRF based on user ID
+      return (session as ExtendedSession)?.user?.id // Simple CSRF based on user ID
     } catch {
       return undefined
     }

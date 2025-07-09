@@ -1,4 +1,5 @@
-import { ThemeConfig, PostThemeConfig } from '../base/BaseLayout'
+import { ThemeConfig } from '../base/BaseLayout'
+import { PostThemeConfig } from '../base/BasePost'
 
 export const modernBlogConfig: ThemeConfig = {
   name: 'modern',

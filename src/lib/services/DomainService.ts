@@ -32,7 +32,7 @@ export class DomainService {
       isSubdomain: isSubdomainResult,
       isPrimaryDomain: isPrimary,
       isDevelopment: isDev,
-      subdomain: isSubdomainResult ? this.extractSubdomain(hostname) : undefined
+      subdomain: isSubdomainResult ? this.extractSubdomain(hostname) ?? undefined : undefined
     }
   }
 
