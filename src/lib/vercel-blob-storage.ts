@@ -2,9 +2,22 @@
  * Vercel Blob-based image storage service for serverless compatibility
  */
 
-import { put, head, del } from '@vercel/blob'
+import { put, head, del, copy } from '@vercel/blob'
 import { createHash } from 'crypto'
 import { getConfig } from './config'
+
+export interface ExifMetadata {
+  dateTimeOriginal?: string
+  make?: string
+  model?: string
+  lensMake?: string
+  lensModel?: string
+  aperture?: number
+  shutterSpeed?: string
+  iso?: number
+  focalLength?: number
+  focalLengthIn35mm?: number
+}
 
 export interface ImageInfo {
   originalHash: string
@@ -13,6 +26,7 @@ export interface ImageInfo {
   size: number
   url: string
   contentHash: string
+  exifMetadata?: ExifMetadata
 }
 
 export class VercelBlobStorageService {
@@ -30,9 +44,24 @@ export class VercelBlobStorageService {
     postDate?: string
   ): Promise<ImageInfo> {
     try {
+      // Extract comprehensive EXIF metadata
+      const exifMetadata = await this.extractExifMetadata(imageData)
+      
       // Extract date if not provided
       if (!exifDate) {
-        exifDate = await this.extractImageDate(imageData, originalFilename, postDate)
+        exifDate = exifMetadata.dateTimeOriginal ? 
+          this.formatDateForFilename(new Date(exifMetadata.dateTimeOriginal)) :
+          await this.extractImageDate(imageData, originalFilename, postDate)
+      }
+      
+      // Check if we can just rename an existing image instead of uploading
+      const renameResult = await this.tryRenameExistingImage(originalHash, postId, title, originalFilename, mimeType, exifDate, postDate)
+      if (renameResult) {
+        // Add EXIF metadata to the renamed image result
+        return {
+          ...renameResult,
+          exifMetadata
+        }
       }
       
       // Generate content hash for deduplication
@@ -42,50 +71,7 @@ export class VercelBlobStorageService {
       const extension = this.getExtensionFromMimeType(mimeType)
       const filename = this.generateFilename(title, originalFilename, contentHash, extension, postId, exifDate)
 
-      // Check if image already exists with potentially different filename
-      const existingImage = await this.imageExists(originalHash, postId)
-      
-      if (existingImage) {
-        // Check if the current title would generate a different filename
-        const currentExpectedFilename = this.generateFilename(title, undefined, contentHash, extension, postId, exifDate)
-        
-        if (existingImage.filename === currentExpectedFilename) {
-          // Same filename, verify size and reuse
-          try {
-            const existingBlob = await head(`images/${existingImage.filename}`)
-            if (existingBlob && existingBlob.size === imageData.length) {
-              console.log(`Image already exists with same title: ${existingImage.filename} (${existingBlob.size} bytes) - reusing existing`)
-              return {
-                originalHash,
-                filename: existingImage.filename,
-                mimeType,
-                size: existingBlob.size,
-                url: existingBlob.url,
-                contentHash
-              }
-            }
-          } catch {
-            // Blob doesn't exist anymore, continue with upload
-          }
-        } else {
-          // Title has changed, need to upload with new filename
-          console.log(`Image title changed: ${existingImage.filename} -> ${currentExpectedFilename} - uploading with new filename`)
-          
-          // Delete old file after successful upload (will be done after upload)
-          // Store old filename for cleanup
-          const oldFilename = existingImage.filename
-          
-          // Mark for cleanup after successful upload
-          setTimeout(async () => {
-            try {
-              await del(`images/${oldFilename}`)
-              console.log(`Cleaned up old image file: ${oldFilename}`)
-            } catch (error) {
-              console.warn(`Failed to delete old image file ${oldFilename}:`, error)
-            }
-          }, 1000) // Small delay to ensure new file is uploaded first
-        }
-      }
+      // At this point, we need to upload the image data
       
       // Check if new filename already exists (edge case)
       try {
@@ -100,7 +86,8 @@ export class VercelBlobStorageService {
               mimeType,
               size: existingBlob.size,
               url: existingBlob.url,
-              contentHash
+              contentHash,
+              exifMetadata
             }
           } else {
             console.log(`Image exists but size mismatch: expected ${imageData.length}, found ${existingBlob.size} - uploading new version`)
@@ -126,7 +113,8 @@ export class VercelBlobStorageService {
         mimeType,
         size: imageData.length,
         url: blob.url,
-        contentHash
+        contentHash,
+        exifMetadata
       }
     } catch (error) {
       console.error('Error storing image in Vercel Blob:', error)
@@ -298,6 +286,99 @@ export class VercelBlobStorageService {
   }
 
   /**
+   * Extract comprehensive EXIF metadata from image
+   */
+  private async extractExifMetadata(imageData: Buffer): Promise<ExifMetadata> {
+    const config = getConfig()
+    
+    if (!config.images.useExifDates) {
+      return {}
+    }
+    
+    try {
+      const exifr = await import('exifr')
+      const exifData = await exifr.parse(imageData, {
+        tiff: true,
+        exif: true,
+        gps: false,
+        interop: false,
+        ifd1: false,
+        pick: [
+          'DateTimeOriginal', 'CreateDate', 'DateTime', 'DateTimeDigitized',
+          'Make', 'Model', 'LensMake', 'LensModel', 'LensInfo',
+          'FNumber', 'ExposureTime', 'ISO', 'FocalLength', 'FocalLengthIn35mmFormat'
+        ]
+      })
+      
+      if (!exifData) {
+        return {}
+      }
+      
+      // Extract date
+      let dateTimeOriginal: string | undefined
+      const dateFields = ['DateTimeOriginal', 'CreateDate', 'DateTime', 'DateTimeDigitized']
+      for (const field of dateFields) {
+        const date = exifData[field]
+        if (date) {
+          if (date instanceof Date) {
+            dateTimeOriginal = date.toISOString()
+            break
+          }
+          if (typeof date === 'string') {
+            const parsedDate = new Date(date)
+            if (!isNaN(parsedDate.getTime())) {
+              dateTimeOriginal = parsedDate.toISOString()
+              break
+            }
+          }
+        }
+      }
+      
+      // Extract lens information
+      let lensModel = exifData.LensModel
+      if (!lensModel && exifData.LensInfo) {
+        // Try to construct lens model from LensInfo array
+        const lensInfo = exifData.LensInfo
+        if (Array.isArray(lensInfo) && lensInfo.length >= 4) {
+          const [minFocal, maxFocal, minAperture, maxAperture] = lensInfo
+          if (minFocal === maxFocal) {
+            lensModel = `${minFocal}mm f/${minAperture}`
+          } else {
+            lensModel = `${minFocal}-${maxFocal}mm f/${minAperture}-${maxAperture}`
+          }
+        }
+      }
+      
+      // Format shutter speed
+      let shutterSpeed: string | undefined
+      if (exifData.ExposureTime) {
+        const exposureTime = exifData.ExposureTime
+        if (exposureTime >= 1) {
+          shutterSpeed = `${exposureTime}s`
+        } else {
+          shutterSpeed = `1/${Math.round(1 / exposureTime)}s`
+        }
+      }
+      
+      return {
+        dateTimeOriginal,
+        make: exifData.Make,
+        model: exifData.Model,
+        lensMake: exifData.LensMake,
+        lensModel,
+        aperture: exifData.FNumber,
+        shutterSpeed,
+        iso: exifData.ISO,
+        focalLength: exifData.FocalLength,
+        focalLengthIn35mm: exifData.FocalLengthIn35mmFormat
+      }
+    } catch (error) {
+      console.warn('Failed to extract EXIF metadata:', error)
+      return {}
+    }
+  }
+
+  /**
    * Extract date from EXIF, filename, file stats, or post date
    */
   private async extractImageDate(imageData: Buffer, originalFilename?: string, postDate?: string): Promise<string> {
@@ -403,5 +484,173 @@ export class VercelBlobStorageService {
    */
   private formatDateForFilename(date: Date): string {
     return date.toISOString().split('T')[0] // YYYY-MM-DD format
+  }
+
+  /**
+   * Generate camera/lens caption from EXIF metadata
+   * Example: "Leica M10-R with Summicron-M 35/2.0"
+   */
+  static generateCameraCaption(exifMetadata: ExifMetadata): string | null {
+    if (!exifMetadata.make && !exifMetadata.model) {
+      return null
+    }
+    
+    let caption = ''
+    
+    // Add camera make and model
+    if (exifMetadata.make && exifMetadata.model) {
+      // Remove redundant make from model if present
+      const model = exifMetadata.model.replace(new RegExp(`^${exifMetadata.make}\\s*`, 'i'), '')
+      caption = `${exifMetadata.make} ${model}`
+    } else if (exifMetadata.make) {
+      caption = exifMetadata.make
+    } else if (exifMetadata.model) {
+      caption = exifMetadata.model
+    }
+    
+    // Add lens information
+    if (exifMetadata.lensModel) {
+      caption += ` with ${exifMetadata.lensModel}`
+    } else if (exifMetadata.lensMake) {
+      caption += ` with ${exifMetadata.lensMake}`
+    }
+    
+    return caption || null
+  }
+
+  /**
+   * Generate technical details caption from EXIF metadata
+   * Example: "35mm · f/2.0 · 1/125s · ISO 400"
+   */
+  static generateTechnicalCaption(exifMetadata: ExifMetadata): string | null {
+    const details: string[] = []
+    
+    // Add focal length
+    if (exifMetadata.focalLength) {
+      details.push(`${exifMetadata.focalLength}mm`)
+    }
+    
+    // Add aperture
+    if (exifMetadata.aperture) {
+      details.push(`f/${exifMetadata.aperture}`)
+    }
+    
+    // Add shutter speed
+    if (exifMetadata.shutterSpeed) {
+      details.push(exifMetadata.shutterSpeed)
+    }
+    
+    // Add ISO
+    if (exifMetadata.iso) {
+      details.push(`ISO ${exifMetadata.iso}`)
+    }
+    
+    return details.length > 0 ? details.join(' · ') : null
+  }
+
+  /**
+   * Generate full caption combining camera and technical details
+   */
+  static generateFullCaption(exifMetadata: ExifMetadata): string | null {
+    const cameraCaption = this.generateCameraCaption(exifMetadata)
+    const technicalCaption = this.generateTechnicalCaption(exifMetadata)
+    
+    if (cameraCaption && technicalCaption) {
+      return `${cameraCaption}\n<small>${technicalCaption}</small>`
+    } else if (cameraCaption) {
+      return cameraCaption
+    } else if (technicalCaption) {
+      return `<small>${technicalCaption}</small>`
+    }
+    
+    return null
+  }
+
+  /**
+   * Try to rename an existing image instead of re-uploading
+   * Returns ImageInfo if successful, null if upload is needed
+   */
+  private async tryRenameExistingImage(
+    originalHash: string,
+    postId: string,
+    title?: string,
+    originalFilename?: string,
+    mimeType?: string,
+    exifDate?: string,
+    postDate?: string
+  ): Promise<ImageInfo | null> {
+    // Extract date if not provided
+    if (!exifDate) {
+      // For rename operations, we need to get the date without image data
+      // Use post date or current date as fallback
+      if (postDate) {
+        try {
+          const parsedDate = new Date(postDate)
+          if (!isNaN(parsedDate.getTime())) {
+            exifDate = this.formatDateForFilename(parsedDate)
+          }
+        } catch {
+          // Fall through to current date
+        }
+      }
+      exifDate = exifDate || this.formatDateForFilename(new Date())
+    }
+    
+    const existingImage = await this.imageExists(originalHash, postId)
+    if (!existingImage) {
+      return null // No existing image to rename
+    }
+    
+    // Generate what the filename should be with current title
+    const contentHash = createHash('sha256').update(originalHash).digest('hex').substring(0, 16)
+    const extension = this.getExtensionFromMimeType(mimeType || 'image/jpeg')
+    const expectedFilename = this.generateFilename(title, originalFilename, contentHash, extension, postId, exifDate)
+    
+    if (existingImage.filename === expectedFilename) {
+      // No change needed, return existing image info
+      try {
+        const existingBlob = await head(`images/${existingImage.filename}`)
+        return {
+          originalHash,
+          filename: existingImage.filename,
+          mimeType: mimeType || 'image/jpeg',
+          size: existingBlob?.size || 0,
+          url: existingImage.url,
+          contentHash
+        }
+      } catch {
+        return null // Blob doesn't exist, need to upload
+      }
+    }
+    
+    // Title has changed, rename the existing blob
+    console.log(`Image title changed: ${existingImage.filename} -> ${expectedFilename} - renaming existing blob`)
+    
+    try {
+      // Copy existing blob to new filename
+      const copiedBlob = await copy(`images/${existingImage.filename}`, `images/${expectedFilename}`, {
+        access: 'public'
+      })
+      
+      // Delete old blob after successful copy
+      await del(`images/${existingImage.filename}`)
+      
+      console.log(`Successfully renamed image: ${existingImage.filename} -> ${expectedFilename}`)
+      
+      // Get size from the copied blob
+      const renamedBlob = await head(`images/${expectedFilename}`)
+      
+      return {
+        originalHash,
+        filename: expectedFilename,
+        mimeType: mimeType || 'image/jpeg',
+        size: renamedBlob?.size || 0,
+        url: copiedBlob.url,
+        contentHash
+      }
+    } catch (error) {
+      console.warn(`Failed to rename blob, will need to re-upload:`, error)
+      return null // Fall back to upload
+    }
   }
 }

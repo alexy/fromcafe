@@ -3,7 +3,7 @@
  */
 
 import { createHash } from 'crypto'
-import { VercelBlobStorageService } from '@/lib/vercel-blob-storage'
+import { VercelBlobStorageService, ExifMetadata } from '@/lib/vercel-blob-storage'
 import { EvernoteService, EvernoteNote } from '@/lib/evernote'
 import { prisma } from '@/lib/prisma'
 
@@ -13,8 +13,23 @@ export interface ImageProcessingResult {
   errors: string[]
 }
 
+// Extended resource interface to include EXIF metadata
+interface ResourceWithExif {
+  guid: string
+  data: {
+    bodyHash: string | Buffer
+    size: number
+    body?: Buffer
+  }
+  mime: string
+  width?: number
+  height?: number
+  exifMetadata?: ExifMetadata
+}
+
 export class ContentProcessor {
   private imageStorage: VercelBlobStorageService
+  private currentGhostImageExif?: ExifMetadata
 
   constructor() {
     this.imageStorage = new VercelBlobStorageService()
@@ -125,13 +140,20 @@ export class ContentProcessor {
           (title && !existingImage.filename.includes(this.sanitizeFilename(title)))
         
         if (shouldReprocess) {
-          // Download and store the image (or re-store with new title)
+          // Convert Evernote timestamp to date string
+          const postDate = new Date(note.created).toISOString()
+          
+          // Try to handle renaming without downloading image data first
           const imageData = await evernoteService.getResourceData(resource.guid)
           if (imageData) {
-            // Convert Evernote timestamp to date string
-            const postDate = new Date(note.created).toISOString()
+            // The storage service will handle renaming vs uploading efficiently
             const imageInfo = await this.imageStorage.storeImage(imageData, hash, resource.mime, postId, title, undefined, undefined, postDate)
             imageUrl = imageInfo.url
+            
+            // Store EXIF metadata for caption generation
+            if (imageInfo.exifMetadata) {
+              (resource as ResourceWithExif).exifMetadata = imageInfo.exifMetadata
+            }
             
             const action = existingImage ? 'Updated' : 'Stored'
             console.log(`${action} Evernote image: ${imageInfo.filename} for post ${postId}${title ? ` (title: "${title}")` : ''}`)
@@ -153,8 +175,21 @@ export class ContentProcessor {
             imgAttributes += ` width="${resource.width}" height="${resource.height}"`
           }
           
-          const imgTag = `<img ${imgAttributes} />`
-          mediaReplacements.push({ tag: fullTag, replacement: imgTag })
+          // Generate caption from EXIF metadata if available
+          let imgHtml = `<img ${imgAttributes} />`
+          
+          const exifMetadata = (resource as ResourceWithExif).exifMetadata
+          if (exifMetadata) {
+            const caption = VercelBlobStorageService.generateFullCaption(exifMetadata)
+            if (caption) {
+              imgHtml = `<figure>
+                ${imgHtml}
+                <figcaption>${caption}</figcaption>
+              </figure>`
+            }
+          }
+          
+          mediaReplacements.push({ tag: fullTag, replacement: imgHtml })
           imageCount++
         } else {
           errors.push(`Failed to process image: ${hash}`)
@@ -251,6 +286,11 @@ export class ContentProcessor {
             const imageInfo = await this.imageStorage.storeImage(imageData, urlHash, mimeType, postId, title, originalFilename, undefined, postDate)
             localImageUrl = imageInfo.url
             
+            // Store EXIF metadata for caption generation
+            if (imageInfo.exifMetadata) {
+              this.currentGhostImageExif = imageInfo.exifMetadata
+            }
+            
             // Log which attribute was used for the filename
             let sourceAttribute = ''
             if (exportAsMatch?.[1]) sourceAttribute = ' (from export-as)'
@@ -266,7 +306,27 @@ export class ContentProcessor {
 
         if (localImageUrl) {
           // Replace the external URL with the local URL
-          const newTag = fullTag.replace(imageUrl, localImageUrl)
+          let newTag = fullTag.replace(imageUrl, localImageUrl)
+          
+          // Add caption if EXIF metadata is available
+          const exifMetadata = this.currentGhostImageExif
+          if (exifMetadata) {
+            const caption = VercelBlobStorageService.generateFullCaption(exifMetadata)
+            if (caption) {
+              // Wrap the img tag in a figure with caption
+              const imgMatch = newTag.match(/<img[^>]*>/i)
+              if (imgMatch) {
+                const imgTag = imgMatch[0]
+                newTag = `<figure>
+                  ${imgTag}
+                  <figcaption>${caption}</figcaption>
+                </figure>`
+              }
+            }
+            // Clear the temporary EXIF metadata
+            this.currentGhostImageExif = undefined
+          }
+          
           imageReplacements.push({ tag: fullTag, replacement: newTag })
           imageCount++
         } else {
