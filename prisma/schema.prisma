@@ -194,7 +194,7 @@ model GhostToken {
 
 model ImageNamingDecision {
   id               String                @id @default(cuid())
-  postId           String
+  postId           String?
   originalHash     String                @unique
   blobFilename     String
   blobUrl          String
@@ -206,7 +206,7 @@ model ImageNamingDecision {
   decisionReason   String?
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
-  post             Post                  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post             Post?                 @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId])
   @@index([blobFilename])

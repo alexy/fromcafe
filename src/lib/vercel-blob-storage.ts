@@ -394,19 +394,13 @@ export class VercelBlobStorageService {
     originalFilename?: string
   ): Promise<void> {
     try {
-      // Skip naming decision recording for Ghost upload pseudo-postIds to avoid foreign key constraint
-      if (postId.startsWith('ghost-')) {
-        console.log(`Skipping naming decision recording for Ghost upload pseudo-postId: ${postId} (hash: ${originalHash})`)
-        console.log(`Ghost upload naming decision would be: ${decision.source} - ${decision.reason}`)
-        if (originalTitle) console.log(`Original title: ${originalTitle}`)
-        if (originalFilename) console.log(`Original filename: ${originalFilename}`)
-        return
-      }
+      // For Ghost upload pseudo-postIds, use null postId to avoid foreign key constraint
+      const actualPostId = postId.startsWith('ghost-') ? null : postId
       
       await prisma.imageNamingDecision.upsert({
         where: { originalHash },
         create: {
-          postId,
+          postId: actualPostId,
           originalHash,
           blobFilename,
           blobUrl,
@@ -418,6 +412,7 @@ export class VercelBlobStorageService {
           decisionReason: decision.reason
         },
         update: {
+          postId: actualPostId,
           blobFilename,
           blobUrl,
           namingSource: decision.source,
