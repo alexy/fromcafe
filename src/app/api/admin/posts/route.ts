@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { ContentSource } from '@prisma/client'
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,13 +9,26 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = parseInt(searchParams.get('offset') || '0')
     const showContent = searchParams.get('content') === 'true'
+    const publishedFilter = searchParams.get('published') // 'true', 'false', or null for all
+    const sourceFilter = searchParams.get('source') // 'EVERNOTE', 'GHOST', or null for all
 
     // Build where clause
     const whereClause: {
       blog?: { slug: string }
+      isPublished?: boolean
+      contentSource?: ContentSource
     } = {}
+    
     if (blogSlug) {
       whereClause.blog = { slug: blogSlug }
+    }
+    
+    if (publishedFilter !== null) {
+      whereClause.isPublished = publishedFilter === 'true'
+    }
+    
+    if (sourceFilter) {
+      whereClause.contentSource = sourceFilter as ContentSource
     }
 
     // Get posts with blog information
@@ -73,6 +87,7 @@ export async function GET(request: NextRequest) {
         },
         url: postUrl,
         isPublished: post.isPublished,
+        contentSource: post.contentSource,
         contentFormat: post.contentFormat,
         contentLength: post.content.length,
         figureCount,
@@ -126,6 +141,34 @@ export async function POST(request: NextRequest) {
       })
 
       return NextResponse.json({ message: 'Cache invalidated for post' })
+    }
+
+    if (action === 'delete-unpublished') {
+      const { postId } = await request.json()
+      
+      if (!postId) {
+        return NextResponse.json({ error: 'Post ID required' }, { status: 400 })
+      }
+
+      // Only allow deletion of unpublished posts
+      const post = await prisma.post.findUnique({
+        where: { id: postId },
+        select: { isPublished: true, title: true }
+      })
+
+      if (!post) {
+        return NextResponse.json({ error: 'Post not found' }, { status: 404 })
+      }
+
+      if (post.isPublished) {
+        return NextResponse.json({ error: 'Cannot delete published posts' }, { status: 400 })
+      }
+
+      await prisma.post.delete({
+        where: { id: postId }
+      })
+
+      return NextResponse.json({ message: `Unpublished post "${post.title}" deleted successfully` })
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })

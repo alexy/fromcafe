@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface Post {
   id: string
@@ -16,6 +16,7 @@ interface Post {
   }
   url: string
   isPublished: boolean
+  contentSource: string
   contentFormat: string
   contentLength: number
   figureCount: number
@@ -34,9 +35,11 @@ export default function AdminPostsPage() {
   const [error, setError] = useState<string | null>(null)
   const [blogFilter, setBlogFilter] = useState('')
   const [showContent, setShowContent] = useState(false)
+  const [publishedFilter, setPublishedFilter] = useState<'all' | 'published' | 'unpublished'>('all')
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'EVERNOTE' | 'GHOST'>('all')
   const [pagination, setPagination] = useState({ total: 0, limit: 20, offset: 0, hasMore: false })
 
-  const fetchPosts = async (blog = '', offset = 0, content = false) => {
+  const fetchPosts = useCallback(async (blog = '', offset = 0, content = false, published = publishedFilter, source = sourceFilter) => {
     try {
       setLoading(true)
       const params = new URLSearchParams({
@@ -47,6 +50,14 @@ export default function AdminPostsPage() {
       
       if (blog) {
         params.append('blog', blog)
+      }
+
+      if (published !== 'all') {
+        params.append('published', published === 'published' ? 'true' : 'false')
+      }
+
+      if (source !== 'all') {
+        params.append('source', source)
       }
 
       const response = await fetch(`/api/admin/posts?${params}`)
@@ -63,7 +74,7 @@ export default function AdminPostsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [publishedFilter, sourceFilter])
 
   const clearCache = async (postId: string) => {
     try {
@@ -113,9 +124,35 @@ export default function AdminPostsPage() {
     alert('Dynamic caption rendering is now enabled. Captions will update automatically based on blog settings.')
   }
 
+  const deleteUnpublishedPost = async (postId: string, postTitle: string) => {
+    if (!confirm(`Are you sure you want to delete the unpublished post "${postTitle}"? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch('/api/admin/posts?action=delete-unpublished', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete post')
+      }
+
+      const result = await response.json()
+      alert(result.message)
+      
+      // Refresh the posts list
+      fetchPosts(blogFilter, 0, showContent, publishedFilter, sourceFilter)
+    } catch (err) {
+      alert('Failed to delete post: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    }
+  }
+
   useEffect(() => {
-    fetchPosts(blogFilter, 0, showContent)
-  }, [blogFilter, showContent])
+    fetchPosts(blogFilter, 0, showContent, publishedFilter, sourceFilter)
+  }, [blogFilter, showContent, publishedFilter, sourceFilter, fetchPosts])
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setBlogFilter(e.target.value)
@@ -124,7 +161,7 @@ export default function AdminPostsPage() {
 
   const loadMore = () => {
     const newOffset = pagination.offset + pagination.limit
-    fetchPosts(blogFilter, newOffset, showContent)
+    fetchPosts(blogFilter, newOffset, showContent, publishedFilter, sourceFilter)
   }
 
   if (loading && posts.length === 0) {
@@ -139,25 +176,56 @@ export default function AdminPostsPage() {
     <div className="p-8 max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold mb-6 text-blue-900">Admin: Posts Database</h1>
       
-      <div className="mb-6 flex gap-4 items-center">
-        <input
-          type="text"
-          placeholder="Filter by blog slug..."
-          value={blogFilter}
-          onChange={handleFilterChange}
-          className="px-3 py-2 border rounded"
-        />
-        <label className="flex items-center gap-2">
+      <div className="mb-6 space-y-4">
+        <div className="flex flex-wrap gap-4 items-center">
           <input
-            type="checkbox"
-            checked={showContent}
-            onChange={(e) => setShowContent(e.target.checked)}
+            type="text"
+            placeholder="Filter by blog slug..."
+            value={blogFilter}
+            onChange={handleFilterChange}
+            className="px-3 py-2 border rounded"
           />
-          Show content
-        </label>
-        <span className="text-sm text-black">
-          {pagination.total} posts total
-        </span>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showContent}
+              onChange={(e) => setShowContent(e.target.checked)}
+            />
+            Show content
+          </label>
+          <span className="text-sm text-black">
+            {pagination.total} posts total
+          </span>
+        </div>
+        
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">Published:</label>
+            <select
+              value={publishedFilter}
+              onChange={(e) => setPublishedFilter(e.target.value as 'all' | 'published' | 'unpublished')}
+              className="px-2 py-1 border rounded text-sm"
+            >
+              <option value="all">All</option>
+              <option value="published">Published</option>
+              <option value="unpublished">Unpublished</option>
+            </select>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">Source:</label>
+            <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value as 'all' | 'EVERNOTE' | 'GHOST')}
+              className="px-2 py-1 border rounded text-sm"
+            >
+              <option value="all">All</option>
+              <option value="EVERNOTE">Evernote</option>
+              <option value="GHOST">Ghost</option>
+            </select>
+          </div>
+        </div>
+        
         <div className="text-sm text-gray-600">
           <strong>Caption Update:</strong> Updates existing image captions to respect current blog showCameraMake setting
         </div>
@@ -176,33 +244,50 @@ export default function AdminPostsPage() {
                 </p>
               </div>
               <div className="text-right">
-                <span className={`px-2 py-1 rounded text-xs ${
-                  post.isPublished ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {post.isPublished ? 'Published' : 'Draft'}
-                </span>
-                <button
-                  onClick={() => clearCache(post.id)}
-                  className="ml-2 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-                >
-                  Clear Cache
-                </button>
-                {post.hasNestedFigures && (
+                <div className="flex items-center gap-2 justify-end mb-2">
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    post.isPublished ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {post.isPublished ? 'Published' : 'Draft'}
+                  </span>
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    post.contentSource === 'EVERNOTE' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'
+                  }`}>
+                    {post.contentSource}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 justify-end flex-wrap">
                   <button
-                    onClick={() => fixNestedFigures(post.id)}
-                    className="ml-2 px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+                    onClick={() => clearCache(post.id)}
+                    className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
                   >
-                    Fix Nested Figures
+                    Clear Cache
                   </button>
-                )}
-                {post.figcaptionCount > 0 && (
-                  <button
-                    onClick={() => updateCaptions(post.blog.id, post.blog.title)}
-                    className="ml-2 px-2 py-1 bg-purple-500 text-white rounded text-xs hover:bg-purple-600"
-                  >
-                    Update Captions
-                  </button>
-                )}
+                  {post.hasNestedFigures && (
+                    <button
+                      onClick={() => fixNestedFigures(post.id)}
+                      className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+                    >
+                      Fix Nested Figures
+                    </button>
+                  )}
+                  {post.figcaptionCount > 0 && (
+                    <button
+                      onClick={() => updateCaptions(post.blog.id, post.blog.title)}
+                      className="px-2 py-1 bg-purple-500 text-white rounded text-xs hover:bg-purple-600"
+                    >
+                      Update Captions
+                    </button>
+                  )}
+                  {!post.isPublished && (
+                    <button
+                      onClick={() => deleteUnpublishedPost(post.id, post.title)}
+                      className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
