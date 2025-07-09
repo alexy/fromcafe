@@ -89,30 +89,20 @@ export class VercelBlobStorageService {
           if (existingBlob.size === imageData.length) {
             console.log(`Image already exists in Vercel Blob: ${filename} (${existingBlob.size} bytes) - reusing existing`)
             
-            // Record naming decision for reused image
-            console.log(`Recording naming decision for ${originalHash} in post ${postId}`)
-            await this.recordNamingDecision(
+            return await this.recordNamingDecisionAndCreateResult(
               postId,
               originalHash,
               filename,
               existingBlob.url,
               filenameResult.decision,
-              title,
-              exifDate,
-              exifMetadata,
-              originalFilename
-            )
-            
-            return {
-              originalHash,
-              filename,
               mimeType,
-              size: existingBlob.size,
-              url: existingBlob.url,
+              existingBlob.size,
               contentHash,
               exifMetadata,
-              namingDecision: filenameResult.decision
-            }
+              title,
+              exifDate,
+              originalFilename
+            )
           } else {
             console.log(`Image exists but size mismatch: expected ${imageData.length}, found ${existingBlob.size} - uploading new version`)
           }
@@ -131,30 +121,20 @@ export class VercelBlobStorageService {
 
       console.log(`Stored image in Vercel Blob: ${filename} (${imageData.length} bytes)`)
 
-      // Record naming decision in database
-      console.log(`Recording naming decision for ${originalHash} in post ${postId}`)
-      await this.recordNamingDecision(
+      return await this.recordNamingDecisionAndCreateResult(
         postId,
         originalHash,
         filename,
         blob.url,
         filenameResult.decision,
-        title,
-        exifDate,
-        exifMetadata,
-        originalFilename
-      )
-
-      return {
-        originalHash,
-        filename,
         mimeType,
-        size: imageData.length,
-        url: blob.url,
+        imageData.length,
         contentHash,
         exifMetadata,
-        namingDecision: filenameResult.decision
-      }
+        title,
+        exifDate,
+        originalFilename
+      )
     } catch (error) {
       console.error('Error storing image in Vercel Blob:', error)
       throw new Error(`Failed to store image: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -347,6 +327,49 @@ export class VercelBlobStorageService {
           reason: 'Used content hash as fallback - no title, filename, or EXIF date available'
         }
       }
+    }
+  }
+
+  /**
+   * Record naming decision and create standardized return value
+   */
+  private async recordNamingDecisionAndCreateResult(
+    postId: string,
+    originalHash: string,
+    filename: string,
+    blobUrl: string,
+    decision: { source: NamingDecisionSource; reason: string },
+    mimeType: string,
+    size: number,
+    contentHash: string,
+    exifMetadata?: ExifMetadata,
+    originalTitle?: string,
+    extractedDate?: string,
+    originalFilename?: string
+  ): Promise<ImageInfo> {
+    // Record naming decision in database
+    console.log(`Recording naming decision for ${originalHash} in post ${postId}`)
+    await this.recordNamingDecision(
+      postId,
+      originalHash,
+      filename,
+      blobUrl,
+      decision,
+      originalTitle,
+      extractedDate,
+      exifMetadata,
+      originalFilename
+    )
+
+    return {
+      originalHash,
+      filename,
+      mimeType,
+      size,
+      url: blobUrl,
+      contentHash,
+      exifMetadata,
+      namingDecision: decision
     }
   }
 
@@ -777,29 +800,20 @@ export class VercelBlobStorageService {
       try {
         const existingBlob = await head(`images/${existingImage.filename}`)
         
-        // Record naming decision for unchanged image
-        console.log(`Recording naming decision for ${originalHash} in post ${postId}`)
-        await this.recordNamingDecision(
+        return await this.recordNamingDecisionAndCreateResult(
           postId,
           originalHash,
           existingImage.filename,
           existingImage.url,
           filenameResult.decision,
+          mimeType || 'image/jpeg',
+          existingBlob?.size || 0,
+          contentHash,
+          undefined, // No EXIF metadata available in rename operations
           title,
           exifDate,
-          undefined, // No EXIF metadata available in rename operations
           originalFilename
         )
-        
-        return {
-          originalHash,
-          filename: existingImage.filename,
-          mimeType: mimeType || 'image/jpeg',
-          size: existingBlob?.size || 0,
-          url: existingImage.url,
-          contentHash,
-          namingDecision: filenameResult.decision
-        }
       } catch {
         return null // Blob doesn't exist, need to upload
       }
@@ -822,29 +836,20 @@ export class VercelBlobStorageService {
       // Get size from the copied blob
       const renamedBlob = await head(`images/${expectedFilename}`)
       
-      // Record naming decision for renamed image
-      console.log(`Recording naming decision for ${originalHash} in post ${postId}`)
-      await this.recordNamingDecision(
+      return await this.recordNamingDecisionAndCreateResult(
         postId,
         originalHash,
         expectedFilename,
         copiedBlob.url,
         filenameResult.decision,
+        mimeType || 'image/jpeg',
+        renamedBlob?.size || 0,
+        contentHash,
+        undefined, // No EXIF metadata available in rename operations
         title,
         exifDate,
-        undefined, // No EXIF metadata available in rename operations
         originalFilename
       )
-      
-      return {
-        originalHash,
-        filename: expectedFilename,
-        mimeType: mimeType || 'image/jpeg',
-        size: renamedBlob?.size || 0,
-        url: copiedBlob.url,
-        contentHash,
-        namingDecision: filenameResult.decision
-      }
     } catch (error) {
       console.warn(`Failed to rename blob, will need to re-upload:`, error)
       return null // Fall back to upload
