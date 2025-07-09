@@ -272,22 +272,22 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* System Stats */}
+          {/* Post Management */}
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 00-2-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      System Statistics
+                      Post Management
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      View metrics
+                      View all posts
                     </dd>
                   </dl>
                 </div>
@@ -295,9 +295,12 @@ export default function AdminPage() {
             </div>
             <div className="bg-gray-50 px-5 py-3">
               <div className="text-sm">
-                <span className="font-medium text-gray-500">
-                  Coming soon
-                </span>
+                <button
+                  onClick={() => router.push('/admin/posts')}
+                  className="font-medium text-blue-700 hover:text-blue-900"
+                >
+                  View all posts
+                </button>
               </div>
             </div>
           </div>
@@ -399,6 +402,30 @@ export default function AdminPage() {
                     <div className="sm:flex">
                       <p className="text-sm text-gray-500">
                         View and manage all user accounts, roles, and permissions
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => router.push('/admin/posts')}
+                  className="block hover:bg-gray-50 px-4 py-4 sm:px-6 w-full text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-blue-600 truncate">
+                      Manage Posts
+                    </p>
+                    <div className="ml-2 flex-shrink-0 flex">
+                      <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        Active
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-2 sm:flex sm:justify-between">
+                    <div className="sm:flex">
+                      <p className="text-sm text-gray-500">
+                        View all posts in database, analyze figure structures, and clear cache
                       </p>
                     </div>
                   </div>
