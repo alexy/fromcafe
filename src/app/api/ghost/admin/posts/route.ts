@@ -223,11 +223,11 @@ export async function POST(request: NextRequest) {
       if (isMarkdownContent) {
         // Convert Markdown to HTML for image processing only
         const htmlContent = await marked(content, { renderer })
-        processingResult = await contentProcessor.processGhostContent(htmlContent, post.id)
+        processingResult = await contentProcessor.processGhostContent(htmlContent, post.id, fullBlog.showCameraMake)
         // But store the original Markdown content, not the processed HTML
         processingResult.processedContent = content
       } else {
-        processingResult = await contentProcessor.processGhostContent(content, post.id)
+        processingResult = await contentProcessor.processGhostContent(content, post.id, fullBlog.showCameraMake)
       }
       
       // Generate excerpt from content (use HTML version for excerpt generation)

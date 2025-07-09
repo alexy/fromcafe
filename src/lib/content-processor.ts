@@ -42,7 +42,8 @@ export class ContentProcessor {
     enmlContent: string, 
     note: EvernoteNote, 
     postId: string, 
-    evernoteService: EvernoteService
+    evernoteService: EvernoteService,
+    showCameraMake: boolean = false
   ): Promise<ImageProcessingResult> {
     console.log(`🖼️ Processing Evernote content for post ${postId}, note: "${note.title}"`)
     console.log(`📄 ENML content length: ${enmlContent.length}`)
@@ -180,7 +181,7 @@ export class ContentProcessor {
           
           const exifMetadata = (resource as ResourceWithExif).exifMetadata
           if (exifMetadata) {
-            const caption = VercelBlobStorageService.generateFullCaption(exifMetadata)
+            const caption = VercelBlobStorageService.generateFullCaption(exifMetadata, showCameraMake)
             if (caption) {
               imgHtml = `<figure>
                 ${imgHtml}
@@ -220,7 +221,8 @@ export class ContentProcessor {
    */
   async processGhostContent(
     htmlContent: string,
-    postId: string
+    postId: string,
+    showCameraMake: boolean = false
   ): Promise<ImageProcessingResult> {
     const errors: string[] = []
     let imageCount = 0
@@ -312,7 +314,7 @@ export class ContentProcessor {
           // Add caption if EXIF metadata is available
           const exifMetadata = this.currentGhostImageExif
           if (exifMetadata) {
-            const caption = VercelBlobStorageService.generateFullCaption(exifMetadata)
+            const caption = VercelBlobStorageService.generateFullCaption(exifMetadata, showCameraMake)
             if (caption) {
               // Check if image is already wrapped in a figure tag
               const imgMatch = newTag.match(/<img[^>]*>/i)

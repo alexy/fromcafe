@@ -164,7 +164,8 @@ export class SyncService {
           lastSyncedAt: true,
           lastSyncAttemptAt: true,
           evernoteNotebook: true,
-          evernoteNotebookName: true
+          evernoteNotebookName: true,
+          showCameraMake: true
         }
       })
       
@@ -271,7 +272,7 @@ export class SyncService {
         if (existingPost) {
           // Check if post actually needs updating by comparing content
           const contentProcessor = new ContentProcessor()
-          const processingResult = await contentProcessor.processEvernoteContent(note.content, note, existingPost.id, evernoteService)
+          const processingResult = await contentProcessor.processEvernoteContent(note.content, note, existingPost.id, evernoteService, blog?.showCameraMake || false)
           const newContent = processingResult.processedContent
           const newExcerpt = contentProcessor.generateExcerpt(note.content)
           const newUpdatedAt = new Date(note.updated)
@@ -423,7 +424,7 @@ export class SyncService {
           })
           
           // Process content with images after creating the post (need post ID)
-          const processingResult = await contentProcessor.processEvernoteContent(note.content, note, newPost.id, evernoteService)
+          const processingResult = await contentProcessor.processEvernoteContent(note.content, note, newPost.id, evernoteService, blog?.showCameraMake || false)
           await prisma.post.update({
             where: { id: newPost.id },
             data: { content: processingResult.processedContent }

@@ -490,22 +490,36 @@ export class VercelBlobStorageService {
    * Generate camera/lens caption from EXIF metadata
    * Example: "Leica M10-R with Summicron-M 35/2.0"
    */
-  static generateCameraCaption(exifMetadata: ExifMetadata): string | null {
+  static generateCameraCaption(exifMetadata: ExifMetadata, showMake: boolean = false): string | null {
     if (!exifMetadata.make && !exifMetadata.model) {
       return null
     }
     
     let caption = ''
     
-    // Add camera model (without make)
-    if (exifMetadata.model) {
-      // Remove redundant make from model if present
-      const model = exifMetadata.make 
-        ? exifMetadata.model.replace(new RegExp(`^${exifMetadata.make}\\s*`, 'i'), '')
-        : exifMetadata.model
-      caption = model
-    } else if (exifMetadata.make) {
-      caption = exifMetadata.make
+    // Add camera make and/or model based on setting
+    if (showMake) {
+      // Show make and model
+      if (exifMetadata.make && exifMetadata.model) {
+        // Remove redundant make from model if present
+        const model = exifMetadata.model.replace(new RegExp(`^${exifMetadata.make}\\s*`, 'i'), '')
+        caption = `${exifMetadata.make} ${model}`
+      } else if (exifMetadata.make) {
+        caption = exifMetadata.make
+      } else if (exifMetadata.model) {
+        caption = exifMetadata.model
+      }
+    } else {
+      // Show only model (current behavior)
+      if (exifMetadata.model) {
+        // Remove redundant make from model if present
+        const model = exifMetadata.make 
+          ? exifMetadata.model.replace(new RegExp(`^${exifMetadata.make}\\s*`, 'i'), '')
+          : exifMetadata.model
+        caption = model
+      } else if (exifMetadata.make) {
+        caption = exifMetadata.make
+      }
     }
     
     // Add lens information
@@ -551,8 +565,8 @@ export class VercelBlobStorageService {
   /**
    * Generate full caption combining camera and technical details
    */
-  static generateFullCaption(exifMetadata: ExifMetadata): string | null {
-    const cameraCaption = this.generateCameraCaption(exifMetadata)
+  static generateFullCaption(exifMetadata: ExifMetadata, showMake: boolean = false): string | null {
+    const cameraCaption = this.generateCameraCaption(exifMetadata, showMake)
     const technicalCaption = this.generateTechnicalCaption(exifMetadata)
     
     if (cameraCaption && technicalCaption) {

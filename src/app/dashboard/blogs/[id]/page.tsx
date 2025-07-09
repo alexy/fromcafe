@@ -19,6 +19,7 @@ interface Blog {
   evernoteNotebook?: string
   theme: string
   isPublic: boolean
+  showCameraMake: boolean
   lastSyncedAt?: string
   lastSyncAttemptAt?: string
   lastSyncUpdateCount?: number
@@ -67,6 +68,7 @@ export default function BlogSettings() {
   const [author, setAuthor] = useState('')
   const [isPublic, setIsPublic] = useState(true)
   const [theme, setTheme] = useState('default')
+  const [showCameraMake, setShowCameraMake] = useState(false)
   const [urlFormat, setUrlFormat] = useState<'path' | 'subdomain' | 'custom'>('path')
   const [blogSubdomain, setBlogSubdomain] = useState('')
   const [blogCustomDomain, setBlogCustomDomain] = useState('')
@@ -77,6 +79,7 @@ export default function BlogSettings() {
   const [originalAuthor, setOriginalAuthor] = useState('')
   const [originalIsPublic, setOriginalIsPublic] = useState(true)
   const [originalTheme, setOriginalTheme] = useState('default')
+  const [originalShowCameraMake, setOriginalShowCameraMake] = useState(false)
   const [originalUrlFormat, setOriginalUrlFormat] = useState<'path' | 'subdomain' | 'custom'>('path')
   const [originalBlogSubdomain, setOriginalBlogSubdomain] = useState('')
   const [originalBlogCustomDomain, setOriginalBlogCustomDomain] = useState('')
@@ -147,6 +150,7 @@ export default function BlogSettings() {
         setAuthor(data.blog.author || '')
         setIsPublic(data.blog.isPublic)
         setTheme(data.blog.theme || 'default')
+        setShowCameraMake(data.blog.showCameraMake || false)
         
         // Set URL format fields
         const currentUrlFormat = data.blog.urlFormat || 'path'
@@ -160,6 +164,7 @@ export default function BlogSettings() {
         setOriginalAuthor(data.blog.author || '')
         setOriginalIsPublic(data.blog.isPublic)
         setOriginalTheme(data.blog.theme || 'default')
+        setOriginalShowCameraMake(data.blog.showCameraMake || false)
         setOriginalUrlFormat(currentUrlFormat)
         setOriginalBlogSubdomain(data.blog.subdomain || '')
         setOriginalBlogCustomDomain(data.blog.customDomain || '')
@@ -576,7 +581,7 @@ export default function BlogSettings() {
 
   const handleSave = async () => {
     // Build object with only changed fields
-    const changes: { title?: string; description?: string; author?: string; isPublic?: boolean; theme?: string; urlFormat?: string; subdomain?: string; customDomain?: string } = {}
+    const changes: { title?: string; description?: string; author?: string; isPublic?: boolean; theme?: string; showCameraMake?: boolean; urlFormat?: string; subdomain?: string; customDomain?: string } = {}
     
     if (title !== originalTitle) {
       changes.title = title
@@ -592,6 +597,9 @@ export default function BlogSettings() {
     }
     if (theme !== originalTheme) {
       changes.theme = theme
+    }
+    if (showCameraMake !== originalShowCameraMake) {
+      changes.showCameraMake = showCameraMake
     }
     if (urlFormat !== originalUrlFormat) {
       changes.urlFormat = urlFormat
@@ -640,6 +648,7 @@ export default function BlogSettings() {
         setOriginalAuthor(author)
         setOriginalIsPublic(isPublic)
         setOriginalTheme(theme)
+        setOriginalShowCameraMake(showCameraMake)
         setOriginalUrlFormat(urlFormat)
         setOriginalBlogSubdomain(blogSubdomain)
         setOriginalBlogCustomDomain(blogCustomDomain)
@@ -823,6 +832,26 @@ export default function BlogSettings() {
                   >
                     Preview current theme →
                   </a>
+                </div>
+              </div>
+
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-medium text-black mb-4">Image Settings</h3>
+                
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="showCameraMake"
+                    checked={showCameraMake}
+                    onChange={(e) => setShowCameraMake(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="showCameraMake" className="ml-2 block text-sm text-black">
+                    Show camera make in image captions
+                  </label>
+                </div>
+                <div className="mt-2 text-sm text-gray-600">
+                  When enabled, image captions will show both camera make and model (e.g., &quot;Leica Camera AG LEICA M&quot;). When disabled, only the camera model will be shown (e.g., &quot;LEICA M&quot;).
                 </div>
               </div>
 

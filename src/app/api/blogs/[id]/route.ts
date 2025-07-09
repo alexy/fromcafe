@@ -51,7 +51,7 @@ export async function PUT(
   try {
     const resolvedParams = await params
     const body = await request.json()
-    const { title, description, author, isPublic, evernoteNotebook, evernoteNotebookName, theme, urlFormat, subdomain, customDomain } = body
+    const { title, description, author, isPublic, evernoteNotebook, evernoteNotebookName, theme, urlFormat, subdomain, customDomain, showCameraMake } = body
     
     // Build update object with only provided fields
     const updateData: { 
@@ -66,6 +66,7 @@ export async function PUT(
       urlFormat?: string;
       subdomain?: string;
       customDomain?: string;
+      showCameraMake?: boolean;
     } = {}
     
     if (title !== undefined) updateData.title = title
@@ -78,6 +79,7 @@ export async function PUT(
     if (urlFormat !== undefined) updateData.urlFormat = urlFormat
     if (subdomain !== undefined) updateData.subdomain = subdomain
     if (customDomain !== undefined) updateData.customDomain = customDomain
+    if (showCameraMake !== undefined) updateData.showCameraMake = showCameraMake
 
     // Get the current blog to check for webhook changes
     const currentBlog = await prisma.blog.findFirst({
@@ -182,7 +184,7 @@ export async function PATCH(
     const updateData: Record<string, string | boolean | null> = {}
     
     // Allow any valid blog field to be updated
-    const allowedFields = ['title', 'description', 'author', 'isPublic', 'evernoteNotebook', 'evernoteNotebookName', 'theme', 'urlFormat', 'subdomain', 'customDomain']
+    const allowedFields = ['title', 'description', 'author', 'isPublic', 'evernoteNotebook', 'evernoteNotebookName', 'theme', 'urlFormat', 'subdomain', 'customDomain', 'showCameraMake']
     
     for (const [key, value] of Object.entries(body)) {
       if (allowedFields.includes(key) && (typeof value === 'string' || typeof value === 'boolean' || value === null)) {
