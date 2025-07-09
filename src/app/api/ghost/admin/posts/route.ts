@@ -215,8 +215,14 @@ export async function POST(request: NextRequest) {
       let processingResult
       
       if (isMarkdownContent) {
+        // Configure marked to NOT wrap images in figure tags to prevent nesting
+        const renderer = new marked.Renderer()
+        renderer.image = function({ href, title, text }) {
+          return `<img src="${href}" alt="${text || ''}"${title ? ` title="${title}"` : ''} />`
+        }
+        
         // Convert Markdown to HTML for image processing only
-        const htmlContent = await marked(content)
+        const htmlContent = await marked(content, { renderer })
         processingResult = await contentProcessor.processGhostContent(htmlContent, post.id)
         // But store the original Markdown content, not the processed HTML
         processingResult.processedContent = content

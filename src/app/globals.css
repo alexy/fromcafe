@@ -79,41 +79,6 @@ figcaption small {
   text-align: center !important;
 }
 
-/* Handle nested figure tags that might be causing issues */
-figure figure {
-  margin: 0;
-  text-align: center;
-}
-
-figure figure figcaption {
-  text-align: center !important;
-  margin-top: 0.5rem;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  display: block !important;
-  width: 100% !important;
-}
-
-/* Target the specific nested structure we're seeing */
-figure > figure > figcaption {
-  text-align: center !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  display: block !important;
-  width: 100% !important;
-}
-
-/* Hide empty figcaptions that might be causing layout issues */
-figcaption:empty {
-  display: none !important;
-}
-
-/* Ensure all figure elements center their content */
-figure, figure figure {
-  display: block;
-  text-align: center;
-}
-
 /* Override any theme-specific figure styling */
 .vintage-prose figure,
 .minimal-prose figure,
@@ -127,22 +92,6 @@ figure, figure figure {
 .modern-prose figcaption,
 .default-prose figcaption {
   text-align: center !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  display: block !important;
-  width: 100% !important;
-}
-
-/* Very specific targeting for the nested structure */
-.vintage-prose figure figure figcaption,
-.minimal-prose figure figure figcaption,
-.modern-prose figure figure figcaption,
-.default-prose figure figure figcaption {
-  text-align: center !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  display: block !important;
-  width: 100% !important;
 }
 
 /* Nuclear option - force center ALL figcaptions */
