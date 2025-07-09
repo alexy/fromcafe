@@ -250,7 +250,8 @@ export class ContentProcessor {
         const urlHash = this.generateUrlHash(imageUrl)
         
         // Check if we already have this image
-        let localImageUrl = await this.imageStorage.imageExists(urlHash, postId)
+        const existingImage = await this.imageStorage.imageExists(urlHash, postId)
+        let localImageUrl = existingImage?.url
         
         if (!localImageUrl) {
           // Download and store the external image
