@@ -156,6 +156,15 @@ export class ContentProcessor {
           (title && !existingImage.filename.includes(this.sanitizeFilename(title))) ||
           (originalFilename && !existingImage.filename.includes(this.sanitizeFilename(originalFilename.replace(/\.[^.]*$/, ''))))
         
+        console.log(`🔄 REPROCESS-DEBUG: Post ${postId}, Hash ${hash}:`, {
+          existingImage: existingImage?.filename,
+          title,
+          originalFilename,
+          sanitizedTitle: title ? this.sanitizeFilename(title) : null,
+          sanitizedFilename: originalFilename ? this.sanitizeFilename(originalFilename.replace(/\.[^.]*$/, '')) : null,
+          shouldReprocess
+        })
+        
         if (shouldReprocess) {
           // Convert Evernote timestamp to date string
           const postDate = new Date(note.created).toISOString()
@@ -163,16 +172,14 @@ export class ContentProcessor {
           // Try to handle renaming without downloading image data first
           let imageData: Buffer | null = null
           
-          // If we already fetched resource with attributes, use that data
-          if (!originalFilename) {
-            imageData = await evernoteService.getResourceData(resource.guid)
+          // Always fetch resource with attributes to ensure we have the latest filename
+          const resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
+          if (resourceWithAttributes) {
+            imageData = resourceWithAttributes.data
+            originalFilename = resourceWithAttributes.attributes?.filename || originalFilename
           } else {
-            // We might have fetched it above, but need to get it again for processing
-            const resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
-            if (resourceWithAttributes) {
-              imageData = resourceWithAttributes.data
-              originalFilename = resourceWithAttributes.attributes?.filename || originalFilename
-            }
+            // Fallback to basic resource data if attributes fetch fails
+            imageData = await evernoteService.getResourceData(resource.guid)
           }
           
           if (imageData) {
