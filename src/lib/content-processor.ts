@@ -140,12 +140,13 @@ export class ContentProcessor {
         const existingImage = await this.imageStorage.imageExists(hash, postId)
         let imageUrl = existingImage?.url
         
-        // Get the original filename from resource attributes (need to fetch with attributes)
-        let originalFilename = (resource as ResourceWithExif).attributes?.filename
+        // Get the original filename from resource attributes (fetch once and cache)
+        let originalFilename = (resource as ResourceWithExif).attributes?.filename?.trim()
+        let resourceWithAttributes: { data: Buffer; attributes?: { filename?: string; attachment?: boolean } } | null = null
         
-        // If resource doesn't have attributes, fetch them separately
+        // If resource doesn't have attributes, fetch them separately (only once)
         if (!originalFilename) {
-          const resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
+          resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
           if (resourceWithAttributes?.attributes?.filename) {
             originalFilename = resourceWithAttributes.attributes.filename.trim()
           }
@@ -156,14 +157,15 @@ export class ContentProcessor {
           (title && !existingImage.filename.includes(this.sanitizeFilename(title))) ||
           (originalFilename && !existingImage.filename.includes(this.sanitizeFilename(originalFilename.replace(/\.[^.]*$/, ''))))
         
-        console.log(`🔄 REPROCESS-DEBUG: Post ${postId}, Hash ${hash}:`, {
-          existingImage: existingImage?.filename,
-          title,
-          originalFilename,
-          sanitizedTitle: title ? this.sanitizeFilename(title) : null,
-          sanitizedFilename: originalFilename ? this.sanitizeFilename(originalFilename.replace(/\.[^.]*$/, '')) : null,
-          shouldReprocess
-        })
+        // Only log if we have interesting data
+        if (originalFilename || title) {
+          console.log(`🔄 REPROCESS-DEBUG: Post ${postId}, Hash ${hash.substring(0, 8)}:`, {
+            existingFilename: existingImage?.filename,
+            title,
+            originalFilename,
+            shouldReprocess
+          })
+        }
         
         if (shouldReprocess) {
           // Convert Evernote timestamp to date string
@@ -172,14 +174,26 @@ export class ContentProcessor {
           // Try to handle renaming without downloading image data first
           let imageData: Buffer | null = null
           
-          // Always fetch resource with attributes to ensure we have the latest filename
-          const resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
+          // Use cached resource data if we already fetched it, otherwise fetch now
           if (resourceWithAttributes) {
+            // We already fetched the resource with attributes above
             imageData = resourceWithAttributes.data
-            originalFilename = resourceWithAttributes.attributes?.filename?.trim() || originalFilename
           } else {
-            // Fallback to basic resource data if attributes fetch fails
-            imageData = await evernoteService.getResourceData(resource.guid)
+            // Need to fetch resource data (either with or without attributes)
+            if (originalFilename) {
+              // We have filename from initial resource, just get basic data
+              imageData = await evernoteService.getResourceData(resource.guid)
+            } else {
+              // Need to fetch with attributes
+              resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
+              if (resourceWithAttributes) {
+                imageData = resourceWithAttributes.data
+                originalFilename = resourceWithAttributes.attributes?.filename?.trim() || originalFilename
+              } else {
+                // Final fallback
+                imageData = await evernoteService.getResourceData(resource.guid)
+              }
+            }
           }
           
           if (imageData) {

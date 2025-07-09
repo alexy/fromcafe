@@ -650,6 +650,7 @@ export class EvernoteService {
    */
   async getResourceWithAttributes(resourceGuid: string): Promise<{ data: Buffer; attributes?: { filename?: string; attachment?: boolean } } | null> {
     try {
+      console.log(`📥 Fetching resource ${resourceGuid.substring(0, 8)} with attributes...`)
       // Create a fresh client with the access token
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const EvernoteSDK = require('evernote')

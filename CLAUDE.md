@@ -64,4 +64,8 @@ npm run build
 
 1. **Migration failures**: Always check if migrations need to be deployed with `npx prisma migrate status`
 2. **Database table not found**: Make sure migrations are applied to the remote database
-3. **Connection errors**: Double-check that `DATABASE_URL=$DIRECT_URL` is set correctly
+3. **Connection errors**: Double-check that `DATABASE_URL=$PRISMA_DATABASE_URL` is set correctly
+4. **Evernote rate limits**: Evernote API has strict rate limits. If you hit a rate limit:
+   - Wait the specified duration (usually 15-40 minutes)
+   - Avoid frequent syncs during development
+   - Use the debugging logs to identify excessive API calls
