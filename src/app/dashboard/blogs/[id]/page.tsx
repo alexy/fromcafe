@@ -104,6 +104,10 @@ export default function BlogSettings() {
     evernoteCount: number
     ghostCount: number
     totalCount: number
+    publishedEvernoteCount: number
+    publishedGhostCount: number
+    unpublishedEvernoteCount: number
+    unpublishedGhostCount: number
   } | null>(null)
   
   // Debounce timers for text inputs
@@ -178,8 +182,8 @@ export default function BlogSettings() {
   
   // Cleanup timers on unmount
   useEffect(() => {
+    const timers = debounceTimersRef.current
     return () => {
-      const timers = debounceTimersRef.current
       Object.values(timers).forEach(clearTimeout)
     }
   }, [])
@@ -227,6 +231,18 @@ export default function BlogSettings() {
       }
     } catch (error) {
       console.error('Error fetching notebook name:', error)
+    }
+  }, [blogId])
+
+  const fetchPostStats = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/blogs/${blogId}/stats`)
+      if (response.ok) {
+        const data = await response.json()
+        setPostStats(data)
+      }
+    } catch (error) {
+      console.error('Error fetching post stats:', error)
     }
   }, [blogId])
 
@@ -286,19 +302,8 @@ export default function BlogSettings() {
     } finally {
       setLoading(false)
     }
-  }, [blogId, router, fetchNotebookName])
+  }, [blogId, router, fetchNotebookName, fetchPostStats])
 
-  const fetchPostStats = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/blogs/${blogId}/stats`)
-      if (response.ok) {
-        const data = await response.json()
-        setPostStats(data)
-      }
-    } catch (error) {
-      console.error('Error fetching post stats:', error)
-    }
-  }, [blogId])
 
   const fetchUserBlogSpace = useCallback(async () => {
     try {

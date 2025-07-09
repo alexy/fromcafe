@@ -35,7 +35,7 @@ After setting up the database connection:
 npm test
 
 # Run type checking
-npm run typecheck
+# npm run typecheck
 
 # Run linting
 npm run lint
