@@ -57,3 +57,4 @@ next-env.d.ts
 /src/generated/prisma
 client_secret_*
 .env.platform
+.env*.local
