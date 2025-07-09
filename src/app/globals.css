@@ -65,7 +65,10 @@ figcaption {
   color: #666;
   line-height: 1.4;
   width: 100%;
-  display: block;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 figcaption small {
@@ -140,6 +143,19 @@ figure, figure figure {
   margin-right: auto !important;
   display: block !important;
   width: 100% !important;
+}
+
+/* Nuclear option - force center ALL figcaptions */
+figcaption * {
+  text-align: center !important;
+}
+
+/* Force center using flexbox as backup */
+figcaption {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* Dark mode figure caption styling */
