@@ -70,8 +70,67 @@ npm run build
    - Avoid frequent syncs during development
    - Use the debugging logs to identify excessive API calls
 
-5. **Ghost API token expiration**: Ghost API tokens expire and need regeneration:
-   - Default expiration: 1 year (changed from 24h for better UX)
-   - If Ulysses/Ghost clients can't authenticate, regenerate token via `/api/ghost/admin/auth`
-   - Check logs for "👻 Found expired Ghost token" messages
-   - Available expiration options: '1h', '24h', '7d', '30d', '1y', 'never'
+## Ghost Token Management
+
+### Token Expiration and Re-authentication
+
+**Current Settings:**
+- **Default expiration: 1 year** (changed from 24h to reduce re-authentication frequency)
+- Tokens are automatically cleaned up when expired
+- Available expiration options: '1h', '24h', '7d', '30d', '1y', 'never'
+
+### What Happens When Tokens Expire
+
+1. **Ghost API calls return 401 error** with message: "Invalid authorization token. Please generate a new token."
+2. **System logs detailed expiration info** with format: `👻 Found expired Ghost token for kid: [token_id]`
+3. **No automatic re-authentication** - manual intervention is required
+4. **Ulysses will error out** until a new token is manually generated and configured
+
+### Manual Re-authentication Process for Ulysses
+
+When Ulysses starts failing with authentication errors:
+
+1. **Identify the problem**: Look for 401 errors or authentication failures
+2. **Access the admin panel**: 
+   - Go to your blog's admin panel
+   - Or directly visit `/api/ghost/admin/auth`
+3. **Generate new token**:
+   - Navigate to Ghost integration settings
+   - Click "Generate New Token"
+   - Copy the new token
+4. **Update Ulysses**:
+   - Open Ulysses
+   - Go to Ghost blog settings
+   - Replace the old token with the new one
+   - Test the connection
+
+### API Endpoints
+
+- **Generate new token**: `POST /api/ghost/admin/auth`
+- **Get blog info and current token**: `GET /api/ghost/admin/auth?blogId=[id]`
+
+### Troubleshooting Token Issues
+
+**Common Error Messages:**
+- "Invalid authorization token. Please generate a new token." → Token expired
+- "Authorization header is required" → Missing token
+- "Authorization token not valid for this blog" → Wrong blog/token mismatch
+
+**Debugging Steps:**
+1. Check server logs for "👻 Found expired Ghost token" messages
+2. Verify token format (should be 24-char-id:64-char-hex)
+3. Confirm blog ID matches the token's blog ID
+4. Test with a fresh token generation
+
+### Improving the User Experience
+
+**Current Limitations:**
+- No automatic token refresh mechanism
+- Users must manually update tokens in client applications
+- No proactive notifications before expiration
+
+**Potential Improvements:**
+- Implement webhook-based token refresh
+- Add email notifications for upcoming expirations
+- Provide clearer error messages with re-authentication links
+- Consider implementing refresh tokens for seamless renewal
