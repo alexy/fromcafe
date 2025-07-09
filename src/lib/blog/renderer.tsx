@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { Metadata } from 'next'
 import { themes } from '@/lib/themes/registry'
+import { processCaptionsServerSide } from '@/lib/server-caption-processor'
 
 // Shared blog query types
 export interface BlogQuery {
@@ -187,6 +188,7 @@ interface BlogWithPosts {
   customDomain?: string | null
   theme: string
   isPublic: boolean
+  showCameraMake?: boolean
   createdAt: Date
   updatedAt: Date
   user: {
@@ -238,6 +240,7 @@ interface PostWithBlog {
     customDomain?: string | null
     theme: string
     isPublic: boolean
+    showCameraMake?: boolean
     createdAt: Date
     updatedAt: Date
     user: {
@@ -272,6 +275,7 @@ export function BlogRenderer({ blog, hostname, currentTag }: BlogRendererProps) 
     customDomain: blog.customDomain ?? undefined,
     theme: blog.theme,
     isPublic: blog.isPublic,
+    showCameraMake: blog.showCameraMake ?? false,
     createdAt: blog.createdAt,
     updatedAt: blog.updatedAt,
     userSlug: blog.user.slug ?? undefined
@@ -310,11 +314,14 @@ export function PostRenderer({ post, hostname }: PostRendererProps) {
   // Get theme component
   const ThemeComponent = themes[post.blog.theme as keyof typeof themes]?.components.PostLayout || themes.default.components.PostLayout
 
+  // Process captions server-side based on blog settings
+  const processedContent = processCaptionsServerSide(post.content, post.blog.showCameraMake ?? false)
+
   // Type-safe props with null to undefined conversion
   const postProps = {
     id: post.id,
     title: post.title,
-    content: post.content,
+    content: processedContent,
     excerpt: post.excerpt ?? undefined,
     slug: post.slug,
     isPublished: post.isPublished,
@@ -339,6 +346,7 @@ export function PostRenderer({ post, hostname }: PostRendererProps) {
     customDomain: post.blog.customDomain ?? undefined,
     theme: post.blog.theme,
     isPublic: post.blog.isPublic,
+    showCameraMake: post.blog.showCameraMake ?? false,
     createdAt: post.blog.createdAt,
     updatedAt: post.blog.updatedAt,
     userSlug: post.blog.user.slug ?? undefined
