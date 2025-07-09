@@ -358,10 +358,10 @@ export default function AdminPage() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      Image Naming
+                      Image Management
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      Review naming decisions
+                      Manage image naming
                     </dd>
                   </dl>
                 </div>
@@ -373,7 +373,7 @@ export default function AdminPage() {
                   onClick={() => router.push('/admin/image-naming')}
                   className="font-medium text-blue-700 hover:text-blue-900"
                 >
-                  Review image naming
+                  Manage images
                 </button>
               </div>
             </div>
@@ -471,7 +471,7 @@ export default function AdminPage() {
                 >
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-blue-600 truncate">
-                      Image Naming Decisions
+                      Manage Images
                     </p>
                     <div className="ml-2 flex-shrink-0 flex">
                       <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
@@ -482,7 +482,7 @@ export default function AdminPage() {
                   <div className="mt-2 sm:flex sm:justify-between">
                     <div className="sm:flex">
                       <p className="text-sm text-gray-500">
-                        Review how image blob names were generated and manage renaming decisions
+                        Manage image naming decisions and review how blob names were generated
                       </p>
                     </div>
                   </div>
