@@ -314,14 +314,24 @@ export class ContentProcessor {
           if (exifMetadata) {
             const caption = VercelBlobStorageService.generateFullCaption(exifMetadata)
             if (caption) {
-              // Wrap the img tag in a figure with caption
+              // Check if image is already wrapped in a figure tag
               const imgMatch = newTag.match(/<img[^>]*>/i)
-              if (imgMatch) {
+              if (imgMatch && !newTag.includes('<figure>')) {
+                // Only wrap if not already in a figure
                 const imgTag = imgMatch[0]
                 newTag = `<figure>
                   ${imgTag}
                   <figcaption>${caption}</figcaption>
                 </figure>`
+              } else if (imgMatch && newTag.includes('<figure>')) {
+                // If already in figure, just add/update the figcaption
+                if (newTag.includes('<figcaption>')) {
+                  // Replace existing figcaption
+                  newTag = newTag.replace(/<figcaption>.*?<\/figcaption>/s, `<figcaption>${caption}</figcaption>`)
+                } else {
+                  // Add figcaption before closing figure
+                  newTag = newTag.replace('</figure>', `  <figcaption>${caption}</figcaption>\n</figure>`)
+                }
               }
             }
             // Clear the temporary EXIF metadata
