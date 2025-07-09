@@ -136,11 +136,7 @@ export class ContentProcessor {
         const altMatch = fullTag.match(/alt="([^"]+)"/)
         const title = titleMatch?.[1] || altMatch?.[1] || undefined
         
-        // Check if image already exists
-        const existingImage = await this.imageStorage.imageExists(hash, postId)
-        let imageUrl = existingImage?.url
-        
-        // Get the original filename from resource attributes (fetch once and cache)
+        // Get the original filename from resource attributes FIRST (fetch once and cache)
         let originalFilename = (resource as ResourceWithExif).attributes?.filename?.trim()
         let resourceWithAttributes: { data: Buffer; attributes?: { filename?: string; attachment?: boolean } } | null = null
         
@@ -151,6 +147,10 @@ export class ContentProcessor {
             originalFilename = resourceWithAttributes.attributes.filename.trim()
           }
         }
+        
+        // Check if image already exists AFTER we have the filename
+        const existingImage = await this.imageStorage.imageExists(hash, postId)
+        let imageUrl = existingImage?.url
         
         // Always re-process if title or filename has changed or image doesn't exist
         const shouldReprocess = !existingImage || 
