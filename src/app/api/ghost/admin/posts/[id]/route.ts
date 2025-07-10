@@ -137,7 +137,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       lexicalFormat = null;
     }
 
-    // Format response in Ghost format with all required fields for editing
+    // Format response in Ghost format matching real Ghost exactly
     const ghostResponse = {
       id: params.id,
       uuid: ghostUuid,
@@ -146,13 +146,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       html: responseHtml,
       lexical: lexicalFormat,
       mobiledoc: null,
-      markdown: responseMarkdown,
+      // markdown: responseMarkdown, // Real Ghost uses undefined, not null for missing markdown
       comment_id: post.id,
       plaintext: post.excerpt || '',
       feature_image: null,
       featured: false,
       visibility: 'public',
-      email_recipient_filter: 'none',
       created_at: post.createdAt.toISOString(),
       updated_at: post.updatedAt.toISOString(),
       published_at: post.publishedAt?.toISOString() || null,
@@ -166,7 +165,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         id: tokenData.userId,
         name: 'Author',
         slug: 'author',
-        email: null,
+        // email: null, // Real Ghost doesn't include email field
         profile_image: null,
         cover_image: null,
         bio: null,
@@ -200,12 +199,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         ? `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${post.slug}`
         : `${request.nextUrl.origin}/p/${params.id}`,
       excerpt: post.excerpt || '',
-      reading_time: Math.max(1, Math.round((post.content?.length || 0) / 265)),
-      access: true,
-      send_email_when_published: false,
+      // reading_time: Math.max(1, Math.round((post.content?.length || 0) / 265)), // Real Ghost doesn't include this for editing
+      // access: true, // Real Ghost doesn't include this for editing
+      // send_email_when_published: false, // Real Ghost doesn't include this for editing
       email_segment: 'all',
       status: post.isPublished ? 'published' : 'draft',
-      // Critical fields for Ghost API compatibility
+      // Critical fields for Ghost API compatibility - match real Ghost exactly
       meta_title: null,
       meta_description: null,
       og_image: null,
@@ -218,11 +217,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       frontmatter: null,
       feature_image_alt: null,
       feature_image_caption: null,
-      // Additional fields that Ghost includes for editing
-      email_only: false,
-      newsletter_id: null,
-      show_title_and_feature_image: true,
-      type: 'post'
+      // Real Ghost fields - match exactly what real Ghost returns
+      email_only: false
+      // newsletter_id: null, // Real Ghost uses undefined, not null
+      // show_title_and_feature_image: true, // Real Ghost doesn't include this field
+      // type: 'post' // Real Ghost doesn't include type field for posts
     }
 
     console.log('👻 Returning individual post:', post.title)
@@ -562,7 +561,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     // Generate proper UUID format
     const ghostUuid = `${params.id.substring(0, 8)}-${params.id.substring(8, 12)}-${params.id.substring(12, 16)}-${params.id.substring(16, 20)}-${params.id.substring(20, 24)}000000000000`
 
-    // Format response in Ghost format with all required fields for editing
+    // Format response in Ghost format matching real Ghost exactly
     const ghostResponse = {
       id: params.id,
       uuid: ghostUuid,
@@ -571,13 +570,12 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       html: responseHtml,
       lexical: responseMarkdown ? convertMarkdownToLexical(responseMarkdown) : convertHtmlToLexical(responseHtml),
       mobiledoc: null,
-      markdown: responseMarkdown,
+      // markdown: responseMarkdown, // Real Ghost uses undefined, not null for missing markdown
       comment_id: updatedPost.id,
       plaintext: updatedPost.excerpt || '',
       feature_image: null,
       featured: false,
       visibility: 'public',
-      email_recipient_filter: 'none',
       created_at: updatedPost.createdAt.toISOString(),
       updated_at: updatedPost.updatedAt.toISOString(),
       published_at: updatedPost.publishedAt?.toISOString() || null,
@@ -591,7 +589,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
         id: tokenData.userId,
         name: 'Author',
         slug: 'author',
-        email: null,
+        // email: null, // Real Ghost doesn't include email field
         profile_image: null,
         cover_image: null,
         bio: null,
@@ -629,12 +627,12 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
         return url
       })(),
       excerpt: updatedPost.excerpt || '',
-      reading_time: Math.max(1, Math.round((updatedPost.content?.length || 0) / 265)),
-      access: true,
-      send_email_when_published: false,
+      // reading_time: Math.max(1, Math.round((updatedPost.content?.length || 0) / 265)), // Real Ghost doesn't include this for editing
+      // access: true, // Real Ghost doesn't include this for editing
+      // send_email_when_published: false, // Real Ghost doesn't include this for editing
       email_segment: 'all',
       status: updatedPost.isPublished ? 'published' : 'draft',
-      // Critical fields for Ghost API compatibility
+      // Critical fields for Ghost API compatibility - match real Ghost exactly
       meta_title: null,
       meta_description: null,
       og_image: null,
@@ -647,11 +645,11 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       frontmatter: null,
       feature_image_alt: null,
       feature_image_caption: null,
-      // Additional fields that Ghost includes for editing
-      email_only: false,
-      newsletter_id: null,
-      show_title_and_feature_image: true,
-      type: 'post'
+      // Real Ghost fields - match exactly what real Ghost returns
+      email_only: false
+      // newsletter_id: null, // Real Ghost uses undefined, not null
+      // show_title_and_feature_image: true, // Real Ghost doesn't include this field
+      // type: 'post' // Real Ghost doesn't include type field for posts
     }
 
     console.log('👻 Successfully updated post:', updatedPost.title)
