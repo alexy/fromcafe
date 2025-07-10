@@ -92,6 +92,16 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
 
     // Generate Lexical format with error handling
     let lexicalFormat: string | null = null;
+    
+    // Debug: Always log what content we're processing
+    console.log('👻 CONTENT DEBUG - Processing content:');
+    console.log('👻 responseHtml length:', responseHtml?.length || 0);
+    console.log('👻 responseMarkdown length:', responseMarkdown?.length || 0);
+    console.log('👻 responseHtml preview:', responseHtml?.substring(0, 200) || 'NULL');
+    console.log('👻 responseMarkdown preview:', responseMarkdown?.substring(0, 200) || 'NULL');
+    console.log('👻 HTML has images:', responseHtml?.includes('<img') || false);
+    console.log('👻 Markdown has images:', responseMarkdown?.includes('![') || false);
+    
     try {
       lexicalFormat = responseMarkdown ? convertMarkdownToLexical(responseMarkdown) : convertHtmlToLexical(responseHtml);
       console.log('👻 Lexical generation successful, length:', lexicalFormat?.length || 'NULL');
