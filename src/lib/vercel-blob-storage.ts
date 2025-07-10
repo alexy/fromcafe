@@ -354,7 +354,7 @@ export class VercelBlobStorageService {
     originalFilename?: string
   ): Promise<ImageInfo> {
     // Record naming decision in database
-    console.log(`Recording naming decision for ${originalHash} in post ${postId}`)
+    console.log(`📝 ABOUT TO RECORD naming decision for ${originalHash} in post ${postId}`)
     await this.recordNamingDecision(
       postId,
       originalHash,
