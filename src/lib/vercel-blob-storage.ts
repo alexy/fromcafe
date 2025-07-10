@@ -71,7 +71,9 @@ export class VercelBlobStorageService {
       }
       
       // Check if we can just rename an existing image instead of uploading
+      console.log(`🔄 STARTING RENAME CHECK...`)
       const renameResult = await this.tryRenameExistingImage(originalHash, postId, title, originalFilename, mimeType, exifDate, postDate)
+      console.log(`🔄 RENAME CHECK COMPLETED, result:`, !!renameResult)
       if (renameResult) {
         // Add EXIF metadata to the renamed image result
         return {
