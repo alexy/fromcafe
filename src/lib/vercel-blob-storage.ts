@@ -47,7 +47,7 @@ export class VercelBlobStorageService {
     mimeType: string,
     postId: string,
     title?: string,
-    originalFilename?: string
+    _originalFilename?: string
   ): Promise<ImageInfo> {
     const extension = this.getExtensionFromMimeType(mimeType)
     const sanitizedTitle = title ? this.sanitizeFilename(title) : 'image'
