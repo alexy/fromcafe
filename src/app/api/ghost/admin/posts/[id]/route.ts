@@ -191,8 +191,9 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     console.log('👻 Ghost response author roles:', JSON.stringify(ghostResponse.authors[0].roles))
     
     // DEBUG: Detailed analysis for posts with images
-    const hasImages = responseHtml.includes('<img') || (responseMarkdown && responseMarkdown.includes('!['))
-    console.log('👻 GET-DEBUG: Post has images:', hasImages)
+    try {
+      const hasImages = responseHtml.includes('<img') || (responseMarkdown && responseMarkdown.includes('!['))
+      console.log('👻 GET-DEBUG: Post has images:', hasImages)
     if (hasImages) {
       console.log('👻 GET-DEBUG: HTML length:', responseHtml.length)
       console.log('👻 GET-DEBUG: Markdown length:', responseMarkdown?.length || 0)
@@ -200,9 +201,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       console.log('👻 GET-DEBUG: Image count in Markdown:', (responseMarkdown?.match(/!\[/g) || []).length)
       console.log('👻 GET-DEBUG: Lexical format:', ghostResponse.lexical ? `LEXICAL_${ghostResponse.lexical.length}_chars` : 'NULL')
       if (ghostResponse.lexical) {
-        const lexicalObj = JSON.parse(ghostResponse.lexical);
-        console.log('👻 GET-DEBUG: Lexical children count:', lexicalObj.root.children.length);
-        console.log('👻 GET-DEBUG: Lexical node types:', lexicalObj.root.children.map((c: { type: string }) => c.type).join(', '));
+        try {
+          const lexicalObj = JSON.parse(ghostResponse.lexical);
+          console.log('👻 GET-DEBUG: Lexical children count:', lexicalObj.root.children.length);
+          console.log('👻 GET-DEBUG: Lexical node types:', lexicalObj.root.children.map((c: { type: string }) => c.type).join(', '));
+        } catch (error) {
+          console.error('👻 GET-DEBUG: Lexical JSON parse error:', error);
+          console.log('👻 GET-DEBUG: Invalid Lexical content preview:', ghostResponse.lexical.substring(0, 200));
+        }
       }
       
       // Log first image URL for analysis
@@ -212,6 +218,9 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         console.log('👻 GET-DEBUG: Image URL length:', imgMatch[1].length)
         console.log('👻 GET-DEBUG: Is blob URL:', imgMatch[1].includes('blob.vercel-storage.com'))
       }
+    }
+    } catch (debugError) {
+      console.error('👻 GET-DEBUG: Error in debug block:', debugError);
     }
     
     console.log('👻 ABOUT TO SEND RESPONSE TO ULYSSES')
