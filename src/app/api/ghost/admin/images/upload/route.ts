@@ -30,7 +30,16 @@ export async function POST(request: NextRequest) {
     console.log('👻 Image upload authentication successful, blog ID:', blog.id)
     const formData = await request.formData()
     const file = formData.get('file') as File
-    const purpose = formData.get('purpose') as string // Ghost sends purpose for different upload types
+    const purpose = (formData.get('purpose') as string) || 'image' // Default to 'image' if not specified
+    const ref = formData.get('ref') as string // Optional reference for original filename
+    
+    console.log('👻 Image upload details:', { 
+      fileName: file?.name, 
+      fileType: file?.type, 
+      fileSize: file?.size,
+      purpose,
+      ref 
+    })
     
     if (!file) {
       return NextResponse.json(
@@ -39,10 +48,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
+    // Validate purpose parameter (Ghost Admin API requirement)
+    const validPurposes = ['image', 'profile_image', 'icon']
+    if (!validPurposes.includes(purpose)) {
       return NextResponse.json(
-        { errors: [{ message: 'File must be an image' }] },
+        { errors: [{ message: `Invalid purpose. Must be one of: ${validPurposes.join(', ')}` }] },
+        { status: 400 }
+      )
+    }
+
+    // Validate file type - Ghost supports WEBP, JPEG, GIF, PNG, SVG (+ ICO for icons)
+    const validImageTypes = [
+      'image/webp', 'image/jpeg', 'image/jpg', 'image/gif', 
+      'image/png', 'image/svg+xml'
+    ]
+    if (purpose === 'icon') {
+      validImageTypes.push('image/x-icon', 'image/vnd.microsoft.icon')
+    }
+    
+    if (!validImageTypes.includes(file.type)) {
+      return NextResponse.json(
+        { errors: [{ message: `Unsupported file type: ${file.type}. Supported formats: WEBP, JPEG, GIF, PNG, SVG${purpose === 'icon' ? ', ICO' : ''}` }] },
         { status: 400 }
       )
     }
@@ -79,12 +105,18 @@ export async function POST(request: NextRequest) {
       file.name
     )
 
-    // Return Ghost-compatible response - exactly as it was before
+    // Return Ghost-compatible response with ref parameter support
     return NextResponse.json({
       images: [{
         url: imageInfo.url,
-        ref: imageInfo.filename
+        ref: ref || imageInfo.filename // Use provided ref or fallback to filename
       }]
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Ghost-Version': '5.120.3',
+        'Content-Version': 'v5.120'
+      }
     })
 
   } catch (error) {
