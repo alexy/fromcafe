@@ -72,6 +72,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       )
     }
     console.log('👻 Found post:', post.title)
+    console.log('👻 DB CONTENT DEBUG:')
+    console.log('👻 Post content length:', post.content?.length || 0)
+    console.log('👻 Post content format:', post.contentFormat)
+    console.log('👻 Post content preview:', post.content?.substring(0, 300) || 'NULL')
+    console.log('👻 Post content has img tags:', post.content?.includes('<img') || false)
+    console.log('👻 Post content has markdown images:', post.content?.includes('![') || false)
 
     // Configure marked to NOT wrap images in figure tags to prevent nesting
     const renderer = new marked.Renderer()
