@@ -662,15 +662,14 @@ interface LexicalParagraphNode {
 }
 
 interface LexicalImageNode {
-  type: 'image';
-  altText: string;
-  caption: string;
-  height: number;
-  maxWidth: number;
-  showCaption: boolean;
-  src: string;
-  width: number;
+  type: 'imageCard';
   version: number;
+  cardName: string;
+  src: string;
+  alt: string;
+  caption: string;
+  cardWidth: string;
+  href: string;
 }
 
 type LexicalNode = LexicalParagraphNode | LexicalImageNode;
@@ -694,17 +693,16 @@ function convertHtmlToLexical(html: string): string | null {
       // Check if this paragraph contains an image
       const imageMatch = trimmedParagraph.match(/<img[^>]+src="([^"]+)"[^>]*alt="([^"]*)"[^>]*>/i);
       if (imageMatch) {
-        // Add image card
+        // Add Ghost Koenig image card
         children.push({
-          type: 'image',
-          altText: imageMatch[2] || '',
-          caption: '',
-          height: 0,
-          maxWidth: 1000,
-          showCaption: false,
+          type: 'imageCard',
+          version: 1,
+          cardName: 'image',
           src: imageMatch[1],
-          width: 0,
-          version: 1
+          alt: imageMatch[2] || '',
+          caption: '',
+          cardWidth: 'regular',
+          href: ''
         });
         
         // Handle any text around the image
@@ -819,17 +817,16 @@ function convertMarkdownToLexical(markdown: string): string | null {
           currentParagraphText = '';
         }
         
-        // Add image card
+        // Add Ghost Koenig image card
         children.push({
-          type: 'image',
-          altText: imageMatch[1] || '',
-          caption: '',
-          height: 0,
-          maxWidth: 1000,
-          showCaption: false,
+          type: 'imageCard',
+          version: 1,
+          cardName: 'image',
           src: imageMatch[2],
-          width: 0,
-          version: 1
+          alt: imageMatch[1] || '',
+          caption: '',
+          cardWidth: 'regular',
+          href: ''
         });
         
         // Continue with any text after the image
