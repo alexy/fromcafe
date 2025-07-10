@@ -678,9 +678,9 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   }
 }
 
-// Lexical node types
+// Lexical node types (matching real Ghost format exactly)
 interface LexicalTextNode {
-  type: 'text';
+  type: 'extended-text';
   text: string;
   detail: number;
   format: number;
@@ -692,10 +692,20 @@ interface LexicalTextNode {
 interface LexicalParagraphNode {
   type: 'paragraph';
   children: LexicalTextNode[];
-  direction: string;
+  direction: null;
   format: string;
   indent: number;
   version: number;
+}
+
+interface LexicalHeadingNode {
+  type: 'extended-heading';
+  children: LexicalTextNode[];
+  direction: null;
+  format: string;
+  indent: number;
+  version: number;
+  tag: string;
 }
 
 interface LexicalImageNode {
@@ -711,7 +721,7 @@ interface LexicalImageNode {
   href: string;
 }
 
-type LexicalNode = LexicalParagraphNode | LexicalImageNode;
+type LexicalNode = LexicalParagraphNode | LexicalHeadingNode | LexicalImageNode;
 
 /**
  * Convert HTML to Ghost Lexical format
@@ -722,23 +732,71 @@ function convertHtmlToLexical(html: string): string | null {
   try {
     const children: LexicalNode[] = [];
     
-    // Simple HTML parsing - split by <p> tags and handle images
-    const paragraphs = html.split(/<\/?p[^>]*>/i).filter(p => p.trim());
+    // Parse HTML more carefully to handle headings and images
+    let remainingHtml = html;
+    
+    // Extract headings first
+    const headingMatches = [...remainingHtml.matchAll(/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi)];
+    for (const match of headingMatches) {
+      const level = match[1];
+      const content = match[2].replace(/<[^>]*>/g, '').trim();
+      if (content) {
+        children.push({
+          type: 'extended-heading',
+          children: [{
+            type: 'extended-text',
+            text: content,
+            detail: 0,
+            format: 0,
+            mode: 'normal',
+            style: '',
+            version: 1
+          }],
+          direction: null,
+          format: '',
+          indent: 0,
+          version: 1,
+          tag: `h${level}`
+        });
+      }
+      remainingHtml = remainingHtml.replace(match[0], '');
+    }
+    
+    // Extract standalone images (not in paragraphs)
+    const standaloneImageMatches = [...remainingHtml.matchAll(/<img[^>]+src="([^"]+)"[^>]*(?:alt="([^"]*)")?[^>]*>/gi)];
+    for (const match of standaloneImageMatches) {
+      children.push({
+        type: 'image',
+        version: 1,
+        src: match[1],
+        width: 2000, // Use realistic dimensions like real Ghost
+        height: 1500,
+        title: '',
+        alt: match[2] || '',
+        caption: '',
+        cardWidth: 'regular',
+        href: ''
+      });
+      remainingHtml = remainingHtml.replace(match[0], '');
+    }
+    
+    // Parse remaining content as paragraphs
+    const paragraphs = remainingHtml.split(/<\/?p[^>]*>/i).filter(p => p.trim());
     
     for (const paragraph of paragraphs) {
       const trimmedParagraph = paragraph.trim();
       if (!trimmedParagraph) continue;
       
       // Check if this paragraph contains an image
-      const imageMatch = trimmedParagraph.match(/<img[^>]+src="([^"]+)"[^>]*alt="([^"]*)"[^>]*>/i);
+      const imageMatch = trimmedParagraph.match(/<img[^>]+src="([^"]+)"[^>]*(?:alt="([^"]*)")?[^>]*>/i);
       if (imageMatch) {
         // Add Ghost Lexical image node (real format)
         children.push({
           type: 'image',
           version: 1,
           src: imageMatch[1],
-          width: 800, // Default width
-          height: 600, // Default height  
+          width: 2000, // Use realistic dimensions like real Ghost
+          height: 1500,
           title: '',
           alt: imageMatch[2] || '',
           caption: '',
@@ -752,7 +810,7 @@ function convertHtmlToLexical(html: string): string | null {
           children.push({
             type: 'paragraph',
             children: [{
-              type: 'text',
+              type: 'extended-text',
               text: textWithoutImage.replace(/<[^>]*>/g, ''), // Remove any remaining HTML tags
               detail: 0,
               format: 0,
@@ -760,7 +818,7 @@ function convertHtmlToLexical(html: string): string | null {
               style: '',
               version: 1
             }],
-            direction: 'ltr',
+            direction: null,
             format: '',
             indent: 0,
             version: 1
@@ -773,7 +831,7 @@ function convertHtmlToLexical(html: string): string | null {
           children.push({
             type: 'paragraph',
             children: [{
-              type: 'text',
+              type: 'extended-text',
               text: textContent,
               detail: 0,
               format: 0,
@@ -781,7 +839,7 @@ function convertHtmlToLexical(html: string): string | null {
               style: '',
               version: 1
             }],
-            direction: 'ltr',
+            direction: null,
             format: '',
             indent: 0,
             version: 1
@@ -795,7 +853,7 @@ function convertHtmlToLexical(html: string): string | null {
       children.push({
         type: 'paragraph',
         children: [],
-        direction: 'ltr',
+        direction: null,
         format: '',
         indent: 0,
         version: 1
@@ -805,7 +863,7 @@ function convertHtmlToLexical(html: string): string | null {
     const lexicalData = {
       root: {
         children,
-        direction: 'ltr',
+        direction: null,
         format: '',
         indent: 0,
         type: 'root',
@@ -834,6 +892,52 @@ function convertMarkdownToLexical(markdown: string): string | null {
     for (const line of lines) {
       const trimmedLine = line.trim();
       
+      // Handle headings
+      const headingMatch = trimmedLine.match(/^(#{1,6})\s+(.+)$/);
+      if (headingMatch) {
+        // Finish any pending paragraph
+        if (currentParagraphText.trim()) {
+          children.push({
+            type: 'paragraph',
+            children: [{
+              type: 'extended-text',
+              text: currentParagraphText.trim(),
+              detail: 0,
+              format: 0,
+              mode: 'normal',
+              style: '',
+              version: 1
+            }],
+            direction: null,
+            format: '',
+            indent: 0,
+            version: 1
+          });
+          currentParagraphText = '';
+        }
+        
+        // Add heading
+        const level = headingMatch[1].length;
+        children.push({
+          type: 'extended-heading',
+          children: [{
+            type: 'extended-text',
+            text: headingMatch[2],
+            detail: 0,
+            format: 0,
+            mode: 'normal',
+            style: '',
+            version: 1
+          }],
+          direction: null,
+          format: '',
+          indent: 0,
+          version: 1,
+          tag: `h${level}`
+        });
+        continue;
+      }
+      
       // Handle images
       const imageMatch = trimmedLine.match(/^!\[([^\]]*)\]\(([^)]+)\)(.*)$/);
       if (imageMatch) {
@@ -842,7 +946,7 @@ function convertMarkdownToLexical(markdown: string): string | null {
           children.push({
             type: 'paragraph',
             children: [{
-              type: 'text',
+              type: 'extended-text',
               text: currentParagraphText.trim(),
               detail: 0,
               format: 0,
@@ -850,7 +954,7 @@ function convertMarkdownToLexical(markdown: string): string | null {
               style: '',
               version: 1
             }],
-            direction: 'ltr',
+            direction: null,
             format: '',
             indent: 0,
             version: 1
@@ -863,8 +967,8 @@ function convertMarkdownToLexical(markdown: string): string | null {
           type: 'image',
           version: 1,
           src: imageMatch[2],
-          width: 800, // Default width
-          height: 600, // Default height
+          width: 2000, // Use realistic dimensions like real Ghost
+          height: 1500,
           title: '',
           alt: imageMatch[1] || '',
           caption: '',
@@ -887,7 +991,7 @@ function convertMarkdownToLexical(markdown: string): string | null {
         children.push({
           type: 'paragraph',
           children: [{
-            type: 'text',
+            type: 'extended-text',
             text: currentParagraphText.trim(),
             detail: 0,
             format: 0,
@@ -895,7 +999,7 @@ function convertMarkdownToLexical(markdown: string): string | null {
             style: '',
             version: 1
           }],
-          direction: 'ltr',
+          direction: null,
           format: '',
           indent: 0,
           version: 1
@@ -909,7 +1013,7 @@ function convertMarkdownToLexical(markdown: string): string | null {
       children.push({
         type: 'paragraph',
         children: [{
-          type: 'text',
+          type: 'extended-text',
           text: currentParagraphText.trim(),
           detail: 0,
           format: 0,
@@ -917,7 +1021,7 @@ function convertMarkdownToLexical(markdown: string): string | null {
           style: '',
           version: 1
         }],
-        direction: 'ltr',
+        direction: null,
         format: '',
         indent: 0,
         version: 1
@@ -929,7 +1033,7 @@ function convertMarkdownToLexical(markdown: string): string | null {
       children.push({
         type: 'paragraph',
         children: [],
-        direction: 'ltr',
+        direction: null,
         format: '',
         indent: 0,
         version: 1
@@ -939,7 +1043,7 @@ function convertMarkdownToLexical(markdown: string): string | null {
     const lexicalData = {
       root: {
         children,
-        direction: 'ltr',
+        direction: null,
         format: '',
         indent: 0,
         type: 'root',
