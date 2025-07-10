@@ -37,6 +37,54 @@ export interface ImageInfo {
 }
 
 export class VercelBlobStorageService {
+  
+  /**
+   * Simple Ghost-compatible image storage (pre-refactoring behavior)
+   */
+  private async storeImageGhostCompatible(
+    imageData: Buffer,
+    originalHash: string,
+    mimeType: string,
+    postId: string,
+    title?: string,
+    originalFilename?: string
+  ): Promise<ImageInfo> {
+    const extension = this.getExtensionFromMimeType(mimeType)
+    const sanitizedTitle = title ? this.sanitizeFilename(title) : 'image'
+    const filename = `${postId}_${sanitizedTitle}.${extension}`
+    
+    // Check if already exists
+    try {
+      const existingBlob = await head(`images/${filename}`)
+      if (existingBlob) {
+        return {
+          originalHash,
+          filename: filename,
+          mimeType,
+          size: existingBlob.size,
+          url: existingBlob.url,
+          contentHash: originalHash
+        }
+      }
+    } catch {
+      // File doesn't exist, proceed with upload
+    }
+    
+    // Upload new file
+    const blob = await put(`images/${filename}`, imageData, {
+      contentType: mimeType,
+      access: 'public'
+    })
+    
+    return {
+      originalHash,
+      filename: filename,
+      mimeType,
+      size: imageData.length,
+      url: blob.url,
+      contentHash: originalHash
+    }
+  }
   /**
    * Store an image using Vercel Blob
    */
@@ -50,6 +98,10 @@ export class VercelBlobStorageService {
     exifDate?: string,
     postDate?: string
   ): Promise<ImageInfo> {
+    // For Ghost uploads, use simple processing to maintain compatibility
+    if (postId.startsWith('ghost-')) {
+      return this.storeImageGhostCompatible(imageData, originalHash, mimeType, postId, title, originalFilename)
+    }
     try {
       console.log(`🔄 STORE-IMAGE-DEBUG: Post ${postId}, Hash ${originalHash.substring(0, 8)}:`, {
         title,
