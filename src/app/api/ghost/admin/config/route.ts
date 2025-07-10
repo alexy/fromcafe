@@ -28,67 +28,58 @@ export async function GET(request: NextRequest) {
     const { blog } = authResult
     console.log('👻 Config authentication successful, blog ID:', blog.id)
 
-    // Generate blog URL
-    const blogUrl = blog.customDomain 
-      ? `https://${blog.customDomain}`
-      : blog.subdomain
-      ? `https://${blog.subdomain}.from.cafe`
-      : `https://from.cafe/${blog.user.slug || 'blog'}/${blog.slug}`
+    // Real Ghost config doesn't include dynamic blog URL
 
-    // Return Ghost-compatible configuration that indicates full feature support
+    // Return Ghost-compatible configuration matching real Ghost exactly
     return NextResponse.json({
       config: {
-        version: '5.120',
-        environment: 'production',
+        version: '5.120.3',
+        environment: 'production', 
         database: 'mysql8',
-        mail: {
-          transport: 'SMTP'
-        },
-        labs: {
-          // Enable all modern Ghost features to indicate full compatibility
-          members: true,
-          stripeConnected: false,
-          ghostPayments: false,
-          oauthLogin: false,
-          emailAnalytics: true,
-          audienceFeedback: true,
-          websitePreview: true,
-          lexicalEditor: true, // Critical: indicates Lexical format support
-          emailClicks: true,
-          newsletterAnalytics: true,
-          sourceAttribution: true,
-          improvedOnboarding: false
-        },
-        enableDeveloperExperiments: false,
-        stripePlans: [],
+        mail: 'stub',
         useGravatar: true,
-        isPrivate: false,
-        passwordProtected: false,
-        emailVerification: false,
-        publicHash: 'abc123def456',
-        blogUrl: blogUrl,
-        blogTitle: blog.title,
-        // Image capabilities - critical for Ulysses validation
-        imageOptimization: {
-          responsive: true,
-          srcsets: true
+        labs: {
+          audienceFeedback: true,
+          i18n: true,
+          themeErrorsNotification: true,
+          announcementBar: true,
+          customFonts: true,
+          contentVisibility: true,
+          members: true
         },
-        // File upload settings
-        fileStorage: true,
-        imageUpload: true, // Explicitly indicate image upload support
-        // Editor capabilities  
-        editor: {
-          url: blogUrl,
-          version: '5.120'
+        clientExtensions: {},
+        enableDeveloperExperiments: false,
+        stripeDirect: false,
+        mailgunIsConfigured: true,
+        emailAnalytics: true,
+        hostSettings: {
+          limits: {
+            customThemes: {
+              disabled: false
+            },
+            emails: {
+              maxPeriodic: 1000
+            }
+          },
+          subscription: {
+            active: true
+          }
         },
-        // Timezone and locale
-        timezone: 'UTC',
-        locale: 'en'
+        security: {
+          staff: false,
+          subscribers: false  
+        },
+        signupForm: false,
+        tenor: {
+          contentFilter: 'off',
+          enabled: true
+        }
       }
     }, {
       headers: {
         'Content-Type': 'application/json',
-        'X-Ghost-Version': '5.120'
+        'X-Ghost-Version': '5.120.3',
+        'Content-Version': 'v5.120'
       }
     })
 

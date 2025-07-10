@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Return Ghost-compatible user information
+    // Return Ghost-compatible user information - match real Ghost exactly
     return NextResponse.json({
       users: [{
         id: user.id,
@@ -55,22 +55,38 @@ export async function GET(request: NextRequest) {
         location: null,
         facebook: null,
         twitter: null,
-        accessibility: null,
+        accessibility: '{"nightShift":false,"whatsNew":{"lastSeenDate":"2025-07-10T06:00:00.000+00:00"}}',
         status: 'active',
         meta_title: null,
         meta_description: null,
         tour: null,
         last_seen: new Date().toISOString(),
+        comment_notifications: true,
+        free_member_signup_notification: true,
+        paid_subscription_started_notification: true,
+        paid_subscription_canceled_notification: false,
+        mention_notifications: true,
+        milestone_notifications: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        roles: [{
-          id: 'owner',
-          name: 'Owner',
-          description: 'Blog owner',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }]
+        donation_notifications: true,
+        recommendation_notifications: true,
+        threads: null,
+        bluesky: null,
+        mastodon: null,
+        tiktok: null,
+        youtube: null,
+        instagram: null,
+        linkedin: null,
+        url: null
+        // Note: Real Ghost does NOT include roles field
       }]
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Ghost-Version': '5.120.3',
+        'Content-Version': 'v5.120'
+      }
     })
 
   } catch (error) {
