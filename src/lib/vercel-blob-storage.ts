@@ -627,8 +627,10 @@ export class VercelBlobStorageService {
       }
     }
     
-    // Final fallback: current date
-    return this.formatDateForFilename(new Date())
+    // Final fallback: use a clearly placeholder date instead of today's date
+    // Using current date is misleading for old images
+    console.warn(`No valid date found for image, using placeholder date 2000-01-01. Original filename: ${originalFilename}`)
+    return '2000-01-01'
   }
 
   /**
