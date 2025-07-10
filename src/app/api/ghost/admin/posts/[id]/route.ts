@@ -97,31 +97,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       title: post.title,
       slug: post.slug,
       html: responseHtml,
-      lexical: responseMarkdown ? JSON.stringify({
-        root: {
-          children: [{
-            children: [{
-              detail: 0,
-              format: 0,
-              mode: "normal",
-              style: "",
-              text: responseMarkdown,
-              type: "extended-text",
-              version: 1
-            }],
-            direction: "ltr",
-            format: "",
-            indent: 0,
-            type: "paragraph",
-            version: 1
-          }],
-          direction: "ltr",
-          format: "",
-          indent: 0,
-          type: "root",
-          version: 1
-        }
-      }) : null,
+      lexical: null, // Disable Lexical format to avoid compatibility issues with Ulysses
       mobiledoc: null,
       markdown: responseMarkdown,
       comment_id: post.id,
@@ -548,31 +524,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       title: updatedPost.title,
       slug: updatedPost.slug,
       html: responseHtml,
-      lexical: responseMarkdown ? JSON.stringify({
-        root: {
-          children: [{
-            children: [{
-              detail: 0,
-              format: 0,
-              mode: "normal",
-              style: "",
-              text: responseMarkdown,
-              type: "extended-text",
-              version: 1
-            }],
-            direction: "ltr",
-            format: "",
-            indent: 0,
-            type: "paragraph",
-            version: 1
-          }],
-          direction: "ltr",
-          format: "",
-          indent: 0,
-          type: "root",
-          version: 1
-        }
-      }) : null,
+      lexical: null, // Disable Lexical format to avoid compatibility issues with Ulysses
       mobiledoc: null,
       markdown: responseMarkdown,
       comment_id: updatedPost.id,
