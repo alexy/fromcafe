@@ -97,7 +97,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       title: post.title,
       slug: post.slug,
       html: responseHtml,
-      lexical: null, // Disable Lexical format to avoid compatibility issues with Ulysses
+      lexical: responseMarkdown ? convertMarkdownToLexical(responseMarkdown) : null,
       mobiledoc: null,
       markdown: responseMarkdown,
       comment_id: post.id,
@@ -186,6 +186,31 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     console.log('👻 Ghost response has lexical:', !!ghostResponse.lexical)
     console.log('👻 Ghost response fields count:', Object.keys(ghostResponse).length)
     console.log('👻 Ghost response author roles:', JSON.stringify(ghostResponse.authors[0].roles))
+    
+    // DEBUG: Detailed analysis for posts with images
+    const hasImages = responseHtml.includes('<img') || (responseMarkdown && responseMarkdown.includes('!['))
+    console.log('👻 GET-DEBUG: Post has images:', hasImages)
+    if (hasImages) {
+      console.log('👻 GET-DEBUG: HTML length:', responseHtml.length)
+      console.log('👻 GET-DEBUG: Markdown length:', responseMarkdown?.length || 0)
+      console.log('👻 GET-DEBUG: Image count in HTML:', (responseHtml.match(/<img/g) || []).length)
+      console.log('👻 GET-DEBUG: Image count in Markdown:', (responseMarkdown?.match(/!\[/g) || []).length)
+      console.log('👻 GET-DEBUG: Lexical format:', ghostResponse.lexical ? `LEXICAL_${ghostResponse.lexical.length}_chars` : 'NULL')
+      if (ghostResponse.lexical) {
+        const lexicalObj = JSON.parse(ghostResponse.lexical);
+        console.log('👻 GET-DEBUG: Lexical children count:', lexicalObj.root.children.length);
+        console.log('👻 GET-DEBUG: Lexical node types:', lexicalObj.root.children.map((c: any) => c.type).join(', '));
+      }
+      
+      // Log first image URL for analysis
+      const imgMatch = responseHtml.match(/<img[^>]+src="([^"]+)"/);
+      if (imgMatch) {
+        console.log('👻 GET-DEBUG: First image URL:', imgMatch[1])
+        console.log('👻 GET-DEBUG: Image URL length:', imgMatch[1].length)
+        console.log('👻 GET-DEBUG: Is blob URL:', imgMatch[1].includes('blob.vercel-storage.com'))
+      }
+    }
+    
     console.log('👻 ABOUT TO SEND RESPONSE TO ULYSSES')
     console.log('👻 GET: URL being returned:', ghostResponse.url)
     console.log('👻 GET: Post status being returned:', ghostResponse.status)
@@ -268,6 +293,139 @@ async function ensureUniqueSlug(baseSlug: string, blogId: string, excludePostId?
 
     slug = `${baseSlug}-${counter}`
     counter++
+  }
+}
+
+/**
+ * Convert Markdown content to Ghost-compatible Lexical format
+ */
+function convertMarkdownToLexical(markdown: string): string | null {
+  if (!markdown) return null;
+  
+  try {
+    const children: any[] = [];
+    const lines = markdown.split('\n');
+    let currentParagraphText = '';
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      
+      // Handle images
+      const imageMatch = trimmedLine.match(/^!\[([^\]]*)\]\(([^)]+)\)(.*)$/);
+      if (imageMatch) {
+        // Finish any pending paragraph
+        if (currentParagraphText.trim()) {
+          children.push({
+            type: 'paragraph',
+            children: [{
+              type: 'text',
+              text: currentParagraphText.trim(),
+              detail: 0,
+              format: 0,
+              mode: 'normal',
+              style: '',
+              version: 1
+            }],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+            version: 1
+          });
+          currentParagraphText = '';
+        }
+        
+        // Add image card
+        children.push({
+          type: 'image',
+          altText: imageMatch[1] || '',
+          caption: '',
+          height: 0,
+          maxWidth: 1000,
+          showCaption: false,
+          src: imageMatch[2],
+          width: 0,
+          version: 1
+        });
+        
+        // Continue with any text after the image
+        if (imageMatch[3].trim()) {
+          currentParagraphText += imageMatch[3].trim() + ' ';
+        }
+        continue;
+      }
+      
+      // Handle regular text lines
+      if (trimmedLine) {
+        currentParagraphText += trimmedLine + ' ';
+      } else if (currentParagraphText.trim()) {
+        // Empty line - finish paragraph
+        children.push({
+          type: 'paragraph',
+          children: [{
+            type: 'text',
+            text: currentParagraphText.trim(),
+            detail: 0,
+            format: 0,
+            mode: 'normal',
+            style: '',
+            version: 1
+          }],
+          direction: 'ltr',
+          format: '',
+          indent: 0,
+          version: 1
+        });
+        currentParagraphText = '';
+      }
+    }
+    
+    // Add final paragraph if exists
+    if (currentParagraphText.trim()) {
+      children.push({
+        type: 'paragraph',
+        children: [{
+          type: 'text',
+          text: currentParagraphText.trim(),
+          detail: 0,
+          format: 0,
+          mode: 'normal',
+          style: '',
+          version: 1
+        }],
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        version: 1
+      });
+    }
+    
+    // If no children, add empty paragraph
+    if (children.length === 0) {
+      children.push({
+        type: 'paragraph',
+        children: [],
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        version: 1
+      });
+    }
+    
+    const lexicalData = {
+      root: {
+        children,
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        type: 'root',
+        version: 1
+      }
+    };
+    
+    return JSON.stringify(lexicalData);
+  } catch (error) {
+    console.error('Error converting markdown to lexical:', error);
+    return null;
   }
 }
 
@@ -524,7 +682,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       title: updatedPost.title,
       slug: updatedPost.slug,
       html: responseHtml,
-      lexical: null, // Disable Lexical format to avoid compatibility issues with Ulysses
+      lexical: responseMarkdown ? convertMarkdownToLexical(responseMarkdown) : null,
       mobiledoc: null,
       markdown: responseMarkdown,
       comment_id: updatedPost.id,
