@@ -28,32 +28,19 @@ export async function GET(request: NextRequest) {
       ? `https://${blog.subdomain}.from.cafe`
       : `https://from.cafe/${blog.user.slug || 'blog'}/${blog.slug}`
 
-    // Return Ghost-compatible site information
+    // Return Ghost-compatible site information - match real Ghost exactly
     return NextResponse.json({
       site: {
         title: blog.title,
         description: blog.description || '',
-        url: blogUrl,
-        version: '5.0.0', // Fake Ghost version
-        timezone: 'UTC',
-        locale: 'en',
-        navigation: [],
-        secondary_navigation: [],
-        meta_title: blog.title,
-        meta_description: blog.description || '',
-        og_image: null,
-        og_title: blog.title,
-        og_description: blog.description || '',
-        twitter_image: null,
-        twitter_title: blog.title,
-        twitter_description: blog.description || '',
-        facebook: null,
-        twitter: null,
-        lang: 'en',
-        accent_color: '#15171A',
-        icon: null,
         logo: null,
-        cover_image: null
+        icon: null,
+        cover_image: null,
+        accent_color: '#15171A',
+        locale: 'en',
+        url: blogUrl,
+        version: '5.120', // Use current Ghost version like real Ghost
+        allow_external_signup: true // Critical field that real Ghost includes
       }
     })
 
