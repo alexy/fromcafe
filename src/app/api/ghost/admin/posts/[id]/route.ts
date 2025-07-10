@@ -179,6 +179,9 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     }
 
     console.log('👻 Returning individual post:', post.title)
+    console.log('👻 SIMPLE-DEBUG: responseHtml length:', responseHtml.length)
+    console.log('👻 SIMPLE-DEBUG: responseMarkdown length:', responseMarkdown?.length || 0)
+    console.log('👻 SIMPLE-DEBUG: checking for images...')
     console.log('👻 Ghost response status:', ghostResponse.status)
     console.log('👻 Ghost response access:', ghostResponse.access)
     console.log('👻 Ghost response updated_at:', ghostResponse.updated_at)
