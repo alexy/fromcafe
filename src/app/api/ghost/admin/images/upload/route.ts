@@ -6,6 +6,7 @@ import { createHash } from 'crypto'
  * POST /ghost/api/v4/admin/images/upload - Upload images (Ghost Admin API compatible)
  */
 export async function POST(request: NextRequest) {
+  console.log(`🚀 UPLOAD START: ${Date.now()} - ${Math.random().toString(36).substr(2, 9)}`)
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
     )
 
     // Return Ghost-compatible response
+    console.log(`✅ UPLOAD SUCCESS: Returning URL ${imageInfo.url}`)
     return NextResponse.json({
       images: [{
         url: imageInfo.url,
