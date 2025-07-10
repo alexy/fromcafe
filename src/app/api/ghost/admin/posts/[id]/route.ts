@@ -8,6 +8,7 @@ import { ContentProcessor } from '@/lib/content-processor'
 // Configure route for handling larger payloads and longer processing times
 export const maxDuration = 60 // Allow up to 60 seconds for large image processing
 export const runtime = 'nodejs' // Use Node.js runtime for better performance with large payloads
+export const preferredRegion = 'auto' // Allow Vercel to choose optimal region for large payloads
 
 /**
  * GET /api/ghost/admin/posts/{id} - Get specific post (Ghost Admin API compatible)
@@ -318,9 +319,20 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       const sizeInMB = parseInt(contentLength) / (1024 * 1024)
       console.log(`👻 PUT: Request size: ${contentLength} bytes (${sizeInMB.toFixed(2)} MB)`)
       
-      // Warn if approaching Vercel's 4.5MB limit
+      // Reject if approaching Vercel's 4.5MB limit to provide clear error
       if (sizeInMB > 4) {
-        console.warn(`👻 PUT: Large request detected (${sizeInMB.toFixed(2)} MB) - may hit Vercel limits`)
+        console.error(`👻 PUT: Request too large (${sizeInMB.toFixed(2)} MB) - Vercel limit is 4.5MB`)
+        return NextResponse.json(
+          { errors: [{ 
+            message: `Request too large (${sizeInMB.toFixed(2)} MB). Maximum size is 4.5MB. Try reducing image sizes or content length.`,
+            type: 'PayloadTooLargeError'
+          }] },
+          { status: 413 }
+        )
+      }
+      
+      if (sizeInMB > 3) {
+        console.warn(`👻 PUT: Large request detected (${sizeInMB.toFixed(2)} MB) - approaching Vercel 4.5MB limit`)
       }
     }
     

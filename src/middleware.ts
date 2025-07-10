@@ -37,6 +37,17 @@ export async function middleware(request: NextRequest) {
     if (request.method === 'PUT') {
       console.log('🚨 MIDDLEWARE: PUT request detected to Ghost API')
       console.log('🚨 MIDDLEWARE: PUT pathname:', pathname)
+      console.log('🚨 MIDDLEWARE: PUT content-length:', request.headers.get('content-length') || 'NOT SET')
+      
+      // Check for large requests that might be rejected by Vercel
+      const contentLength = request.headers.get('content-length')
+      if (contentLength) {
+        const sizeInMB = parseInt(contentLength) / (1024 * 1024)
+        if (sizeInMB > 4) {
+          console.error(`🚨 MIDDLEWARE: Request too large (${sizeInMB.toFixed(2)} MB) - will likely be rejected by Vercel`)
+        }
+      }
+      
       console.log('🚨 MIDDLEWARE: PUT headers:', Object.fromEntries(request.headers.entries()))
     }
     
