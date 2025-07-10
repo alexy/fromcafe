@@ -471,11 +471,16 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     let processingResult
     
     if (isMarkdownContent) {
-      // Convert Markdown to HTML for image processing only
+      // For Markdown content with images already uploaded, skip image processing
+      // Just validate the content and count images without downloading
+      console.log('👻 PUT: Skipping image processing for Markdown content (images already uploaded)')
       const htmlContent = await marked(content, { renderer })
-      processingResult = await contentProcessor.processGhostContent(htmlContent, existingPost.id, fullBlog.showCameraMake)
-      // But store the original Markdown content, not the processed HTML
-      processingResult.processedContent = content
+      const imageCount = (htmlContent.match(/<img[^>]+>/g) || []).length
+      processingResult = {
+        processedContent: content, // Store original Markdown
+        imageCount,
+        errors: []
+      }
     } else {
       processingResult = await contentProcessor.processGhostContent(content, existingPost.id, fullBlog.showCameraMake)
     }
