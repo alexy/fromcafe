@@ -29,6 +29,18 @@ interface GhostToken {
   }
 }
 
+interface AdminApiKey {
+  id: string
+  keyId: string
+  secret?: string // Only present when just created
+  name: string
+  description?: string
+  createdAt: string
+  lastUsedAt?: string
+  apiUrl?: string
+  blogUrl?: string
+}
+
 interface GhostConfigSectionProps {
   blogId: string
 }
@@ -39,10 +51,79 @@ export default function GhostConfigSection({ blogId }: GhostConfigSectionProps) 
   const [generatingToken, setGeneratingToken] = useState(false)
   const [currentToken, setCurrentToken] = useState<GhostToken | null>(null)
   const [tokenExpiry, setTokenExpiry] = useState('1y')
+  
+  // Admin API Key state
+  const [adminApiKeys, setAdminApiKeys] = useState<AdminApiKey[]>([])
+  const [creatingApiKey, setCreatingApiKey] = useState(false)
+  const [newApiKeyName, setNewApiKeyName] = useState('iA Writer')
 
   useEffect(() => {
     fetchBlogInfo()
+    fetchAdminApiKeys()
   }, [blogId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fetchAdminApiKeys = async () => {
+    try {
+      const response = await fetch(`/api/admin-api-keys?blogId=${blogId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setAdminApiKeys(data.apiKeys || [])
+      }
+    } catch (error) {
+      console.error('Error fetching Admin API Keys:', error)
+    }
+  }
+
+  const createAdminApiKey = async () => {
+    setCreatingApiKey(true)
+    try {
+      const response = await fetch('/api/admin-api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blogId,
+          name: newApiKeyName || 'Admin API Key'
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Add the new key to the list (includes secret for initial display)
+        setAdminApiKeys(prev => [data, ...prev])
+        setNewApiKeyName('iA Writer') // Reset
+      } else {
+        alert(data.error || 'Failed to create Admin API Key')
+      }
+    } catch (error) {
+      console.error('Error creating Admin API Key:', error)
+      alert('Failed to create Admin API Key')
+    } finally {
+      setCreatingApiKey(false)
+    }
+  }
+
+  const deleteAdminApiKey = async (keyId: string) => {
+    if (!confirm('Are you sure you want to delete this Admin API Key? This cannot be undone.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin-api-keys?keyId=${keyId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        setAdminApiKeys(prev => prev.filter(key => key.keyId !== keyId))
+      } else {
+        const data = await response.json()
+        alert(data.error || 'Failed to delete Admin API Key')
+      }
+    } catch (error) {
+      console.error('Error deleting Admin API Key:', error)
+      alert('Failed to delete Admin API Key')
+    }
+  }
 
   const fetchBlogInfo = async () => {
     try {
@@ -129,14 +210,122 @@ export default function GhostConfigSection({ blogId }: GhostConfigSectionProps) 
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Admin API Keys Section */}
+      <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-medium text-blue-900">Admin API Keys</h3>
+          <button
+            onClick={createAdminApiKey}
+            disabled={creatingApiKey}
+            className="bg-blue-600 text-white px-3 py-1 text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {creatingApiKey ? 'Creating...' : 'Create Key'}
+          </button>
+        </div>
+        
+        <div className="mb-3">
+          <input
+            type="text"
+            value={newApiKeyName}
+            onChange={(e) => setNewApiKeyName(e.target.value)}
+            placeholder="Key name (e.g., iA Writer)"
+            className="w-full px-3 py-2 border border-blue-300 rounded text-sm"
+            disabled={creatingApiKey}
+          />
+        </div>
+        
+        <p className="text-sm text-blue-700 mb-4">
+          Admin API Keys work with Ghost-compatible editors like iA Writer. They don&apos;t expire and are more secure than staff tokens.
+        </p>
+        
+        {adminApiKeys.length > 0 && (
+          <div className="space-y-3">
+            {adminApiKeys.map((apiKey) => (
+              <div key={apiKey.id} className="border border-blue-300 bg-white rounded-lg p-3">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h4 className="font-medium text-blue-900">{apiKey.name}</h4>
+                    <p className="text-xs text-blue-600">
+                      Created: {new Date(apiKey.createdAt).toLocaleDateString()}
+                      {apiKey.lastUsedAt && (
+                        <span className="ml-2">
+                          • Last used: {new Date(apiKey.lastUsedAt).toLocaleDateString()}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => deleteAdminApiKey(apiKey.keyId)}
+                    className="text-red-600 hover:text-red-800 text-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
+                
+                {apiKey.secret && (
+                  <div className="bg-green-50 border border-green-200 rounded p-3 mb-3">
+                    <h5 className="font-medium text-green-800 mb-2">⚠️ Save these credentials now!</h5>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <label className="block text-xs font-medium text-green-700">API URL:</label>
+                        <div className="flex items-center space-x-2">
+                          <code className="bg-white border px-2 py-1 rounded text-xs flex-1 break-all">
+                            {apiKey.apiUrl}
+                          </code>
+                          <button
+                            onClick={() => copyToClipboard(apiKey.apiUrl!)}
+                            className="bg-green-600 text-white px-2 py-1 text-xs rounded hover:bg-green-700"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-green-700">Admin API Key:</label>
+                        <div className="flex items-center space-x-2">
+                          <code className="bg-white border px-2 py-1 rounded text-xs flex-1 break-all">
+                            {apiKey.keyId}:{apiKey.secret}
+                          </code>
+                          <button
+                            onClick={() => copyToClipboard(`${apiKey.keyId}:${apiKey.secret}`)}
+                            className="bg-green-600 text-white px-2 py-1 text-xs rounded hover:bg-green-700"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-green-600 mt-2">
+                      This secret will not be shown again. Save it in your Ghost client now.
+                    </p>
+                  </div>
+                )}
+                
+                <div className="text-xs text-blue-700">
+                  <strong>Key ID:</strong> <code className="bg-blue-100 px-1 rounded">{apiKey.keyId}</code>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {adminApiKeys.length === 0 && (
+          <div className="text-center py-4 text-blue-600">
+            <p className="text-sm">No Admin API Keys created yet.</p>
+            <p className="text-xs mt-1">Create one to use with Ghost-compatible editors.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Staff Token Section */}
       <div className="border border-gray-200 rounded-lg p-4">
         <div className="flex items-center space-x-2 mb-3">
           <div className={`w-3 h-3 rounded-full ${
             blogInfo.blog.ghostEnabled ? 'bg-green-500' : 'bg-gray-400'
           }`}></div>
           <span className="text-black font-medium">
-            Ghost Admin API {blogInfo.blog.ghostEnabled ? 'Enabled' : 'Disabled'}
+            Staff Tokens (Legacy) {blogInfo.blog.ghostEnabled ? 'Enabled' : 'Disabled'}
           </span>
         </div>
         

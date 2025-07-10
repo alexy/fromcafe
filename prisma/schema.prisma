@@ -33,6 +33,7 @@ model User {
   blogs                    Blog[]
   domains                  Domain[]
   ghostTokens              GhostToken[]
+  adminApiKeys             AdminApiKey[]
   sessions                 Session[]
 
   @@map("users")
@@ -104,6 +105,7 @@ model Blog {
   user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   domain              Domain?
   ghostTokens         GhostToken[]
+  adminApiKeys        AdminApiKey[]
   posts               Post[]
   tags                Tag[]
 
@@ -190,6 +192,22 @@ model GhostToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("ghost_tokens")
+}
+
+model AdminApiKey {
+  id          String   @id @default(cuid())
+  keyId       String   @unique
+  secret      String
+  blogId      String
+  userId      String
+  name        String   @default("Admin API Key")
+  description String?
+  createdAt   DateTime @default(now())
+  lastUsedAt  DateTime?
+  blog        Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admin_api_keys")
 }
 
 model ImageNamingDecision {

@@ -69,7 +69,42 @@ async function parseJWTToken(token: string): Promise<GhostAuthResult | null> {
     const kid = decoded.header.kid
     console.log('DEBUG: JWT kid (Admin API key ID):', kid)
     
-    // Find the Admin API key by the exact ID part (before colon)
+    // First try to find in new AdminApiKey table
+    const newAdminApiKey = await prisma.adminApiKey.findUnique({
+      where: { keyId: kid },
+      select: {
+        secret: true,
+        blogId: true,
+        userId: true
+      }
+    })
+    
+    if (newAdminApiKey) {
+      console.log('DEBUG: Found new-style Admin API key for kid:', kid)
+      
+      // Verify JWT with the hex secret
+      try {
+        const secretBuffer = Buffer.from(newAdminApiKey.secret, 'hex')
+        jwt.verify(token, secretBuffer, { algorithms: ['HS256'] })
+        console.log('JWT verified successfully with new Admin API key')
+        
+        // Update last used timestamp
+        await prisma.adminApiKey.update({
+          where: { keyId: kid },
+          data: { lastUsedAt: new Date() }
+        })
+        
+        return {
+          blogId: newAdminApiKey.blogId,
+          userId: newAdminApiKey.userId
+        }
+      } catch (jwtError) {
+        console.log('JWT verification failed with new Admin API key:', jwtError)
+        return null
+      }
+    }
+    
+    // Fall back to old GhostToken system
     const adminApiKey = await prisma.ghostToken.findFirst({
       where: {
         token: {
