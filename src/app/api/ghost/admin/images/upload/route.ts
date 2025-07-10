@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
     )
 
     console.log(`📤 STORE-IMAGE COMPLETED: ${imageInfo.url}`)
+    console.log(`🔍 IMAGE-INFO OBJECT:`, JSON.stringify(imageInfo, null, 2))
 
     // Return Ghost-compatible response
     console.log(`✅ UPLOAD SUCCESS: Returning URL ${imageInfo.url}`)
