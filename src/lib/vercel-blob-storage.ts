@@ -71,8 +71,9 @@ export class VercelBlobStorageService {
     
     // Upload new file
     const blob = await put(`images/${filename}`, imageData, {
+      access: 'public',
       contentType: mimeType,
-      access: 'public'
+      addRandomSuffix: false
     })
     
     return {
