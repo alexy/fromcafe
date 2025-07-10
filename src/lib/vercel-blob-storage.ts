@@ -62,9 +62,12 @@ export class VercelBlobStorageService {
       
       // Extract date if not provided
       if (!exifDate) {
-        exifDate = exifMetadata.dateTimeOriginal ? 
-          this.formatDateForFilename(new Date(exifMetadata.dateTimeOriginal)) :
-          await this.extractImageDate(imageData, originalFilename, postDate)
+        if (exifMetadata.dateTimeOriginal) {
+          exifDate = this.formatDateForFilename(new Date(exifMetadata.dateTimeOriginal))
+        } else {
+          const extractedDate = await this.extractImageDate(imageData, originalFilename, postDate)
+          exifDate = extractedDate || undefined // Convert null to undefined
+        }
       }
       
       // Check if we can just rename an existing image instead of uploading
@@ -565,7 +568,7 @@ export class VercelBlobStorageService {
   /**
    * Extract date from EXIF, filename, file stats, or post date
    */
-  private async extractImageDate(imageData: Buffer, originalFilename?: string, postDate?: string): Promise<string> {
+  private async extractImageDate(imageData: Buffer, originalFilename?: string, postDate?: string): Promise<string | null> {
     const config = getConfig()
     
     // Try EXIF data first if enabled
@@ -627,10 +630,10 @@ export class VercelBlobStorageService {
       }
     }
     
-    // Final fallback: use a clearly placeholder date instead of today's date
-    // Using current date is misleading for old images
-    console.warn(`No valid date found for image, using placeholder date 2000-01-01. Original filename: ${originalFilename}`)
-    return '2000-01-01'
+    // No valid date found - return null to indicate no date available
+    // This allows the caller to decide how to handle missing dates
+    console.warn(`No valid date found for image. Original filename: ${originalFilename}`)
+    return null
   }
 
   /**
