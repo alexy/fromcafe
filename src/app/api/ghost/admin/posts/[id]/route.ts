@@ -662,10 +662,12 @@ interface LexicalParagraphNode {
 }
 
 interface LexicalImageNode {
-  type: 'imageCard';
+  type: 'image';
   version: number;
-  cardName: string;
   src: string;
+  width: number;
+  height: number;
+  title: string;
   alt: string;
   caption: string;
   cardWidth: string;
@@ -693,12 +695,14 @@ function convertHtmlToLexical(html: string): string | null {
       // Check if this paragraph contains an image
       const imageMatch = trimmedParagraph.match(/<img[^>]+src="([^"]+)"[^>]*alt="([^"]*)"[^>]*>/i);
       if (imageMatch) {
-        // Add Ghost Koenig image card
+        // Add Ghost Lexical image node (real format)
         children.push({
-          type: 'imageCard',
+          type: 'image',
           version: 1,
-          cardName: 'image',
           src: imageMatch[1],
+          width: 800, // Default width
+          height: 600, // Default height  
+          title: '',
           alt: imageMatch[2] || '',
           caption: '',
           cardWidth: 'regular',
@@ -817,12 +821,14 @@ function convertMarkdownToLexical(markdown: string): string | null {
           currentParagraphText = '';
         }
         
-        // Add Ghost Koenig image card
+        // Add Ghost Lexical image node (real format)
         children.push({
-          type: 'imageCard',
+          type: 'image',
           version: 1,
-          cardName: 'image',
           src: imageMatch[2],
+          width: 800, // Default width
+          height: 600, // Default height
+          title: '',
           alt: imageMatch[1] || '',
           caption: '',
           cardWidth: 'regular',
