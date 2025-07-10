@@ -95,6 +95,19 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     try {
       lexicalFormat = responseMarkdown ? convertMarkdownToLexical(responseMarkdown) : convertHtmlToLexical(responseHtml);
       console.log('👻 Lexical generation successful, length:', lexicalFormat?.length || 'NULL');
+      
+      // Debug: Log the actual Lexical content to compare with real Ghost
+      if (lexicalFormat && (responseHtml.includes('<img') || (responseMarkdown && responseMarkdown.includes('![')))) {
+        console.log('👻 POST HAS IMAGES - Lexical content:');
+        console.log(lexicalFormat);
+        try {
+          const parsed = JSON.parse(lexicalFormat);
+          console.log('👻 Lexical parsed structure:');
+          console.log(JSON.stringify(parsed, null, 2));
+        } catch (e) {
+          console.error('👻 Failed to parse generated Lexical:', e);
+        }
+      }
     } catch (error) {
       console.error('👻 Error generating Lexical format:', error);
       lexicalFormat = null;
