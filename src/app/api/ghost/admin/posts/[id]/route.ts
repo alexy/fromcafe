@@ -90,6 +90,16 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     // Generate proper UUID format
     const ghostUuid = `${params.id.substring(0, 8)}-${params.id.substring(8, 12)}-${params.id.substring(12, 16)}-${params.id.substring(16, 20)}-${params.id.substring(20, 24)}000000000000`
 
+    // Generate Lexical format with error handling
+    let lexicalFormat: string | null = null;
+    try {
+      lexicalFormat = responseMarkdown ? convertMarkdownToLexical(responseMarkdown) : convertHtmlToLexical(responseHtml);
+      console.log('👻 Lexical generation successful, length:', lexicalFormat?.length || 'NULL');
+    } catch (error) {
+      console.error('👻 Error generating Lexical format:', error);
+      lexicalFormat = null;
+    }
+
     // Format response in Ghost format with all required fields for editing
     const ghostResponse = {
       id: params.id,
@@ -97,7 +107,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       title: post.title,
       slug: post.slug,
       html: responseHtml,
-      lexical: responseMarkdown ? convertMarkdownToLexical(responseMarkdown) : convertHtmlToLexical(responseHtml),
+      lexical: lexicalFormat,
       mobiledoc: null,
       markdown: responseMarkdown,
       comment_id: post.id,
@@ -179,6 +189,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     }
 
     console.log('👻 Returning individual post:', post.title)
+    console.log('👻 Ghost response lexical length:', ghostResponse.lexical?.length || 'NULL')
+    console.log('👻 About to send response with lexical format')
     console.log('👻 Ghost response status:', ghostResponse.status)
     
     console.log('👻 ABOUT TO SEND RESPONSE TO ULYSSES')
