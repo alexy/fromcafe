@@ -155,17 +155,18 @@ export class ContentProcessor {
         // Always re-process if title or filename has changed or image doesn't exist
         const shouldReprocess = !existingImage || 
           (title && !existingImage.filename.includes(this.sanitizeFilename(title))) ||
-          (originalFilename && !existingImage.filename.includes(this.sanitizeFilename(originalFilename.replace(/\.[^.]*$/, ''))))
+          (originalFilename && !existingImage.filename.includes(this.sanitizeFilename(originalFilename.replace(/\.[^.]*$/, '')))) ||
+          // Force reprocess if we have a meaningful filename but current filename suggests fallback naming
+          (originalFilename && originalFilename.length > 3 && existingImage?.filename.includes('_image_'))
         
-        // Only log if we have interesting data
-        if (originalFilename || title) {
-          console.log(`🔄 REPROCESS-DEBUG: Post ${postId}, Hash ${hash.substring(0, 8)}:`, {
-            existingFilename: existingImage?.filename,
-            title,
-            originalFilename,
-            shouldReprocess
-          })
-        }
+        // Always log for debugging
+        console.log(`🔄 REPROCESS-DEBUG: Post ${postId}, Hash ${hash.substring(0, 8)}:`, {
+          existingFilename: existingImage?.filename,
+          title,
+          originalFilename,
+          shouldReprocess,
+          hasExistingImage: !!existingImage
+        })
         
         if (shouldReprocess) {
           // Convert Evernote timestamp to date string
@@ -286,8 +287,12 @@ export class ContentProcessor {
       const fullTag = match[0]
       const imageUrl = match[1]
 
-      // Skip if image is already local (starts with / or our domain)
-      if (imageUrl.startsWith('/') || imageUrl.includes('/images/posts/')) {
+      // Skip if image is already local (starts with / or our domain or blob URLs)
+      if (imageUrl.startsWith('/') || 
+          imageUrl.includes('/images/') || 
+          imageUrl.includes('blob.vercel-storage.com') ||
+          imageUrl.includes('fromcafe.art') ||
+          imageUrl.includes('alexy.fromcafe.art')) {
         continue
       }
 
