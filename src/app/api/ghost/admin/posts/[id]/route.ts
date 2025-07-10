@@ -97,7 +97,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       title: post.title,
       slug: post.slug,
       html: responseHtml,
-      lexical: null, // Temporarily disable to avoid compatibility issues
+      lexical: responseMarkdown ? convertMarkdownToLexical(responseMarkdown) : convertHtmlToLexical(responseHtml),
       mobiledoc: null,
       markdown: responseMarkdown,
       comment_id: post.id,
@@ -520,7 +520,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       title: updatedPost.title,
       slug: updatedPost.slug,
       html: responseHtml,
-      lexical: null, // Temporarily disable to avoid compatibility issues
+      lexical: responseMarkdown ? convertMarkdownToLexical(responseMarkdown) : convertHtmlToLexical(responseHtml),
       mobiledoc: null,
       markdown: responseMarkdown,
       comment_id: updatedPost.id,
@@ -626,6 +626,279 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       { errors: [{ message: 'Internal server error' }] },
       { status: 500 }
     )
+  }
+}
+
+// Lexical node types
+interface LexicalTextNode {
+  type: 'text';
+  text: string;
+  detail: number;
+  format: number;
+  mode: string;
+  style: string;
+  version: number;
+}
+
+interface LexicalParagraphNode {
+  type: 'paragraph';
+  children: LexicalTextNode[];
+  direction: string;
+  format: string;
+  indent: number;
+  version: number;
+}
+
+interface LexicalImageNode {
+  type: 'image';
+  altText: string;
+  caption: string;
+  height: number;
+  maxWidth: number;
+  showCaption: boolean;
+  src: string;
+  width: number;
+  version: number;
+}
+
+type LexicalNode = LexicalParagraphNode | LexicalImageNode;
+
+/**
+ * Convert HTML to Ghost Lexical format
+ */
+function convertHtmlToLexical(html: string): string | null {
+  if (!html) return null;
+  
+  try {
+    const children: LexicalNode[] = [];
+    
+    // Simple HTML parsing - split by <p> tags and handle images
+    const paragraphs = html.split(/<\/?p[^>]*>/i).filter(p => p.trim());
+    
+    for (const paragraph of paragraphs) {
+      const trimmedParagraph = paragraph.trim();
+      if (!trimmedParagraph) continue;
+      
+      // Check if this paragraph contains an image
+      const imageMatch = trimmedParagraph.match(/<img[^>]+src="([^"]+)"[^>]*alt="([^"]*)"[^>]*>/i);
+      if (imageMatch) {
+        // Add image card
+        children.push({
+          type: 'image',
+          altText: imageMatch[2] || '',
+          caption: '',
+          height: 0,
+          maxWidth: 1000,
+          showCaption: false,
+          src: imageMatch[1],
+          width: 0,
+          version: 1
+        });
+        
+        // Handle any text around the image
+        const textWithoutImage = trimmedParagraph.replace(/<img[^>]*>/i, '').trim();
+        if (textWithoutImage) {
+          children.push({
+            type: 'paragraph',
+            children: [{
+              type: 'text',
+              text: textWithoutImage.replace(/<[^>]*>/g, ''), // Remove any remaining HTML tags
+              detail: 0,
+              format: 0,
+              mode: 'normal',
+              style: '',
+              version: 1
+            }],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+            version: 1
+          });
+        }
+      } else {
+        // Regular text paragraph
+        const textContent = trimmedParagraph.replace(/<[^>]*>/g, '').trim(); // Remove HTML tags
+        if (textContent) {
+          children.push({
+            type: 'paragraph',
+            children: [{
+              type: 'text',
+              text: textContent,
+              detail: 0,
+              format: 0,
+              mode: 'normal',
+              style: '',
+              version: 1
+            }],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+            version: 1
+          });
+        }
+      }
+    }
+    
+    // If no children, add empty paragraph
+    if (children.length === 0) {
+      children.push({
+        type: 'paragraph',
+        children: [],
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        version: 1
+      });
+    }
+    
+    const lexicalData = {
+      root: {
+        children,
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        type: 'root',
+        version: 1
+      }
+    };
+    
+    return JSON.stringify(lexicalData);
+  } catch (error) {
+    console.error('Error converting HTML to lexical:', error);
+    return null;
+  }
+}
+
+/**
+ * Convert Markdown to Ghost Lexical format
+ */
+function convertMarkdownToLexical(markdown: string): string | null {
+  if (!markdown) return null;
+  
+  try {
+    const children: LexicalNode[] = [];
+    const lines = markdown.split('\n');
+    let currentParagraphText = '';
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      
+      // Handle images
+      const imageMatch = trimmedLine.match(/^!\[([^\]]*)\]\(([^)]+)\)(.*)$/);
+      if (imageMatch) {
+        // Finish any pending paragraph
+        if (currentParagraphText.trim()) {
+          children.push({
+            type: 'paragraph',
+            children: [{
+              type: 'text',
+              text: currentParagraphText.trim(),
+              detail: 0,
+              format: 0,
+              mode: 'normal',
+              style: '',
+              version: 1
+            }],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+            version: 1
+          });
+          currentParagraphText = '';
+        }
+        
+        // Add image card
+        children.push({
+          type: 'image',
+          altText: imageMatch[1] || '',
+          caption: '',
+          height: 0,
+          maxWidth: 1000,
+          showCaption: false,
+          src: imageMatch[2],
+          width: 0,
+          version: 1
+        });
+        
+        // Continue with any text after the image
+        if (imageMatch[3].trim()) {
+          currentParagraphText += imageMatch[3].trim() + ' ';
+        }
+        continue;
+      }
+      
+      // Handle regular text lines
+      if (trimmedLine) {
+        currentParagraphText += trimmedLine + ' ';
+      } else if (currentParagraphText.trim()) {
+        // Empty line - finish paragraph
+        children.push({
+          type: 'paragraph',
+          children: [{
+            type: 'text',
+            text: currentParagraphText.trim(),
+            detail: 0,
+            format: 0,
+            mode: 'normal',
+            style: '',
+            version: 1
+          }],
+          direction: 'ltr',
+          format: '',
+          indent: 0,
+          version: 1
+        });
+        currentParagraphText = '';
+      }
+    }
+    
+    // Add final paragraph if exists
+    if (currentParagraphText.trim()) {
+      children.push({
+        type: 'paragraph',
+        children: [{
+          type: 'text',
+          text: currentParagraphText.trim(),
+          detail: 0,
+          format: 0,
+          mode: 'normal',
+          style: '',
+          version: 1
+        }],
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        version: 1
+      });
+    }
+    
+    // If no children, add empty paragraph
+    if (children.length === 0) {
+      children.push({
+        type: 'paragraph',
+        children: [],
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        version: 1
+      });
+    }
+    
+    const lexicalData = {
+      root: {
+        children,
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        type: 'root',
+        version: 1
+      }
+    };
+    
+    return JSON.stringify(lexicalData);
+  } catch (error) {
+    console.error('Error converting markdown to lexical:', error);
+    return null;
   }
 }
 
