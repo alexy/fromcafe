@@ -63,12 +63,20 @@ export async function POST(request: NextRequest) {
 
     // Return Ghost-compatible response
     console.log(`✅ UPLOAD SUCCESS: Returning URL ${imageInfo.url}`)
-    return NextResponse.json({
+    
+    const response = {
       images: [{
         url: imageInfo.url,
         ref: imageInfo.filename
       }]
-    })
+    }
+    
+    console.log(`🔄 RESPONSE OBJECT:`, JSON.stringify(response))
+    
+    const nextResponse = NextResponse.json(response)
+    console.log(`🚀 RESPONSE CREATED, SENDING...`)
+    
+    return nextResponse
 
   } catch (error) {
     console.error('Error uploading Ghost image:', error)
