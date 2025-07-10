@@ -97,7 +97,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       title: post.title,
       slug: post.slug,
       html: responseHtml,
-      lexical: responseMarkdown ? convertMarkdownToLexical(responseMarkdown) : null,
+      lexical: null, // Temporarily disable to avoid compatibility issues
       mobiledoc: null,
       markdown: responseMarkdown,
       comment_id: post.id,
@@ -179,49 +179,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     }
 
     console.log('👻 Returning individual post:', post.title)
-    console.log('👻 SIMPLE-DEBUG: responseHtml length:', responseHtml.length)
-    console.log('👻 SIMPLE-DEBUG: responseMarkdown length:', responseMarkdown?.length || 0)
-    console.log('👻 SIMPLE-DEBUG: checking for images...')
     console.log('👻 Ghost response status:', ghostResponse.status)
-    console.log('👻 Ghost response access:', ghostResponse.access)
-    console.log('👻 Ghost response updated_at:', ghostResponse.updated_at)
-    console.log('👻 Ghost response type:', ghostResponse.type)
-    console.log('👻 Ghost response has lexical:', !!ghostResponse.lexical)
-    console.log('👻 Ghost response fields count:', Object.keys(ghostResponse).length)
-    console.log('👻 Ghost response author roles:', JSON.stringify(ghostResponse.authors[0].roles))
-    
-    // DEBUG: Detailed analysis for posts with images
-    try {
-      const hasImages = responseHtml.includes('<img') || (responseMarkdown && responseMarkdown.includes('!['))
-      console.log('👻 GET-DEBUG: Post has images:', hasImages)
-    if (hasImages) {
-      console.log('👻 GET-DEBUG: HTML length:', responseHtml.length)
-      console.log('👻 GET-DEBUG: Markdown length:', responseMarkdown?.length || 0)
-      console.log('👻 GET-DEBUG: Image count in HTML:', (responseHtml.match(/<img/g) || []).length)
-      console.log('👻 GET-DEBUG: Image count in Markdown:', (responseMarkdown?.match(/!\[/g) || []).length)
-      console.log('👻 GET-DEBUG: Lexical format:', ghostResponse.lexical ? `LEXICAL_${ghostResponse.lexical.length}_chars` : 'NULL')
-      if (ghostResponse.lexical) {
-        try {
-          const lexicalObj = JSON.parse(ghostResponse.lexical);
-          console.log('👻 GET-DEBUG: Lexical children count:', lexicalObj.root.children.length);
-          console.log('👻 GET-DEBUG: Lexical node types:', lexicalObj.root.children.map((c: { type: string }) => c.type).join(', '));
-        } catch (error) {
-          console.error('👻 GET-DEBUG: Lexical JSON parse error:', error);
-          console.log('👻 GET-DEBUG: Invalid Lexical content preview:', ghostResponse.lexical.substring(0, 200));
-        }
-      }
-      
-      // Log first image URL for analysis
-      const imgMatch = responseHtml.match(/<img[^>]+src="([^"]+)"/);
-      if (imgMatch) {
-        console.log('👻 GET-DEBUG: First image URL:', imgMatch[1])
-        console.log('👻 GET-DEBUG: Image URL length:', imgMatch[1].length)
-        console.log('👻 GET-DEBUG: Is blob URL:', imgMatch[1].includes('blob.vercel-storage.com'))
-      }
-    }
-    } catch (debugError) {
-      console.error('👻 GET-DEBUG: Error in debug block:', debugError);
-    }
     
     console.log('👻 ABOUT TO SEND RESPONSE TO ULYSSES')
     console.log('👻 GET: URL being returned:', ghostResponse.url)
@@ -708,7 +666,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       title: updatedPost.title,
       slug: updatedPost.slug,
       html: responseHtml,
-      lexical: responseMarkdown ? convertMarkdownToLexical(responseMarkdown) : null,
+      lexical: null, // Temporarily disable to avoid compatibility issues
       mobiledoc: null,
       markdown: responseMarkdown,
       comment_id: updatedPost.id,
