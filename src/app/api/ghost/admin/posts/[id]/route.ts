@@ -73,11 +73,19 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     }
     console.log('👻 Found post:', post.title)
     console.log('👻 DB CONTENT DEBUG:')
-    console.log('👻 Post content length:', post.content?.length || 0)
-    console.log('👻 Post content format:', post.contentFormat)
-    console.log('👻 Post content preview:', post.content?.substring(0, 300) || 'NULL')
-    console.log('👻 Post content has img tags:', post.content?.includes('<img') || false)
-    console.log('👻 Post content has markdown images:', post.content?.includes('![') || false)
+    try {
+      console.log('👻 Post content length:', post.content?.length || 0)
+      console.log('👻 Post content format:', post.contentFormat)
+      console.log('👻 Post content has img tags:', post.content?.includes('<img') || false)
+      console.log('👻 Post content has markdown images:', post.content?.includes('![') || false)
+      if (post.content && post.content.length > 0) {
+        // Safely log content preview without breaking on special characters
+        const safePreview = post.content.substring(0, 200).replace(/[\r\n\t]/g, ' ')
+        console.log('👻 Post content preview (safe):', JSON.stringify(safePreview))
+      }
+    } catch (debugError) {
+      console.error('👻 Error in content debugging:', debugError)
+    }
 
     // Configure marked to NOT wrap images in figure tags to prevent nesting
     const renderer = new marked.Renderer()
