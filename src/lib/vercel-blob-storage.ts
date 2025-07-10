@@ -46,8 +46,7 @@ export class VercelBlobStorageService {
     originalHash: string,
     mimeType: string,
     postId: string,
-    title?: string,
-    _originalFilename?: string
+    title?: string
   ): Promise<ImageInfo> {
     const extension = this.getExtensionFromMimeType(mimeType)
     const sanitizedTitle = title ? this.sanitizeFilename(title) : 'image'
@@ -100,7 +99,7 @@ export class VercelBlobStorageService {
   ): Promise<ImageInfo> {
     // For Ghost uploads, use simple processing to maintain compatibility
     if (postId.startsWith('ghost-')) {
-      return this.storeImageGhostCompatible(imageData, originalHash, mimeType, postId, title, originalFilename)
+      return this.storeImageGhostCompatible(imageData, originalHash, mimeType, postId, title)
     }
     try {
       console.log(`🔄 STORE-IMAGE-DEBUG: Post ${postId}, Hash ${originalHash.substring(0, 8)}:`, {
