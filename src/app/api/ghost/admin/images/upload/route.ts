@@ -6,7 +6,6 @@ import { createHash } from 'crypto'
  * POST /ghost/api/v4/admin/images/upload - Upload images (Ghost Admin API compatible)
  */
 export async function POST(request: NextRequest) {
-  console.log(`🚀 UPLOAD START: ${Date.now()} - ${Math.random().toString(36).substr(2, 9)}`)
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -59,25 +58,13 @@ export async function POST(request: NextRequest) {
       file.name
     )
 
-    console.log(`📤 STORE-IMAGE COMPLETED: ${imageInfo.url}`)
-    console.log(`🔍 IMAGE-INFO OBJECT:`, JSON.stringify(imageInfo, null, 2))
-
-    // Return Ghost-compatible response
-    console.log(`✅ UPLOAD SUCCESS: Returning URL ${imageInfo.url}`)
-    
-    const response = {
+    // Return Ghost-compatible response - exactly as it was before
+    return NextResponse.json({
       images: [{
         url: imageInfo.url,
         ref: imageInfo.filename
       }]
-    }
-    
-    console.log(`🔄 RESPONSE OBJECT:`, JSON.stringify(response))
-    
-    const nextResponse = NextResponse.json(response)
-    console.log(`🚀 RESPONSE CREATED, SENDING...`)
-    
-    return nextResponse
+    })
 
   } catch (error) {
     console.error('Error uploading Ghost image:', error)
