@@ -199,7 +199,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       if (ghostResponse.lexical) {
         const lexicalObj = JSON.parse(ghostResponse.lexical);
         console.log('👻 GET-DEBUG: Lexical children count:', lexicalObj.root.children.length);
-        console.log('👻 GET-DEBUG: Lexical node types:', lexicalObj.root.children.map((c: any) => c.type).join(', '));
+        console.log('👻 GET-DEBUG: Lexical node types:', lexicalObj.root.children.map((c: { type: string }) => c.type).join(', '));
       }
       
       // Log first image URL for analysis
@@ -303,7 +303,21 @@ function convertMarkdownToLexical(markdown: string): string | null {
   if (!markdown) return null;
   
   try {
-    const children: any[] = [];
+    const children: Array<{
+      type: string;
+      children?: Array<{ type: string; text: string; detail: number; format: number; mode: string; style: string; version: number }>;
+      direction?: string;
+      format?: string;
+      indent?: number;
+      version?: number;
+      altText?: string;
+      caption?: string;
+      height?: number;
+      maxWidth?: number;
+      showCaption?: boolean;
+      src?: string;
+      width?: number;
+    }> = [];
     const lines = markdown.split('\n');
     let currentParagraphText = '';
     
