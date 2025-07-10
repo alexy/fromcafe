@@ -75,12 +75,15 @@ export class VercelBlobStorageService {
       const renameResult = await this.tryRenameExistingImage(originalHash, postId, title, originalFilename, mimeType, exifDate, postDate)
       console.log(`🔄 RENAME CHECK COMPLETED, result:`, !!renameResult)
       if (renameResult) {
+        console.log(`🔄 EARLY RETURN: Using rename result`)
         // Add EXIF metadata to the renamed image result
         return {
           ...renameResult,
           exifMetadata
         }
       }
+      
+      console.log(`🔄 CONTINUING: Past rename check, proceeding with upload`)
       
       // Generate content hash for deduplication
       const contentHash = createHash('sha256').update(imageData).digest('hex').substring(0, 16)
