@@ -103,6 +103,9 @@ export async function POST(request: NextRequest) {
     const domain = searchParams.get('domain')
     const subdomain = searchParams.get('subdomain')
     const blogSlug = searchParams.get('blogSlug')
+    const source = searchParams.get('source') // ?source=html parameter
+    
+    console.log('👻 POST: source parameter:', source || 'not provided')
 
     // Validate authentication and find blog
     const authResult = await validateGhostAuth(request, domain || undefined, subdomain || undefined, blogSlug || undefined)
@@ -146,22 +149,43 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Extract content from different formats - prioritize Markdown from Ulysses
+      // Extract content from different formats
       let content = ''
       let isMarkdownContent = false
       
-      if (ghostPost.markdown) {
-        // Ulysses sends Markdown XL - store as-is
-        content = ghostPost.markdown
-        isMarkdownContent = true
-      } else if (ghostPost.html) {
-        content = ghostPost.html
-      } else if (ghostPost.lexical) {
-        // Store lexical as-is for now
-        content = ghostPost.lexical
-      } else if (ghostPost.mobiledoc) {
-        // Store mobiledoc as-is for now
-        content = ghostPost.mobiledoc
+      // Handle ?source=html parameter - forces treating content as HTML
+      if (source === 'html') {
+        console.log('👻 POST: source=html detected, prioritizing HTML content')
+        if (ghostPost.html) {
+          content = ghostPost.html
+        } else if (ghostPost.markdown) {
+          // Convert markdown to HTML when source=html is specified
+          console.log('👻 POST: Converting markdown to HTML due to source=html')
+          const renderer = new marked.Renderer()
+          renderer.image = function({ href, title, text }) {
+            return `<img src="${href}" alt="${text || ''}"${title ? ` title="${title}"` : ''} />`
+          }
+          content = await marked(ghostPost.markdown, { renderer })
+        } else if (ghostPost.lexical) {
+          content = ghostPost.lexical
+        } else if (ghostPost.mobiledoc) {
+          content = ghostPost.mobiledoc
+        }
+      } else {
+        // Default priority: Markdown > HTML > Lexical > Mobiledoc
+        if (ghostPost.markdown) {
+          // Ulysses sends Markdown XL - store as-is
+          content = ghostPost.markdown
+          isMarkdownContent = true
+        } else if (ghostPost.html) {
+          content = ghostPost.html
+        } else if (ghostPost.lexical) {
+          // Store lexical as-is for now
+          content = ghostPost.lexical
+        } else if (ghostPost.mobiledoc) {
+          // Store mobiledoc as-is for now
+          content = ghostPost.mobiledoc
+        }
       }
 
       // Generate slug
@@ -203,7 +227,7 @@ export async function POST(request: NextRequest) {
           isPublished,
           publishedAt,
           contentSource: ContentSource.GHOST,
-          contentFormat: isMarkdownContent ? ContentFormat.MARKDOWN : ContentFormat.HTML,
+          contentFormat: (isMarkdownContent && source !== 'html') ? ContentFormat.MARKDOWN : ContentFormat.HTML,
           ghostPostId: ghostPost.id || undefined, // Use provided ID if available
           sourceUrl: `${request.nextUrl.origin}/api/ghost/admin/posts`, // Reference to our API
           sourceUpdatedAt: new Date()
@@ -220,18 +244,19 @@ export async function POST(request: NextRequest) {
         return `<img src="${href}" alt="${text || ''}"${title ? ` title="${title}"` : ''} />`
       }
       
-      if (isMarkdownContent) {
+      if (isMarkdownContent && source !== 'html') {
         // Convert Markdown to HTML for image processing only
         const htmlContent = await marked(content, { renderer })
         processingResult = await contentProcessor.processGhostContent(htmlContent, post.id, fullBlog.showCameraMake)
         // But store the original Markdown content, not the processed HTML
         processingResult.processedContent = content
       } else {
+        // For HTML content (including when source=html is specified)
         processingResult = await contentProcessor.processGhostContent(content, post.id, fullBlog.showCameraMake)
       }
       
       // Generate excerpt from content (use HTML version for excerpt generation)
-      const htmlForExcerpt = isMarkdownContent ? await marked(content, { renderer }) : content
+      const htmlForExcerpt = (isMarkdownContent && source !== 'html') ? await marked(content, { renderer }) : content
       const excerpt = ghostPost.excerpt || contentProcessor.generateExcerpt(htmlForExcerpt)
 
       // Generate Ghost-compatible ID for this post if not already set
