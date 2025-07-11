@@ -137,17 +137,14 @@ export class ContentProcessor {
         const title = titleMatch?.[1] || altMatch?.[1] || undefined
         
         // Get the original filename from resource attributes FIRST (fetch once and cache)
-        let originalFilename = (resource as ResourceWithExif).attributes?.filename?.trim()
         let resourceWithAttributes: { data: Buffer; attributes?: { filename?: string; attachment?: boolean } } | null = null
         
         // Always fetch resource with attributes to get the filename - this is the reliable way
         resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
-        if (resourceWithAttributes?.attributes?.filename) {
-          originalFilename = resourceWithAttributes.attributes.filename.trim()
-          console.log(`✅ SUCCESS: Set originalFilename to "${originalFilename}"`)
-        } else {
-          console.log(`❌ FAILED: resourceWithAttributes.attributes.filename is "${resourceWithAttributes?.attributes?.filename}"`)
-        }
+        
+        // Extract filename from the fetched resource
+        let originalFilename = resourceWithAttributes?.attributes?.filename?.trim() || undefined
+        console.log(`🔍 FILENAME-CAPTURE: originalFilename="${originalFilename}" from resource ${resource.guid}`)
         
         // Check if image already exists AFTER we have the filename
         const existingImage = await this.imageStorage.imageExists(hash, postId)
@@ -168,6 +165,9 @@ export class ContentProcessor {
           shouldReprocess,
           hasExistingImage: !!existingImage
         })
+        
+        // Additional debug: Check if we have the resourceWithAttributes
+        console.log(`🔄 RESOURCE-DEBUG: resourceWithAttributes exists: ${!!resourceWithAttributes}, filename: "${resourceWithAttributes?.attributes?.filename}", originalFilename: "${originalFilename}"`)
         
         if (shouldReprocess) {
           // Convert Evernote timestamp to date string
