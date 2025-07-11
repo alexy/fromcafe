@@ -38,3 +38,5 @@ WHat I need to learn:
 
 I'm using vercel CLI to get logs like `vercel logs`.  Learn more about `vercel pull .env.local` and managing `.env`.
 
+A history of vibecoding this, for the ages, will follow.  Specifically how we debugged Ulysses publishing to Ghost-compatible API that we had to reverse-engineer with an is.photography hosted Ghost blog and our own Binami Ghost AMI on AWS, at leica.st, that I had to spin up and configure for SSL just to get all the logs form Ulysses!
+
