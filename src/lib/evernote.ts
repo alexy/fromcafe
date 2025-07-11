@@ -648,7 +648,7 @@ export class EvernoteService {
   /**
    * Download resource data (image) from Evernote
    */
-  async getResourceWithAttributes(resourceGuid: string): Promise<{ data: Buffer; attributes?: { filename?: string; attachment?: boolean } } | null> {
+  async getResourceWithAttributes(resourceGuid: string): Promise<{ data: Buffer; attributes?: { fileName?: string; attachment?: boolean } } | null> {
     try {
       console.log(`📥 Fetching resource ${resourceGuid.substring(0, 8)} with attributes...`)
       // Create a fresh client with the access token
@@ -676,14 +676,14 @@ export class EvernoteService {
       const isLocalWrappedException = isLocal && isWrappedFunction
       
       const resource = isLocalWrappedException
-        ? await (freshNoteStore as { getResource: (guid: string, withData: boolean, withRecognition: boolean, withAttributes: boolean, withAlternateData: boolean) => Promise<{ data: { body: Buffer }; attributes?: { filename?: string; attachment?: boolean } }> }).getResource(resourceGuid, true, false, true, false)
-        : await (freshNoteStore as { getResource: (token: string, guid: string, withData: boolean, withRecognition: boolean, withAttributes: boolean, withAlternateData: boolean) => Promise<{ data: { body: Buffer }; attributes?: { filename?: string; attachment?: boolean } }> }).getResource(this.accessToken, resourceGuid, true, false, true, false)
+        ? await (freshNoteStore as { getResource: (guid: string, withData: boolean, withRecognition: boolean, withAttributes: boolean, withAlternateData: boolean) => Promise<{ data: { body: Buffer }; attributes?: { fileName?: string; attachment?: boolean } }> }).getResource(resourceGuid, true, false, true, false)
+        : await (freshNoteStore as { getResource: (token: string, guid: string, withData: boolean, withRecognition: boolean, withAttributes: boolean, withAlternateData: boolean) => Promise<{ data: { body: Buffer }; attributes?: { fileName?: string; attachment?: boolean } }> }).getResource(this.accessToken, resourceGuid, true, false, true, false)
       
       console.log(`Fetched resource ${resourceGuid} with attributes:`, {
         hasData: !!resource.data?.body,
         attributes: resource.attributes,
-        fileName: resource.attributes?.filename,
-        hasFilename: !!resource.attributes?.filename
+        fileName: resource.attributes?.fileName,
+        hasFilename: !!resource.attributes?.fileName
       })
       
       return {
