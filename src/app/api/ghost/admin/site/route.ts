@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { validateGhostAuth } from '@/lib/ghost-auth'
+import { validateGhostAuth, findBlogByIdentifierExtended } from '@/lib/ghost-auth'
 
 /**
  * GET /ghost/api/v4/admin/site - Get site information (Ghost Admin API compatible)
@@ -17,15 +17,26 @@ export async function GET(request: NextRequest) {
     
     console.log('👻 Site query params:', { domain, subdomain, blogSlug })
 
-    // Validate authentication and find blog
+    // Validate authentication first
     const authResult = await validateGhostAuth(request, domain || undefined, subdomain || undefined, blogSlug || undefined)
     if ('error' in authResult) {
       console.log('👻 Site authentication failed')
       return authResult.error
     }
     
-    const { blog } = authResult
-    console.log('👻 Site authentication successful, blog:', blog.title)
+    console.log('👻 Site authentication successful')
+    
+    // Get full blog details
+    const blog = await findBlogByIdentifierExtended(domain || undefined, subdomain || undefined, blogSlug || undefined)
+    if (!blog) {
+      console.log('👻 Site endpoint: Blog not found')
+      return NextResponse.json(
+        { errors: [{ message: 'Blog not found for this URL' }] },
+        { status: 404 }
+      )
+    }
+    
+    console.log('👻 Site found blog:', blog.title)
 
     // Generate blog URL
     const blogUrl = blog.customDomain 
