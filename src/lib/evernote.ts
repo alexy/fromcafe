@@ -681,7 +681,9 @@ export class EvernoteService {
       
       console.log(`Fetched resource ${resourceGuid} with attributes:`, {
         hasData: !!resource.data?.body,
-        attributes: resource.attributes
+        attributes: resource.attributes,
+        fileName: resource.attributes?.filename,
+        hasFilename: !!resource.attributes?.filename
       })
       
       return {
