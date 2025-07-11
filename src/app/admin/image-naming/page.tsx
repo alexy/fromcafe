@@ -16,6 +16,9 @@ interface ImageNamingDecision {
   exifMetadata?: Record<string, unknown>
   originalFilename?: string
   decisionReason?: string
+  prefixCompressed?: boolean
+  originalCamera?: string
+  originalLens?: string
   createdAt: string
   updatedAt: string
   post?: {
@@ -163,7 +166,23 @@ export default function ImageNamingAdminPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Image Naming Decisions</h1>
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-3xl font-bold text-gray-900">Image Naming Decisions</h1>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => router.push('/admin')}
+                className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition-colors"
+              >
+                Admin Console
+              </button>
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
+              >
+                Dashboard
+              </button>
+            </div>
+          </div>
           <p className="mt-2 text-gray-600">
             Review how image blob names were generated and manage renaming decisions.
           </p>
@@ -313,6 +332,21 @@ export default function ImageNamingAdminPage() {
                           {decision.exifMetadata && (
                             <div className="text-xs text-gray-500 mt-1">
                               EXIF: {(decision.exifMetadata as { make?: string; model?: string }).make} {(decision.exifMetadata as { make?: string; model?: string }).model}
+                            </div>
+                          )}
+                          {decision.prefixCompressed && (
+                            <div className="text-xs text-amber-600 mt-1 font-medium">
+                              📎 Prefix Compressed
+                            </div>
+                          )}
+                          {decision.originalCamera && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              <strong>Camera:</strong> {decision.originalCamera}
+                            </div>
+                          )}
+                          {decision.originalLens && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              <strong>Lens:</strong> {decision.originalLens}
                             </div>
                           )}
                         </div>

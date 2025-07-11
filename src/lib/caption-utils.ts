@@ -24,8 +24,26 @@ export interface CaptionExifMetadata {
  * Handles iPhone repetition: "iPhone 15 Pro Max back triple camera 15.66mm f/2.8"
  */
 export function generateCameraCaption(exifMetadata: CaptionExifMetadata, showMake: boolean = false): string | null {
+  return generateCameraCaptionWithDetails(exifMetadata, showMake).caption
+}
+
+/**
+ * Generate camera/lens caption with detailed information about processing decisions
+ * Used for tracking prefix compression and other caption generation decisions
+ */
+export function generateCameraCaptionWithDetails(exifMetadata: CaptionExifMetadata, showMake: boolean = false): {
+  caption: string | null
+  prefixCompressed: boolean
+  originalCamera: string | null
+  originalLens: string | null
+} {
   if (!exifMetadata.make && !exifMetadata.model) {
-    return null
+    return {
+      caption: null,
+      prefixCompressed: false,
+      originalCamera: null,
+      originalLens: null
+    }
   }
   
   let caption = ''
@@ -55,14 +73,19 @@ export function generateCameraCaption(exifMetadata: CaptionExifMetadata, showMak
     }
   }
   
-  // Add lens information (check both lensModel and legacy lens field)
+  // Track original values for decision recording
+  const originalCamera = caption
   const lensInfo = exifMetadata.lensModel || exifMetadata.lens
+  let prefixCompressed = false
+  
+  // Add lens information (check both lensModel and legacy lens field)
   if (lensInfo) {
     // Check if the camera model is fully repeated in the lens model
     // If so, omit the camera model and "with" - just show the lens model
     if (caption && lensInfo.includes(caption)) {
       // Camera model is repeated in lens model, use just the lens model
       caption = lensInfo
+      prefixCompressed = true
     } else {
       // Normal case: camera model with lens model
       caption += ` with ${lensInfo}`
@@ -71,7 +94,12 @@ export function generateCameraCaption(exifMetadata: CaptionExifMetadata, showMak
     caption += ` with ${exifMetadata.lensMake}`
   }
   
-  return caption || null
+  return {
+    caption: caption || null,
+    prefixCompressed,
+    originalCamera,
+    originalLens: lensInfo || null
+  }
 }
 
 /**

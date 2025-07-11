@@ -8,6 +8,7 @@ import { getConfig } from './config'
 import { prisma } from './prisma'
 import { 
   generateCameraCaption as utilGenerateCameraCaption,
+  generateCameraCaptionWithDetails,
   generateTechnicalCaption as utilGenerateTechnicalCaption,
   generateFullCaption as utilGenerateFullCaption
 } from './caption-utils'
@@ -422,6 +423,18 @@ export class VercelBlobStorageService {
     extractedDate?: string,
     originalFilename?: string
   ): Promise<ImageInfo> {
+    // Generate caption details for decision recording
+    let prefixCompressed = false
+    let originalCamera: string | undefined = undefined
+    let originalLens: string | undefined = undefined
+    
+    if (exifMetadata) {
+      const captionDetails = generateCameraCaptionWithDetails(exifMetadata)
+      prefixCompressed = captionDetails.prefixCompressed
+      originalCamera = captionDetails.originalCamera || undefined
+      originalLens = captionDetails.originalLens || undefined
+    }
+    
     // Record naming decision in database
     console.log(`📝 ABOUT TO RECORD naming decision for ${originalHash} in post ${postId}`)
     await this.recordNamingDecision(
@@ -433,7 +446,10 @@ export class VercelBlobStorageService {
       originalTitle,
       extractedDate,
       exifMetadata,
-      originalFilename
+      originalFilename,
+      prefixCompressed,
+      originalCamera,
+      originalLens
     )
 
     return {
@@ -460,7 +476,10 @@ export class VercelBlobStorageService {
     originalTitle?: string,
     extractedDate?: string,
     exifMetadata?: ExifMetadata,
-    originalFilename?: string
+    originalFilename?: string,
+    prefixCompressed?: boolean,
+    originalCamera?: string | undefined,
+    originalLens?: string | undefined
   ): Promise<void> {
     try {
       // For Ghost upload pseudo-postIds, use null postId to avoid foreign key constraint
@@ -478,7 +497,10 @@ export class VercelBlobStorageService {
           extractedDate,
           exifMetadata: exifMetadata ? JSON.parse(JSON.stringify(exifMetadata)) : null,
           originalFilename,
-          decisionReason: decision.reason
+          decisionReason: decision.reason,
+          prefixCompressed: prefixCompressed || false,
+          originalCamera,
+          originalLens
         },
         update: {
           postId: actualPostId,
@@ -490,6 +512,9 @@ export class VercelBlobStorageService {
           exifMetadata: exifMetadata ? JSON.parse(JSON.stringify(exifMetadata)) : null,
           originalFilename,
           decisionReason: decision.reason,
+          prefixCompressed: prefixCompressed || false,
+          originalCamera,
+          originalLens,
           updatedAt: new Date()
         }
       })

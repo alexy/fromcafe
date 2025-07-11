@@ -222,12 +222,16 @@ model ImageNamingDecision {
   exifMetadata     Json?
   originalFilename String?
   decisionReason   String?
+  prefixCompressed Boolean?              @default(false)
+  originalCamera   String?
+  originalLens     String?
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
   post             Post?                 @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId])
   @@index([blobFilename])
+  @@index([prefixCompressed])
   @@map("image_naming_decisions")
 }
 
