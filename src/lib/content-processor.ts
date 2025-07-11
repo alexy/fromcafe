@@ -143,7 +143,7 @@ export class ContentProcessor {
         resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
         
         // Extract filename from the fetched resource
-        let originalFilename = resourceWithAttributes?.attributes?.filename?.trim() || undefined
+        const originalFilename = resourceWithAttributes?.attributes?.filename?.trim() || undefined
         console.log(`🔍 FILENAME-CAPTURE: originalFilename="${originalFilename}" from resource ${resource.guid}`)
         
         // Check if image already exists AFTER we have the filename
