@@ -8,6 +8,9 @@ import { validateGhostAuth } from '@/lib/ghost-auth'
  * GET /ghost/api/v4/admin/users/me - Get current user information (Ghost Admin API compatible)
  */
 export async function GET(request: NextRequest) {
+  console.log('👻 GET /api/ghost/admin/users/me handler called')
+  console.log('👻 Users/me request headers:', Object.fromEntries(request.headers.entries()))
+  
   try {
     // Get blog identifier from query parameters (set by middleware)
     const { searchParams } = new URL(request.url)
@@ -15,13 +18,17 @@ export async function GET(request: NextRequest) {
     const subdomain = searchParams.get('subdomain')
     const blogSlug = searchParams.get('blogSlug')
 
+    console.log('👻 Users/me query params:', { domain, subdomain, blogSlug })
+
     // Validate authentication and find blog
     const authResult = await validateGhostAuth(request, domain || undefined, subdomain || undefined, blogSlug || undefined)
     if ('error' in authResult) {
+      console.log('👻 Users/me authentication failed')
       return authResult.error
     }
     
     const { tokenData } = authResult
+    console.log('👻 Users/me authentication successful, user ID:', tokenData.userId)
 
     // Get user details
     const user = await prisma.user.findUnique({
@@ -35,13 +42,17 @@ export async function GET(request: NextRequest) {
     })
 
     if (!user) {
+      console.log('👻 Users/me user not found in database')
       return NextResponse.json(
         { errors: [{ message: 'User not found' }] },
         { status: 404 }
       )
     }
 
+    console.log('👻 Users/me found user:', user.email)
+
     // Return Ghost-compatible user information - match real Ghost exactly
+    // CRITICAL: Include roles field that indicates image upload permissions
     return NextResponse.json({
       users: [{
         id: user.id,
@@ -78,8 +89,15 @@ export async function GET(request: NextRequest) {
         youtube: null,
         instagram: null,
         linkedin: null,
-        url: null
-        // Note: Real Ghost does NOT include roles field
+        url: null,
+        // CRITICAL: Add roles field - this tells Ulysses the user can upload images
+        roles: [{
+          id: '1',
+          name: 'Owner',
+          description: 'Blog Owner',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }]
       }]
     }, {
       headers: {
@@ -90,7 +108,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error getting Ghost user info:', error)
+    console.error('👻 Error getting Ghost user info:', error)
     return NextResponse.json(
       { errors: [{ message: 'Internal server error' }] },
       { status: 500 }
