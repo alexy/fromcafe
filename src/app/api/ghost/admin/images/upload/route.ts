@@ -78,11 +78,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Log file size for testing multipart upload capability
-    console.log(`👻 Testing multipart upload with file size: ${(file.size / 1024 / 1024).toFixed(2)}MB`)
-    
-    // Temporarily removing size limit to test if multipart upload can handle large files
-    // If this fails, we'll know multipart doesn't bypass the 4.5MB serverless function limit
+    // Validate file size - Vercel has a hard 4.5MB platform limit for serverless functions
+    const maxSize = 4.5 * 1024 * 1024 // 4.5MB
+    if (file.size > maxSize) {
+      console.log(`🚨 File too large: ${file.size} bytes (${(file.size / 1024 / 1024).toFixed(2)} MB)`)
+      return NextResponse.json(
+        { errors: [{ 
+          message: `Image too large: ${(file.size / 1024 / 1024).toFixed(2)}MB. Maximum size is 4.5MB due to Vercel platform limitations. Please compress the image or use a smaller file.` 
+        }] },
+        { status: 413 }
+      )
+    }
 
     // Convert file to buffer
     const bytes = await file.arrayBuffer()
