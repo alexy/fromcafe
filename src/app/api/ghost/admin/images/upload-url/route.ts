@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateGhostAuth } from '@/lib/ghost-auth'
-import { createHash } from 'crypto'
 
 /**
  * Generate a pre-signed URL for direct upload to Vercel Blob
@@ -28,7 +27,7 @@ export async function POST(request: NextRequest) {
     
     // Parse request body
     const body = await request.json()
-    const { filename, contentType, size } = body
+    const { filename, contentType } = body
     
     if (!filename || !contentType) {
       return NextResponse.json(
