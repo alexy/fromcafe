@@ -143,29 +143,47 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       uuid: ghostUuid,
       title: post.title,
       slug: post.slug,
-      html: responseHtml,
-      lexical: lexicalFormat,
       mobiledoc: null,
-      // markdown: responseMarkdown, // Real Ghost uses undefined, not null for missing markdown
-      comment_id: post.id,
-      plaintext: post.excerpt || '',
+      lexical: lexicalFormat,
+      comment_id: params.id,
       feature_image: null,
       featured: false,
+      status: post.isPublished ? 'published' : 'draft',
       visibility: 'public',
       created_at: post.createdAt.toISOString(),
       updated_at: post.updatedAt.toISOString(),
       published_at: post.publishedAt?.toISOString() || null,
-      custom_excerpt: post.excerpt || '',
+      custom_excerpt: post.excerpt || null,
       codeinjection_head: null,
       codeinjection_foot: null,
       custom_template: null,
       canonical_url: null,
       tags: [],
+      tiers: [
+        {
+          id: 'free',
+          name: 'Free',
+          slug: 'free',
+          active: true,
+          welcome_page_url: null,
+          visibility: 'public',
+          trial_days: 0,
+          description: null,
+          type: 'free',
+          currency: null,
+          monthly_price: null,
+          yearly_price: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          monthly_price_id: null,
+          yearly_price_id: null
+        }
+      ],
       authors: [{
         id: tokenData.userId,
         name: 'Author',
         slug: 'author',
-        // email: null, // Real Ghost doesn't include email field
+        email: 'admin@example.com',
         profile_image: null,
         cover_image: null,
         bio: null,
@@ -173,55 +191,109 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         location: null,
         facebook: null,
         twitter: null,
+        threads: null,
+        bluesky: null,
+        mastodon: null,
+        tiktok: null,
+        youtube: null,
+        instagram: null,
+        linkedin: null,
         accessibility: null,
         status: 'active',
         meta_title: null,
         meta_description: null,
         tour: null,
         last_seen: new Date().toISOString(),
+        comment_notifications: true,
+        free_member_signup_notification: true,
+        paid_subscription_started_notification: true,
+        paid_subscription_canceled_notification: false,
+        mention_notifications: true,
+        recommendation_notifications: true,
+        milestone_notifications: true,
+        donation_notifications: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         roles: [{
           id: '1',
           name: 'Owner',
-          description: 'Blog owner',
+          description: 'Blog Owner',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        }]
+        }],
+        url: `${request.nextUrl.origin}/author/author/`
       }],
+      count: {
+        clicks: 0,
+        positive_feedback: 0,
+        negative_feedback: 0
+      },
       primary_author: {
         id: tokenData.userId,
         name: 'Author',
-        slug: 'author'
+        slug: 'author',
+        email: 'admin@example.com',
+        profile_image: null,
+        cover_image: null,
+        bio: null,
+        website: null,
+        location: null,
+        facebook: null,
+        twitter: null,
+        threads: null,
+        bluesky: null,
+        mastodon: null,
+        tiktok: null,
+        youtube: null,
+        instagram: null,
+        linkedin: null,
+        accessibility: null,
+        status: 'active',
+        meta_title: null,
+        meta_description: null,
+        tour: null,
+        last_seen: new Date().toISOString(),
+        comment_notifications: true,
+        free_member_signup_notification: true,
+        paid_subscription_started_notification: true,
+        paid_subscription_canceled_notification: false,
+        mention_notifications: true,
+        recommendation_notifications: true,
+        milestone_notifications: true,
+        donation_notifications: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        roles: [{
+          id: '1',
+          name: 'Owner',
+          description: 'Blog Owner',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }],
+        url: `${request.nextUrl.origin}/author/author/`
       },
       primary_tag: null,
+      email_segment: 'all',
       url: post.isPublished 
         ? `${request.nextUrl.origin}/${fullBlog.user.slug || 'blog'}/${fullBlog.slug}/${post.slug}`
         : `${request.nextUrl.origin}/p/${params.id}`,
       excerpt: post.excerpt || '',
-      // reading_time: Math.max(1, Math.round((post.content?.length || 0) / 265)), // Real Ghost doesn't include this for editing
-      // access: true, // Real Ghost doesn't include this for editing
-      // send_email_when_published: false, // Real Ghost doesn't include this for editing
-      email_segment: 'all',
-      status: post.isPublished ? 'published' : 'draft',
-      // Critical fields for Ghost API compatibility - match real Ghost exactly
-      meta_title: null,
-      meta_description: null,
+      reading_time: Math.max(0, Math.round((post.content?.length || 0) / 265)),
       og_image: null,
       og_title: null,
       og_description: null,
       twitter_image: null,
       twitter_title: null,
       twitter_description: null,
+      meta_title: null,
+      meta_description: null,
       email_subject: null,
       frontmatter: null,
       feature_image_alt: null,
       feature_image_caption: null,
-      // Real Ghost fields - match exactly what real Ghost returns
-      email_only: false
-      // newsletter_id: null, // Real Ghost uses undefined, not null
-      // show_title_and_feature_image: true, // Real Ghost doesn't include this field
-      // type: 'post' // Real Ghost doesn't include type field for posts
+      email_only: false,
+      email: null,
+      newsletter: null
     }
 
     console.log('👻 Returning individual post:', post.title)
@@ -735,8 +807,8 @@ interface LexicalImageNode {
   type: 'image';
   version: number;
   src: string;
-  width: number;
-  height: number;
+  width: number | null;
+  height: number | null;
   title: string;
   alt: string;
   caption: string;
@@ -792,8 +864,8 @@ function convertHtmlToLexical(html: string): string | null {
         type: 'image',
         version: 1,
         src: match[1],
-        width: 2000, // Use realistic dimensions like real Ghost
-        height: 1500,
+        width: null,
+        height: null,
         title: '',
         alt: match[2] || '',
         caption: '',
@@ -818,8 +890,8 @@ function convertHtmlToLexical(html: string): string | null {
           type: 'image',
           version: 1,
           src: imageMatch[1],
-          width: 2000, // Use realistic dimensions like real Ghost
-          height: 1500,
+          width: null,
+          height: null,
           title: '',
           alt: imageMatch[2] || '',
           caption: '',
@@ -990,8 +1062,8 @@ function convertMarkdownToLexical(markdown: string): string | null {
           type: 'image',
           version: 1,
           src: imageMatch[2],
-          width: 2000, // Use realistic dimensions like real Ghost
-          height: 1500,
+          width: null,
+          height: null,
           title: '',
           alt: imageMatch[1] || '',
           caption: '',
