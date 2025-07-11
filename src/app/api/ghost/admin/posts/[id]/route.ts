@@ -4,6 +4,12 @@ import { ContentSource, ContentFormat } from '@prisma/client'
 import { marked } from 'marked'
 import { validateGhostAuth } from '@/lib/ghost-auth'
 import { ContentProcessor } from '@/lib/content-processor'
+import { 
+  processGhostContent, 
+  createMarkdownRenderer, 
+  type GhostPostRequest 
+} from '@/lib/ghost-content-processor'
+import { generateSlug, ensureUniqueSlug } from '@/lib/ghost-utils'
 
 // Configure route for handling larger payloads and longer processing times
 export const maxDuration = 60 // Allow up to 60 seconds for large image processing
@@ -324,67 +330,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   }
 }
 
-// Ghost-compatible post structure for updates
-interface GhostPost {
-  id?: string
-  title: string
-  slug?: string
-  html?: string
-  lexical?: string
-  mobiledoc?: string
-  markdown?: string // Ulysses sends Markdown XL content
-  excerpt?: string
-  status?: 'published' | 'draft' | 'scheduled'
-  published_at?: string
-  created_at?: string
-  updated_at?: string
-  tags?: Array<string | { name: string }>
-  authors?: Array<string | { email: string }>
-  meta_title?: string
-  meta_description?: string
-  feature_image?: string
-}
-
-interface GhostPostRequest {
-  posts: GhostPost[]
-}
-
-/**
- * Generate slug from title
- */
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .trim()
-}
-
-/**
- * Ensure unique slug for the blog
- */
-async function ensureUniqueSlug(baseSlug: string, blogId: string, excludePostId?: string): Promise<string> {
-  let slug = baseSlug
-  let counter = 1
-
-  while (true) {
-    const existingPost = await prisma.post.findFirst({
-      where: {
-        blogId,
-        slug,
-        ...(excludePostId && { id: { not: excludePostId } })
-      }
-    })
-
-    if (!existingPost) {
-      return slug
-    }
-
-    slug = `${baseSlug}-${counter}`
-    counter++
-  }
-}
+// Interfaces and utility functions are now imported from shared modules
 
 
 /**
@@ -516,44 +462,9 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       )
     }
 
-    // Extract content from different formats
-    let content = ''
-    let isMarkdownContent = false
-    
-    // Handle ?source=html parameter - forces treating content as HTML
-    if (source === 'html') {
-      console.log('👻 PUT: source=html detected, prioritizing HTML content')
-      if (ghostPost.html) {
-        content = ghostPost.html
-      } else if (ghostPost.markdown) {
-        // Convert markdown to HTML when source=html is specified
-        console.log('👻 PUT: Converting markdown to HTML due to source=html')
-        const renderer = new marked.Renderer()
-        renderer.image = function({ href, title, text }) {
-          return `<img src="${href}" alt="${text || ''}"${title ? ` title="${title}"` : ''} />`
-        }
-        content = await marked(ghostPost.markdown, { renderer })
-      } else if (ghostPost.lexical) {
-        content = ghostPost.lexical
-      } else if (ghostPost.mobiledoc) {
-        content = ghostPost.mobiledoc
-      }
-    } else {
-      // Default priority: Markdown > HTML > Lexical > Mobiledoc
-      if (ghostPost.markdown) {
-        // Ulysses sends Markdown XL - store as-is
-        content = ghostPost.markdown
-        isMarkdownContent = true
-      } else if (ghostPost.html) {
-        content = ghostPost.html
-      } else if (ghostPost.lexical) {
-        // Store lexical as-is for now
-        content = ghostPost.lexical
-      } else if (ghostPost.mobiledoc) {
-        // Store mobiledoc as-is for now
-        content = ghostPost.mobiledoc
-      }
-    }
+    // Process content using shared logic
+    const contentProcessingResult = await processGhostContent(ghostPost, source)
+    const { content, isMarkdownContent, contentFormat } = contentProcessingResult
 
     // Generate slug if title changed
     let finalSlug = existingPost.slug
@@ -588,11 +499,8 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       console.log('📝 POST STATUS UNCHANGED (' + (isPublished ? 'published' : 'draft') + ')')
     }
 
-    // Configure marked to NOT wrap images in figure tags to prevent nesting
-    const renderer = new marked.Renderer()
-    renderer.image = function({ href, title, text }) {
-      return `<img src="${href}" alt="${text || ''}"${title ? ` title="${title}"` : ''} />`
-    }
+    // Use shared markdown renderer
+    const renderer = createMarkdownRenderer()
     
     // Process content with unified image handling
     const contentProcessor = new ContentProcessor()
@@ -629,7 +537,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
         slug: finalSlug,
         isPublished,
         publishedAt,
-        contentFormat: (isMarkdownContent && source !== 'html') ? ContentFormat.MARKDOWN : ContentFormat.HTML,
+        contentFormat,
         sourceUpdatedAt: new Date()
       }
     })
