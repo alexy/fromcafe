@@ -140,11 +140,17 @@ export class ContentProcessor {
         let originalFilename = (resource as ResourceWithExif).attributes?.filename?.trim()
         let resourceWithAttributes: { data: Buffer; attributes?: { filename?: string; attachment?: boolean } } | null = null
         
+        console.log(`🔍 FILENAME-FLOW-1: Initial originalFilename="${originalFilename}" from resource.attributes`)
+        
         // If resource doesn't have attributes, fetch them separately (only once)
         if (!originalFilename) {
+          console.log(`🔍 FILENAME-FLOW-2: Fetching resource with attributes for ${resource.guid}`)
           resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
           if (resourceWithAttributes?.attributes?.filename) {
             originalFilename = resourceWithAttributes.attributes.filename.trim()
+            console.log(`🔍 FILENAME-FLOW-3: Updated originalFilename="${originalFilename}" from getResourceWithAttributes`)
+          } else {
+            console.log(`🔍 FILENAME-FLOW-3: No filename found in getResourceWithAttributes result`)
           }
         }
         
@@ -199,6 +205,7 @@ export class ContentProcessor {
           
           if (imageData) {
             // The storage service will handle renaming vs uploading efficiently
+            console.log(`🔍 FILENAME-FLOW-4: About to call storeImage with title="${title}", originalFilename="${originalFilename}"`)
             const imageInfo = await this.imageStorage.storeImage(imageData, hash, resource.mime, postId, title, originalFilename, undefined, postDate)
             imageUrl = imageInfo.url
             
