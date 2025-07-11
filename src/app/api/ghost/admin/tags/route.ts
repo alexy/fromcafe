@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { findBlogByIdentifier } from '@/lib/ghost-auth'
+import { validateGhostAuth } from '@/lib/ghost-auth'
 
 /**
  * GET /ghost/api/v4/admin/tags - Get tags (Ghost Admin API compatible)
  */
 export async function GET(request: NextRequest) {
+  console.log('👻 GET /api/ghost/admin/tags handler called')
+  
   try {
     // Get blog identifier from query parameters (set by middleware)
     const { searchParams } = new URL(request.url)
@@ -14,15 +16,18 @@ export async function GET(request: NextRequest) {
     const blogSlug = searchParams.get('blogSlug')
     const include = searchParams.get('include') || '0'
     const limit = parseInt(searchParams.get('limit') || '1000')
+    
+    console.log('👻 GET tags query params:', { domain, subdomain, blogSlug, include, limit })
 
-    // Find the blog by URL structure
-    const blog = await findBlogByIdentifier(domain || undefined, subdomain || undefined, blogSlug || undefined)
-    if (!blog) {
-      return NextResponse.json(
-        { errors: [{ message: 'Blog not found for this URL' }] },
-        { status: 404 }
-      )
+    // Validate authentication and find blog
+    const authResult = await validateGhostAuth(request, domain || undefined, subdomain || undefined, blogSlug || undefined)
+    if ('error' in authResult) {
+      console.log('👻 Tags authentication failed')
+      return authResult.error
     }
+    
+    const { blog } = authResult
+    console.log('👻 Tags authentication successful, blog ID:', blog.id)
 
     // Get tags for this blog
     const tags = await prisma.tag.findMany({
@@ -39,6 +44,8 @@ export async function GET(request: NextRequest) {
         } : false
       }
     })
+    
+    console.log('👻 Found', tags.length, 'tags for blog')
 
     // Convert to Ghost format
     const ghostTags = tags.map(tag => ({
@@ -79,13 +86,37 @@ export async function GET(request: NextRequest) {
           prev: null
         }
       }
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Ghost-Version': '5.0.0'
+      }
     })
 
   } catch (error) {
-    console.error('Error getting Ghost tags:', error)
+    console.error('👻 Error getting Ghost tags:', error)
     return NextResponse.json(
       { errors: [{ message: 'Internal server error' }] },
       { status: 500 }
     )
   }
+}
+
+/**
+ * OPTIONS /api/ghost/admin/tags - Handle CORS preflight requests
+ */
+export async function OPTIONS() {
+  console.log('👻 OPTIONS /api/ghost/admin/tags handler called')
+  
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Allow': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept-Version',
+      'Content-Type': 'application/json',
+      'X-Ghost-Version': '5.0.0'
+    }
+  })
 }
