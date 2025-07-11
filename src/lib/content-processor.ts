@@ -139,8 +139,16 @@ export class ContentProcessor {
         // Get the original filename from resource attributes FIRST (fetch once and cache)
         let resourceWithAttributes: { data: Buffer; attributes?: { filename?: string; attachment?: boolean } } | null = null
         
+        console.log(`🔍 PRE-FETCH: About to fetch resource ${resource.guid} with attributes`)
+        
         // Always fetch resource with attributes to get the filename - this is the reliable way
-        resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
+        try {
+          resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
+          console.log(`🔍 POST-FETCH: resourceWithAttributes exists: ${!!resourceWithAttributes}, attributes: ${JSON.stringify(resourceWithAttributes?.attributes)}`)
+        } catch (error) {
+          console.error(`🔍 FETCH-ERROR: Failed to fetch resource ${resource.guid} with attributes:`, error)
+          resourceWithAttributes = null
+        }
         
         // Extract filename from the fetched resource
         const originalFilename = resourceWithAttributes?.attributes?.filename?.trim() || undefined
