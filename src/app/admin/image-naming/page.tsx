@@ -18,7 +18,7 @@ interface ImageNamingDecision {
   decisionReason?: string
   createdAt: string
   updatedAt: string
-  post: {
+  post?: {
     id: string
     title: string
     slug: string
@@ -26,7 +26,7 @@ interface ImageNamingDecision {
       title: string
       slug: string
     }
-  }
+  } | null
 }
 
 interface PaginationInfo {
@@ -250,8 +250,12 @@ export default function ImageNamingAdminPage() {
                     <tr key={decision.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm">
-                          <div className="font-medium text-gray-900">{decision.post.title}</div>
-                          <div className="text-gray-500">{decision.post.blog.title}</div>
+                          <div className="font-medium text-gray-900">
+                            {decision.post?.title || 'Deleted Post'}
+                          </div>
+                          <div className="text-gray-500">
+                            {decision.post?.blog?.title || 'Unknown Blog'}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
