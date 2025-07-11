@@ -1,25 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { findBlogByIdentifierExtended } from '@/lib/ghost-auth'
+import { validateGhostAuth } from '@/lib/ghost-auth'
 
 /**
  * GET /ghost/api/v4/admin/site - Get site information (Ghost Admin API compatible)
  */
 export async function GET(request: NextRequest) {
+  console.log('👻 GET /api/ghost/admin/site handler called')
+  console.log('👻 Site request headers:', Object.fromEntries(request.headers.entries()))
+  
   try {
     // Get blog identifier from query parameters (set by middleware)
     const { searchParams } = new URL(request.url)
     const domain = searchParams.get('domain')
     const subdomain = searchParams.get('subdomain')
     const blogSlug = searchParams.get('blogSlug')
+    
+    console.log('👻 Site query params:', { domain, subdomain, blogSlug })
 
-    // Find the blog by URL structure
-    const blog = await findBlogByIdentifierExtended(domain || undefined, subdomain || undefined, blogSlug || undefined)
-    if (!blog) {
-      return NextResponse.json(
-        { errors: [{ message: 'Blog not found for this URL' }] },
-        { status: 404 }
-      )
+    // Validate authentication and find blog
+    const authResult = await validateGhostAuth(request, domain || undefined, subdomain || undefined, blogSlug || undefined)
+    if ('error' in authResult) {
+      console.log('👻 Site authentication failed')
+      return authResult.error
     }
+    
+    const { blog } = authResult
+    console.log('👻 Site authentication successful, blog:', blog.title)
 
     // Generate blog URL
     const blogUrl = blog.customDomain 
@@ -29,7 +35,7 @@ export async function GET(request: NextRequest) {
       : `https://from.cafe/${blog.user.slug || 'blog'}/${blog.slug}`
 
     // Return Ghost-compatible site information - match real Ghost exactly
-    return NextResponse.json({
+    const siteResponse = {
       site: {
         title: blog.title,
         description: blog.description || '',
@@ -41,6 +47,16 @@ export async function GET(request: NextRequest) {
         url: blogUrl,
         version: '5.120', // Use current Ghost version like real Ghost
         allow_external_signup: true // Critical field that real Ghost includes
+      }
+    }
+    
+    console.log('👻 Site response:', JSON.stringify(siteResponse, null, 2))
+    
+    return NextResponse.json(siteResponse, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Ghost-Version': '5.120.3',
+        'Content-Version': 'v5.120'
       }
     })
 
