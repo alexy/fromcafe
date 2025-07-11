@@ -144,6 +144,9 @@ export class ContentProcessor {
         resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
         if (resourceWithAttributes?.attributes?.filename) {
           originalFilename = resourceWithAttributes.attributes.filename.trim()
+          console.log(`✅ SUCCESS: Set originalFilename to "${originalFilename}"`)
+        } else {
+          console.log(`❌ FAILED: resourceWithAttributes.attributes.filename is "${resourceWithAttributes?.attributes?.filename}"`)
         }
         
         // Check if image already exists AFTER we have the filename
