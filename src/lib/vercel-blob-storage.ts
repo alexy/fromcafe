@@ -79,7 +79,8 @@ export class VercelBlobStorageService {
     const blob = await put(`images/${filename}`, imageData, {
       access: 'public',
       contentType: mimeType,
-      addRandomSuffix: false
+      addRandomSuffix: false,
+      multipart: true // Enable multipart upload for large files
     })
     
     return {
@@ -189,6 +190,7 @@ export class VercelBlobStorageService {
         access: 'public',
         contentType: mimeType,
         addRandomSuffix: false, // We're handling uniqueness ourselves
+        multipart: true // Enable multipart upload for large files
       })
 
       console.log(`Stored image in Vercel Blob: ${filename} (${imageData.length} bytes)`)
