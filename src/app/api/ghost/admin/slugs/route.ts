@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     
     // Generate slug from name
     const slug = generateSlug(name)
-    console.log('👻 Generated slug:', slug, 'from name:', name)
+    console.log('👻 Generated slug:', slug, 'from name:', name, 'type:', type)
     
     // Return Ghost-compatible slug response
     return NextResponse.json({
