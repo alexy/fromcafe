@@ -68,3 +68,23 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+/**
+ * OPTIONS /api/ghost/admin/site - Handle CORS preflight requests
+ */
+export async function OPTIONS(request: NextRequest) {
+  console.log('👻 OPTIONS /api/ghost/admin/site handler called')
+  console.log('👻 Site OPTIONS request headers:', Object.fromEntries(request.headers.entries()))
+  
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Allow': 'GET, OPTIONS',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept-Version',
+      'Content-Type': 'application/json',
+      'X-Ghost-Version': '5.120.3'
+    }
+  })
+}
