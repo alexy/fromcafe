@@ -51,24 +51,6 @@ export async function middleware(request: NextRequest) {
       console.log('🚨 MIDDLEWARE: PUT headers:', Object.fromEntries(request.headers.entries()))
     }
     
-    // Special logging for POST requests to upload endpoint
-    if (request.method === 'POST' && pathname.includes('/images/upload')) {
-      console.log('📤 MIDDLEWARE: POST request to upload endpoint')
-      console.log('📤 MIDDLEWARE: POST pathname:', pathname)
-      console.log('📤 MIDDLEWARE: POST content-length:', request.headers.get('content-length') || 'NOT SET')
-      
-      // Check for large requests that might be rejected by Vercel
-      const contentLength = request.headers.get('content-length')
-      if (contentLength) {
-        const sizeInMB = parseInt(contentLength) / (1024 * 1024)
-        console.log(`📤 MIDDLEWARE: Upload size: ${sizeInMB.toFixed(2)} MB`)
-        if (sizeInMB > 4.5) {
-          console.error(`📤 MIDDLEWARE: Upload too large (${sizeInMB.toFixed(2)} MB) - will likely be rejected by Vercel`)
-        }
-      }
-      
-      console.log('📤 MIDDLEWARE: POST headers:', Object.fromEntries(request.headers.entries()))
-    }
     
     if (isCustomDomain(hostname)) {
       // Custom domain Ghost API: customdomain.com/ghost/api/v4/admin/site → /api/ghost/admin/site?domain=customdomain.com
