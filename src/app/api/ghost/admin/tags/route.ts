@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
       accent_color: null,
       created_at: tag.createdAt.toISOString(),
       updated_at: tag.updatedAt.toISOString(),
+      url: `${request.nextUrl.origin}/tag/${tag.slug}/`,
       count: include !== '0' ? {
         posts: tag.postTags?.length || 0
       } : undefined
