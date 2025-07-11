@@ -140,18 +140,10 @@ export class ContentProcessor {
         let originalFilename = (resource as ResourceWithExif).attributes?.filename?.trim()
         let resourceWithAttributes: { data: Buffer; attributes?: { filename?: string; attachment?: boolean } } | null = null
         
-        console.log(`🔍 FILENAME-FLOW-1: Initial originalFilename="${originalFilename}" from resource.attributes`)
-        
-        // If resource doesn't have attributes, fetch them separately (only once)
-        if (!originalFilename) {
-          console.log(`🔍 FILENAME-FLOW-2: Fetching resource with attributes for ${resource.guid}`)
-          resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
-          if (resourceWithAttributes?.attributes?.filename) {
-            originalFilename = resourceWithAttributes.attributes.filename.trim()
-            console.log(`🔍 FILENAME-FLOW-3: Updated originalFilename="${originalFilename}" from getResourceWithAttributes`)
-          } else {
-            console.log(`🔍 FILENAME-FLOW-3: No filename found in getResourceWithAttributes result`)
-          }
+        // Always fetch resource with attributes to get the filename - this is the reliable way
+        resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
+        if (resourceWithAttributes?.attributes?.filename) {
+          originalFilename = resourceWithAttributes.attributes.filename.trim()
         }
         
         // Check if image already exists AFTER we have the filename
@@ -181,26 +173,12 @@ export class ContentProcessor {
           // Try to handle renaming without downloading image data first
           let imageData: Buffer | null = null
           
-          // Use cached resource data if we already fetched it, otherwise fetch now
+          // Use cached resource data (we already fetched it above)
           if (resourceWithAttributes) {
-            // We already fetched the resource with attributes above
             imageData = resourceWithAttributes.data
           } else {
-            // Need to fetch resource data (either with or without attributes)
-            if (originalFilename) {
-              // We have filename from initial resource, just get basic data
-              imageData = await evernoteService.getResourceData(resource.guid)
-            } else {
-              // Need to fetch with attributes
-              resourceWithAttributes = await evernoteService.getResourceWithAttributes(resource.guid)
-              if (resourceWithAttributes) {
-                imageData = resourceWithAttributes.data
-                originalFilename = resourceWithAttributes.attributes?.filename?.trim() || originalFilename
-              } else {
-                // Final fallback
-                imageData = await evernoteService.getResourceData(resource.guid)
-              }
-            }
+            // Fallback to basic resource data fetch
+            imageData = await evernoteService.getResourceData(resource.guid)
           }
           
           if (imageData) {
