@@ -51,7 +51,7 @@ After setting up the database connection:
 npm test
 
 # Run type checking
-# npm run typecheck
+npx tsc --noEmit
 
 # Run linting
 npm run lint
@@ -59,6 +59,19 @@ npm run lint
 # Run build
 npm run build
 ```
+
+## Available NPM Scripts
+
+The project has the following npm scripts (run `npm run` to see current list):
+
+- `npm run dev` - Start development server with Turbopack
+- `npm run build` - Build for production (includes Prisma generate, db push, and Next.js build)
+- `npm run lint` - Run ESLint
+- `npm run start` - Start production server
+- `npm run db:setup` - Push Prisma schema to database
+- `npm run db:reset` - Reset database with force
+
+**Note:** There is no `npm run typecheck` script. Use `npx tsc --noEmit` for type checking.
 
 ## Common Issues
 

@@ -10,6 +10,22 @@ export async function POST(request: NextRequest) {
   console.log('👻 POST /api/ghost/admin/images/upload handler called')
   console.log('👻 Image upload request headers:', Object.fromEntries(request.headers.entries()))
   
+  // Log content length to debug size issues
+  const contentLength = request.headers.get('content-length')
+  if (contentLength) {
+    const sizeInMB = parseInt(contentLength) / (1024 * 1024)
+    console.log(`👻 Image upload content length: ${contentLength} bytes (${sizeInMB.toFixed(2)} MB)`)
+    
+    // Check if request is too large for Vercel's 4.5MB limit
+    if (sizeInMB > 4.5) {
+      console.log('🚨 Request too large for Vercel serverless function limit')
+      return NextResponse.json(
+        { errors: [{ message: `File too large. Maximum size is 4.5MB for serverless functions. Current size: ${sizeInMB.toFixed(2)}MB` }] },
+        { status: 413 }
+      )
+    }
+  }
+  
   try {
     // Get blog identifier from query parameters (set by middleware)
     const { searchParams } = new URL(request.url)
@@ -74,11 +90,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate file size (Vercel has 4.5MB limit for serverless functions)
-    const maxSize = 4 * 1024 * 1024 // 4MB to be safe
+    const maxSize = 4 * 1024 * 1024 // 4MB to be safe (Vercel limit is 4.5MB)
     if (file.size > maxSize) {
+      console.log(`🚨 File too large: ${file.size} bytes (${(file.size / 1024 / 1024).toFixed(2)} MB), max allowed: ${maxSize / 1024 / 1024}MB`)
       return NextResponse.json(
-        { errors: [{ message: `File too large. Maximum size is ${maxSize / 1024 / 1024}MB` }] },
-        { status: 400 }
+        { errors: [{ message: `File too large. Maximum size is ${maxSize / 1024 / 1024}MB. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB` }] },
+        { status: 413 }
       )
     }
 
