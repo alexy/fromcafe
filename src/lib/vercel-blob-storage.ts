@@ -346,6 +346,8 @@ export class VercelBlobStorageService {
     // Use the extracted date (already in YYYY-MM-DD format)
     const dateStr = exifDate
     
+    console.log(`🔍 NAMING DEBUG: title="${title}", originalFilename="${originalFilename}", exifDate="${exifDate}"`)
+    
     // Use title if available and meaningful
     if (title && title.trim() && title.trim().length > 2) {
       const sanitized = this.sanitizeFilename(title.trim())
