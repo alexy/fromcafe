@@ -269,7 +269,7 @@ export class EvernoteService {
             const isLocal = !process.env.VERCEL && !process.env.VERCEL_ENV
             const isLocalWrappedException = isLocal && isWrappedFunction
             
-            console.log(`🚨 CRITICAL-START: About to call getNote for "${metadata.title}"`)
+            console.log(`📥 Processing note resources for "${metadata.title}"`)
             
             const fullNote = isLocalWrappedException
               ? await freshNoteStore.getNote(metadata.guid, true, true, false, false)                    // Local wrapped: no token, include resources
@@ -277,26 +277,15 @@ export class EvernoteService {
             
             console.log(`Using ${isLocalWrappedException ? 'local wrapped (no token)' : 'standard (with token)'} getNote logic`)
             
-            // CRITICAL DEBUG: Log what resources we got from getNote
-            console.log(`🚨 CRITICAL: Note "${fullNote.title}" resources from getNote:`, {
-              resourceCount: fullNote.resources?.length || 0,
-              resources: fullNote.resources?.map((r: Evernote.Resource) => ({
-                guid: r.guid,
-                hash: Buffer.isBuffer(r.data?.bodyHash) ? r.data.bodyHash.toString('hex') : r.data?.bodyHash,
-                mime: r.mime,
-                hasData: !!r.data?.body,
-                size: r.data?.size
-              })) || []
-            })
-            
-            // FALLBACK: If resources are missing or don't have data, try to fetch them separately
-            if (fullNote.resources && fullNote.resources.length > 0) {
-              console.log(`🔄 CRITICAL: Checking if resources need separate data fetching...`)
+            // Log resource details for debugging
+            if (fullNote.resources?.length) {
+              console.log(`📥 Note "${fullNote.title}" has ${fullNote.resources.length} resources`)
               
+              // Check if resources need separate data fetching
               for (let i = 0; i < fullNote.resources.length; i++) {
                 const resource = fullNote.resources[i]
                 if (!resource.data?.body) {
-                  console.log(`🔄 CRITICAL: Resource ${resource.guid} missing data, attempting separate fetch...`)
+                  console.log(`📥 Fetching missing resource data for ${resource.guid}`)
                   try {
                     const resourceWithData = isLocalWrappedException
                       ? await freshNoteStore.getResource(resource.guid, true, false, false, false)
@@ -304,20 +293,18 @@ export class EvernoteService {
                     
                     if (resourceWithData.data?.body) {
                       fullNote.resources[i] = resourceWithData
-                      console.log(`✅ CRITICAL: Successfully fetched resource data for ${resource.guid}`)
+                      console.log(`✅ Successfully fetched resource data for ${resource.guid}`)
                     } else {
-                      console.log(`❌ CRITICAL: Resource ${resource.guid} still missing data after separate fetch`)
+                      console.log(`⚠️ Resource ${resource.guid} still missing data after separate fetch`)
                     }
                   } catch (resourceError) {
-                    console.error(`🚨 CRITICAL: Failed to fetch resource ${resource.guid} separately:`, resourceError)
+                    console.error(`❌ Failed to fetch resource ${resource.guid} separately:`, resourceError)
                   }
                 }
               }
             } else {
-              console.log(`🚨 CRITICAL: Note has NO RESOURCES at all - this explains missing images!`)
+              console.log(`📥 Note "${fullNote.title}" has no resources`)
             }
-            
-            console.log(`🚨 CRITICAL-END: Finished processing resources for "${fullNote.title}"`)
             
             notes.push({
               guid: fullNote.guid,
