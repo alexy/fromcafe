@@ -2,9 +2,239 @@ import { NextRequest, NextResponse } from 'next/server'
 import { VercelBlobStorageService } from '@/lib/vercel-blob-storage'
 import { createHash } from 'crypto'
 import { validateGhostAuth } from '@/lib/ghost-auth'
+import Busboy from 'busboy'
+import { put } from '@vercel/blob'
+import { Readable } from 'stream'
+import { prisma } from '@/lib/prisma'
+
+// Configure route for streaming uploads
+export const runtime = 'nodejs'
+export const maxDuration = 60 // 60 seconds for large uploads
+
+/**
+ * Handle streaming uploads for large files (> 4.5MB)
+ * Uses Busboy to stream multipart data directly to Vercel Blob
+ */
+async function handleStreamingUpload(request: NextRequest): Promise<NextResponse> {
+  console.log('🚀 Starting streaming upload handler')
+  
+  return new Promise((resolve) => {
+    const { searchParams } = new URL(request.url)
+    const domain = searchParams.get('domain')
+    const subdomain = searchParams.get('subdomain') 
+    const blogSlug = searchParams.get('blogSlug')
+    
+    console.log('👻 Streaming upload query params:', { domain, subdomain, blogSlug })
+    
+    // Convert request to Node.js readable stream
+    const readable = Readable.fromWeb(request.body as import("stream/web").ReadableStream)
+    
+    // Parse multipart data with Busboy
+    const busboy = Busboy({ 
+      headers: {
+        'content-type': request.headers.get('content-type') || ''
+      }
+    })
+    
+    let fileInfo: {
+      filename: string
+      mimeType: string
+      size: number
+      purpose: string
+      ref?: string
+    } | null = null
+    
+    let uploadPromise: Promise<{url: string, pathname: string}> | null = null
+    let authValidated = false
+    let blog: {id: string} | null = null
+    
+    // Handle form fields (purpose, ref, etc.)
+    busboy.on('field', (fieldname, val) => {
+      console.log(`👻 Streaming upload field: ${fieldname} = ${val}`)
+      if (!fileInfo) {
+        fileInfo = {
+          filename: '',
+          mimeType: '',
+          size: 0,
+          purpose: 'image',
+          ref: undefined
+        }
+      }
+      
+      if (fieldname === 'purpose') {
+        fileInfo.purpose = val
+      } else if (fieldname === 'ref') {
+        fileInfo.ref = val
+      }
+    })
+    
+    // Handle file upload
+    busboy.on('file', async (fieldname, file, info) => {
+      console.log(`👻 Streaming upload file: ${fieldname}, filename: ${info.filename}, mimeType: ${info.mimeType}`)
+      
+      if (!fileInfo) {
+        fileInfo = {
+          filename: info.filename,
+          mimeType: info.mimeType,
+          size: 0,
+          purpose: 'image',
+          ref: undefined
+        }
+      } else {
+        fileInfo.filename = info.filename
+        fileInfo.mimeType = info.mimeType
+      }
+      
+      // Validate authentication first
+      if (!authValidated) {
+        try {
+          const authResult = await validateGhostAuth(request, domain || undefined, subdomain || undefined, blogSlug || undefined)
+          if ('error' in authResult) {
+            console.log('👻 Streaming upload authentication failed')
+            return resolve(authResult.error as NextResponse)
+          }
+          blog = authResult.blog
+          authValidated = true
+          console.log('👻 Streaming upload authentication successful, blog ID:', blog.id)
+        } catch (error) {
+          console.error('👻 Streaming upload auth error:', error)
+          return resolve(NextResponse.json(
+            { errors: [{ message: 'Authentication failed' }] },
+            { status: 401 }
+          ))
+        }
+      }
+      
+      // Validate file type
+      const validImageTypes = [
+        'image/webp', 'image/jpeg', 'image/jpg', 'image/gif', 
+        'image/png', 'image/svg+xml'
+      ]
+      if (fileInfo.purpose === 'icon') {
+        validImageTypes.push('image/x-icon', 'image/vnd.microsoft.icon')
+      }
+      
+      if (!validImageTypes.includes(fileInfo.mimeType)) {
+        return resolve(NextResponse.json(
+          { errors: [{ message: `Unsupported file type: ${fileInfo.mimeType}. Supported formats: WEBP, JPEG, GIF, PNG, SVG${fileInfo.purpose === 'icon' ? ', ICO' : ''}` }] },
+          { status: 400 }
+        ))
+      }
+      
+      // Generate filename for blob storage
+      const timestamp = Date.now()
+      const randomSuffix = Math.random().toString(36).substring(2, 8)
+      const title = fileInfo.filename.replace(/\.[^/.]+$/, "") // Remove extension
+      const extension = fileInfo.mimeType.split('/')[1] || 'jpg'
+      const postId = fileInfo.purpose === 'image' ? 'ghost-upload-large' : 'ghost-content-large'
+      const blobFilename = `${postId}_${title}_${timestamp}_${randomSuffix}.${extension}`
+      
+      console.log('👻 Streaming upload to blob:', blobFilename)
+      
+      // Stream directly to Vercel Blob
+      uploadPromise = put(blobFilename, file, {
+        access: 'public',
+        contentType: fileInfo.mimeType,
+        addRandomSuffix: false
+      })
+      
+      // Track file size as it streams
+      let totalSize = 0
+      file.on('data', (chunk) => {
+        totalSize += chunk.length
+      })
+      
+      file.on('end', () => {
+        if (fileInfo) {
+          fileInfo.size = totalSize
+        }
+        console.log(`👻 Streaming upload completed, total size: ${totalSize} bytes`)
+      })
+    })
+    
+    // Handle completion
+    busboy.on('finish', async () => {
+      console.log('👻 Streaming upload busboy finished')
+      
+      if (!uploadPromise || !fileInfo) {
+        return resolve(NextResponse.json(
+          { errors: [{ message: 'No file uploaded' }] },
+          { status: 400 }
+        ))
+      }
+      
+      try {
+        // Wait for upload to complete
+        const blob = await uploadPromise
+        console.log('👻 Streaming upload blob result:', blob)
+        
+        // Record the upload in our system (simplified for streaming)
+        const fileHash = createHash('sha256').update(blob.url).digest('hex').substring(0, 16)
+        
+        // Create a record in the naming decisions table
+        
+        try {
+          await prisma.imageNamingDecision.create({
+            data: {
+              postId: null, // No associated post for direct uploads
+              originalHash: fileHash,
+              blobFilename: blob.pathname.split('/').pop() || fileInfo.filename,
+              blobUrl: blob.url,
+              namingSource: 'ORIGINAL_FILENAME',
+              originalTitle: fileInfo.filename.replace(/\.[^/.]+$/, ""),
+              originalFilename: fileInfo.filename,
+              decisionReason: `Streaming upload of large file (${(fileInfo.size / 1024 / 1024).toFixed(2)}MB)`,
+              prefixCompressed: false
+            }
+          })
+          console.log('👻 Successfully recorded streaming upload')
+        } catch (dbError) {
+          console.error('Error recording streaming upload:', dbError)
+          // Continue anyway - upload was successful
+        }
+        
+        // Return Ghost-compatible response
+        return resolve(NextResponse.json({
+          images: [{
+            url: blob.url,
+            ref: fileInfo.ref || fileInfo.filename
+          }]
+        }, {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Ghost-Version': '5.120.3',
+            'Content-Version': 'v5.120'
+          }
+        }))
+        
+      } catch (error) {
+        console.error('👻 Streaming upload error:', error)
+        return resolve(NextResponse.json(
+          { errors: [{ message: 'Failed to upload large file' }] },
+          { status: 500 }
+        ))
+      }
+    })
+    
+    // Handle errors
+    busboy.on('error', (error) => {
+      console.error('👻 Streaming upload busboy error:', error)
+      resolve(NextResponse.json(
+        { errors: [{ message: 'Upload parsing failed' }] },
+        { status: 400 }
+      ))
+    })
+    
+    // Pipe the request to busboy
+    readable.pipe(busboy)
+  })
+}
 
 /**
  * POST /ghost/api/v4/admin/images/upload - Upload images (Ghost Admin API compatible)
+ * Hybrid approach: 
+ * - Files ≤ 4.5MB: Standard processing (existing logic)
+ * - Files > 4.5MB: Streaming upload to bypass serverless limits
  */
 export async function POST(request: NextRequest) {
   console.log('👻 POST /api/ghost/admin/images/upload handler called')
@@ -16,15 +246,15 @@ export async function POST(request: NextRequest) {
     const sizeInMB = parseInt(contentLength) / (1024 * 1024)
     console.log(`👻 Image upload content length: ${contentLength} bytes (${sizeInMB.toFixed(2)} MB)`)
     
-    // Check if request is too large for Vercel's 4.5MB limit
+    // Check if we need to use streaming for large files
     if (sizeInMB > 4.5) {
-      console.log('🚨 Request too large for Vercel serverless function limit')
-      return NextResponse.json(
-        { errors: [{ message: `File too large. Maximum size is 4.5MB for serverless functions. Current size: ${sizeInMB.toFixed(2)}MB` }] },
-        { status: 413 }
-      )
+      console.log('🚀 Large file detected - using streaming upload')
+      return handleStreamingUpload(request)
     }
   }
+  
+  // Continue with existing logic for files ≤ 4.5MB
+  console.log('📦 Standard file size - using existing upload logic')
   
   try {
     // Get blog identifier from query parameters (set by middleware)

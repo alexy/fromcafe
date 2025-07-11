@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const postId = searchParams.get('postId')
     const namingSource = searchParams.get('namingSource')
+    const origin = searchParams.get('origin') // 'ghost' or 'evernote'
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = (page - 1) * limit
@@ -28,6 +29,19 @@ export async function GET(request: NextRequest) {
     }
     if (namingSource) {
       where.namingSource = namingSource
+    }
+    if (origin === 'ghost') {
+      // Ghost images: postId is null OR blobFilename starts with "ghost-"
+      where.OR = [
+        { postId: null },
+        { blobFilename: { startsWith: 'ghost-' } }
+      ]
+    } else if (origin === 'evernote') {
+      // Evernote images: postId is not null AND post has contentSource = EVERNOTE
+      where.postId = { not: null }
+      where.post = {
+        contentSource: 'EVERNOTE'
+      }
     }
 
     // Get total count

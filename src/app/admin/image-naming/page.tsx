@@ -52,7 +52,8 @@ export default function ImageNamingAdminPage() {
   })
   const [filters, setFilters] = useState({
     postId: '',
-    namingSource: ''
+    namingSource: '',
+    origin: ''
   })
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({
@@ -78,7 +79,8 @@ export default function ImageNamingAdminPage() {
         page: page.toString(),
         limit: pagination.limit.toString(),
         ...(filters.postId && { postId: filters.postId }),
-        ...(filters.namingSource && { namingSource: filters.namingSource })
+        ...(filters.namingSource && { namingSource: filters.namingSource }),
+        ...(filters.origin && { origin: filters.origin })
       })
       
       const response = await fetch(`/api/admin/image-naming-decisions?${params}`)
@@ -95,7 +97,7 @@ export default function ImageNamingAdminPage() {
     } finally {
       setLoading(false)
     }
-  }, [pagination.limit, filters.postId, filters.namingSource])
+  }, [pagination.limit, filters.postId, filters.namingSource, filters.origin])
 
   useEffect(() => {
     if ((session?.user as { role?: string })?.role === 'ADMIN') {
@@ -154,6 +156,22 @@ export default function ImageNamingAdminPage() {
     }
   }
 
+  const getImageOrigin = (decision: ImageNamingDecision): 'ghost' | 'evernote' => {
+    // Ghost images: postId is null OR blobFilename starts with "ghost-"
+    if (!decision.postId || decision.blobFilename.startsWith('ghost-')) {
+      return 'ghost'
+    }
+    return 'evernote'
+  }
+
+  const getOriginColor = (origin: 'ghost' | 'evernote') => {
+    switch (origin) {
+      case 'ghost': return 'bg-indigo-100 text-indigo-800'
+      case 'evernote': return 'bg-emerald-100 text-emerald-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
   if (status === 'loading') {
     return <div className="p-6">Loading...</div>
   }
@@ -191,7 +209,21 @@ export default function ImageNamingAdminPage() {
         {/* Filters */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-lg font-medium text-gray-900 mb-4">Filters</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Origin
+              </label>
+              <select
+                value={filters.origin}
+                onChange={(e) => setFilters(prev => ({ ...prev, origin: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Origins</option>
+                <option value="ghost">Ghost</option>
+                <option value="evernote">Evernote</option>
+              </select>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Post ID
@@ -242,6 +274,9 @@ export default function ImageNamingAdminPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Origin
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Post
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -265,8 +300,15 @@ export default function ImageNamingAdminPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {decisions.map((decision) => (
+                  {decisions.map((decision) => {
+                    const origin = getImageOrigin(decision)
+                    return (
                     <tr key={decision.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getOriginColor(origin)}`}>
+                          {origin === 'ghost' ? '👻 Ghost' : '📋 Evernote'}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm">
                           <div className="font-medium text-gray-900">
@@ -394,7 +436,8 @@ export default function ImageNamingAdminPage() {
                         )}
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
