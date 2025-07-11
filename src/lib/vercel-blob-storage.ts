@@ -363,7 +363,9 @@ export class VercelBlobStorageService {
 
     // Use original filename if available
     if (originalFilename) {
-      const sanitized = this.sanitizeFilename(originalFilename.replace(/\.[^.]*$/, ''))
+      const filenameWithoutExt = originalFilename.replace(/\.[^.]*$/, '')
+      const sanitized = this.sanitizeFilename(filenameWithoutExt)
+      console.log(`🔍 FILENAME DEBUG: originalFilename="${originalFilename}", filenameWithoutExt="${filenameWithoutExt}", sanitized="${sanitized}"`)
       if (sanitized) {
         const filename = dateStr ? `${postId}_${sanitized}_${dateStr}.${extension}` : `${postId}_${sanitized}.${extension}`
         return {
