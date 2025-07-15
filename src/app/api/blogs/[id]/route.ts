@@ -51,7 +51,7 @@ export async function PUT(
   try {
     const resolvedParams = await params
     const body = await request.json()
-    const { title, description, author, isPublic, evernoteNotebook, evernoteNotebookName, theme, urlFormat, subdomain, customDomain, showCameraMake } = body
+    const { title, description, author, isPublic, evernoteNotebook, evernoteNotebookName, theme, urlFormat, subdomain, customDomain, showCameraMake, enableSyncEndpoint, syncEndpointPassword } = body
     
     // Build update object with only provided fields
     const updateData: { 
@@ -67,6 +67,8 @@ export async function PUT(
       subdomain?: string;
       customDomain?: string;
       showCameraMake?: boolean;
+      enableSyncEndpoint?: boolean;
+      syncEndpointPassword?: string;
     } = {}
     
     if (title !== undefined) updateData.title = title
@@ -80,6 +82,8 @@ export async function PUT(
     if (subdomain !== undefined) updateData.subdomain = subdomain
     if (customDomain !== undefined) updateData.customDomain = customDomain
     if (showCameraMake !== undefined) updateData.showCameraMake = showCameraMake
+    if (enableSyncEndpoint !== undefined) updateData.enableSyncEndpoint = enableSyncEndpoint
+    if (syncEndpointPassword !== undefined) updateData.syncEndpointPassword = syncEndpointPassword
 
     // Get the current blog to check for webhook changes
     const currentBlog = await prisma.blog.findFirst({
@@ -184,7 +188,7 @@ export async function PATCH(
     const updateData: Record<string, string | boolean | null> = {}
     
     // Allow any valid blog field to be updated
-    const allowedFields = ['title', 'description', 'author', 'isPublic', 'evernoteNotebook', 'evernoteNotebookName', 'theme', 'urlFormat', 'subdomain', 'customDomain', 'showCameraMake']
+    const allowedFields = ['title', 'description', 'author', 'isPublic', 'evernoteNotebook', 'evernoteNotebookName', 'theme', 'urlFormat', 'subdomain', 'customDomain', 'showCameraMake', 'enableSyncEndpoint', 'syncEndpointPassword']
     
     for (const [key, value] of Object.entries(body)) {
       if (allowedFields.includes(key) && (typeof value === 'string' || typeof value === 'boolean' || value === null)) {

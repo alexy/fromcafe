@@ -102,6 +102,8 @@ model Blog {
   ghostSiteUrl        String?
   ghostApiToken       String?
   showCameraMake      Boolean         @default(false)
+  enableSyncEndpoint  Boolean         @default(false)
+  syncEndpointPassword String?
   user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   domain              Domain?
   ghostTokens         GhostToken[]

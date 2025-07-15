@@ -23,6 +23,8 @@ interface Blog {
   lastSyncedAt?: string
   lastSyncAttemptAt?: string
   lastSyncUpdateCount?: number
+  enableSyncEndpoint?: boolean
+  syncEndpointPassword?: string
   _count: {
     posts: number
   }
@@ -96,6 +98,8 @@ export default function BlogSettings() {
   const [showSyncResults, setShowSyncResults] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [resettingSync, setResettingSync] = useState(false)
+  const [enableSyncEndpoint, setEnableSyncEndpoint] = useState(false)
+  const [syncEndpointPassword, setSyncEndpointPassword] = useState('')
   const [userBlogSpace, setUserBlogSpace] = useState<{slug: string; subdomain?: string; useSubdomain?: boolean} | null>(null)
   const [domainStatus, setDomainStatus] = useState<{verified: boolean; checking: boolean; error?: string} | null>(null)
   const [postStats, setPostStats] = useState<{
@@ -146,6 +150,10 @@ export default function BlogSettings() {
           setOriginalDescription(value as string)
         } else if (fieldName === 'author') {
           setOriginalAuthor(value as string)
+        } else if (fieldName === 'enableSyncEndpoint') {
+          // No need to track original state for this field
+        } else if (fieldName === 'syncEndpointPassword') {
+          // No need to track original state for this field
         }
         
         // Show success indicator
@@ -187,6 +195,45 @@ export default function BlogSettings() {
       Object.values(timers).forEach(clearTimeout)
     }
   }, [])
+
+  // Generate random password for sync endpoint
+  const generateSyncPassword = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    let password = ''
+    for (let i = 0; i < 16; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return password
+  }
+
+  // Handle sync endpoint toggle
+  const handleSyncEndpointToggle = async (enabled: boolean) => {
+    if (enabled && !syncEndpointPassword) {
+      // Generate a new password if enabling and no password exists
+      const newPassword = generateSyncPassword()
+      setSyncEndpointPassword(newPassword)
+      await autoSaveField('syncEndpointPassword', newPassword)
+    }
+    setEnableSyncEndpoint(enabled)
+    await autoSaveField('enableSyncEndpoint', enabled)
+  }
+
+  // Copy sync endpoint URL to clipboard
+  const copySyncEndpointUrl = async () => {
+    if (!blog || !enableSyncEndpoint || !syncEndpointPassword) return
+    
+    const baseUrl = window.location.origin
+    const syncUrl = `${baseUrl}/api/blogs/${blog.id}/sync-external?password=${syncEndpointPassword}`
+    
+    try {
+      await navigator.clipboard.writeText(syncUrl)
+      alert('Sync endpoint URL copied to clipboard!')
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err)
+      // Fallback: show URL in a prompt
+      prompt('Copy this sync endpoint URL:', syncUrl)
+    }
+  }
   
   const [addingDomain, setAddingDomain] = useState(false)
   const [removingDomain, setRemovingDomain] = useState(false)
@@ -275,6 +322,10 @@ export default function BlogSettings() {
         setOriginalUrlFormat(currentUrlFormat)
         setOriginalBlogSubdomain(data.blog.subdomain || '')
         setOriginalBlogCustomDomain(data.blog.customDomain || '')
+        
+        // Set sync endpoint fields
+        setEnableSyncEndpoint(data.blog.enableSyncEndpoint || false)
+        setSyncEndpointPassword(data.blog.syncEndpointPassword || '')
         
         // If notebook is connected, fetch the notebook name
         if (data.blog.evernoteNotebook) {
@@ -1529,6 +1580,50 @@ export default function BlogSettings() {
                     <p className="text-sm text-black mt-2">
                       Syncs notes with &quot;published&quot; tag from your Evernote notebook
                     </p>
+                    
+                    {/* Sync Endpoint Configuration */}
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg border">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <label className="text-sm font-medium text-black">External Sync Endpoint</label>
+                          <p className="text-xs text-gray-600">Allow external services to trigger sync</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={enableSyncEndpoint}
+                            onChange={(e) => handleSyncEndpointToggle(e.target.checked)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          {autoSaving.enableSyncEndpoint && (
+                            <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600"></div>
+                          )}
+                          {autoSaveSuccess.enableSyncEndpoint && (
+                            <span className="text-xs text-green-600">✓</span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {enableSyncEndpoint && syncEndpointPassword && (
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <code className="text-xs bg-white px-2 py-1 rounded border font-mono text-gray-800 flex-1">
+                              {window.location.origin}/api/blogs/{blog.id}/sync-external?password={syncEndpointPassword}
+                            </code>
+                            <button
+                              onClick={copySyncEndpointUrl}
+                              className="bg-blue-600 text-white px-2 py-1 text-xs rounded hover:bg-blue-700"
+                              title="Copy to clipboard"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-600">
+                            Use with external cron services like cron-job.org or GitHub Actions
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div>
